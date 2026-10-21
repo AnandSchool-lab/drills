@@ -415,17 +415,28 @@ function postOne(payload){
   });
 }
 
+function syncNote(state){
+  var el = (typeof document !== "undefined") && document.getElementById("syncState");
+  if(!el) return;
+  var txt = { sending:"sending…", sent:"sent to Dad ✓", wait:"saved — will send when online" };
+  el.textContent = txt[state] || "";
+  el.className = "chip" + (state === "sent" ? " good" : "");
+  el.hidden = !txt[state];
+}
+
 function flushQueue(){
   if(!syncUrl()) return;
   var q = store.get("queue", []);
-  if(!q.length) return;
+  if(!q.length){ return; }
+  syncNote("sending");
   var next = q[0];
   postOne(next).then(function(){
     var cur = store.get("queue", []);
     cur.shift();
     store.set("queue", cur);
     if(cur.length) setTimeout(flushQueue, 400);
-  }).catch(function(){ /* stays queued for next time */ });
+    else syncNote("sent");
+  }).catch(function(){ syncNote("wait"); });
 }
 
 function sendResult(block, got, total, secs, misses){
@@ -691,8 +702,9 @@ function wireLiveClear(){
 }
 
 /* ---------- renderers ---------- */
-function numInput(ans, label){
-  return '<input class="ans" type="text" inputmode="numeric" autocomplete="off" data-a="'+esc(ans)+'" aria-label="'+esc(label)+'">';
+function numInput(ans, label, qtext){
+  return '<input class="ans" type="text" inputmode="numeric" autocomplete="off" data-a="'+esc(ans)+'"' +
+    (qtext ? ' data-q="'+esc(qtext)+'"' : "") + ' aria-label="'+esc(label)+'">';
 }
 function clearBar(target){
   return '<div class="clearrow"><button class="ghost sm" data-clear="'+target+'">Clear this section</button></div>';
@@ -730,10 +742,11 @@ function openBlock(key){
 }
 function endBar(){
   return '<div class="endbar">' +
-    '<button class="primary" id="check">Check my answers</button>' +
+    '<button class="primary" id="check">Check &amp; send my answers</button>' +
     '<button class="ghost" id="reveal">Show answers</button>' +
     '<button class="ghost" id="clearAll">Clear everything</button>' +
-    '<span class="score" id="score">—</span></div>';
+    '<span class="score" id="score">—</span>' +
+    '<span class="chip" id="syncState" hidden></span></div>';
 }
 
 /* ---------- MATH ---------- */
@@ -753,7 +766,7 @@ function blockThink(){
   var items = genThinking(L);
   var rows = items.map(function(it,i){
     return '<div class="prob"><p class="pq"><b>'+(i+1)+'.</b> '+esc(it.q)+'</p>' +
-      '<div class="prow">'+numInput(it.a, "Answer "+(i+1))+
+      '<div class="prow">'+numInput(it.a, "Answer "+(i+1), it.q)+
       '<button class="ghost sm" data-hint="'+i+'">Hint</button></div>' +
       '<p class="hint" id="h'+i+'" hidden>'+esc(it.hint)+(it.aNote ? " " + esc(it.aNote) : "")+'</p></div>';
   }).join("");
@@ -918,7 +931,7 @@ function gradeSheet(block){
     var right = inp.classList.contains("word") ? norm(have) === norm(want) : sameNum(have, want);
     inp.classList.toggle("ok", right); inp.classList.toggle("no", !right);
     if(right) got++;
-    else misses.push({ q: inp.getAttribute("aria-label") || "", gave: inp.value, want: want });
+    else misses.push({ q: inp.dataset.q || inp.getAttribute("aria-label") || "", gave: inp.value, want: want });
   });
 
   app.querySelectorAll(".fracbox").forEach(function(box){
