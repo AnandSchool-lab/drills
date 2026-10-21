@@ -94,7 +94,8 @@ textarea{line-height:1.55;resize:vertical}
 .bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:10;background:var(--surface);
   border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;
   padding:10px max(16px,env(safe-area-inset-left,0px)) 10px max(16px,env(safe-area-inset-right,0px))}
-.bar strong{font-family:var(--display);font-size:1.1rem}
+.bar strong{font-family:var(--display);font-size:1.1rem;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar .spacer{margin-left:auto}
 .clock{margin-left:auto;font-family:var(--display);font-size:1.5rem;font-variant-numeric:tabular-nums;
   padding:3px 12px;border-radius:10px;background:var(--accent-soft);color:var(--accent);min-width:88px;text-align:center}
 .clock.soon{background:var(--amber-soft);color:var(--amber)}
@@ -103,8 +104,41 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .sheet{max-width:860px;margin:0 auto;
   padding:0 max(16px,env(safe-area-inset-left,0px)) 56px max(16px,env(safe-area-inset-right,0px))}
 
+/* ---- calendar ---- */
+.calhead{display:flex;align-items:center;gap:10px;padding-block:18px 10px}
+.calhead h2{font-size:1.3rem;flex:1;min-width:0}
+.ghost.sq{width:40px;padding:0;height:40px;font-size:20px;line-height:1;flex:none}
+.dowrow,.weekrow{display:flex;align-items:center;gap:10px}
+.dowrow{padding-bottom:6px}
+.dowrow>span,.wlabel{width:62px;flex:none;font-size:.74rem;color:var(--muted);font-weight:700;
+  text-transform:uppercase;letter-spacing:.05em}
+.dows,.days{flex:1;display:grid;grid-template-columns:repeat(5,1fr);gap:8px;min-width:0}
+.dows span{text-align:center;font-size:.74rem;color:var(--muted);font-weight:700;
+  text-transform:uppercase;letter-spacing:.05em}
+.weekrow{padding-bottom:8px}
+.day{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
+  padding:12px 4px;border-radius:12px;background:var(--surface);min-height:76px;position:relative}
+.day .dnum{font-family:var(--display);font-size:1.25rem;line-height:1}
+.day.other{opacity:.32}
+.day.ahead .dnum{color:var(--muted);font-weight:400}
+.day.today{border-color:var(--accent);border-width:2px;background:var(--accent-soft)}
+.day.today .dnum{color:var(--accent)}
+.day.part{border-color:var(--amber)}
+.day.full{border-color:var(--good);background:var(--good-soft)}
+.tlabel{position:absolute;bottom:4px;font-size:.6rem;color:var(--accent);font-weight:700;
+  text-transform:uppercase;letter-spacing:.06em}
+.dots{display:flex;gap:4px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--line);display:inline-block}
+.dot.g{background:var(--good)}
+.dot.a{background:var(--amber)}
+.legend{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:.76rem;color:var(--muted);
+  margin:10px 0 0;padding-top:10px;border-top:1px solid var(--line)}
+.dayline{color:var(--muted);font-size:.9rem;margin:16px 0 0}
+.aheadtag{color:var(--amber);font-weight:700}
+
 /* ---- cards ---- */
 .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;margin-top:16px}
+.clearrow{display:flex;justify-content:flex-end;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
 .chead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
 .chead h2{font-size:1.15rem}
 .chead .chip{margin-left:auto}
@@ -193,10 +227,18 @@ th{font-family:var(--display);font-weight:600;color:var(--muted);font-size:.78re
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(26px + env(safe-area-inset-bottom,0px));
   background:var(--ink);color:var(--bg);padding:12px 20px;border-radius:999px;z-index:50;font-weight:700;font-size:.9rem}
 
+@media (max-width:560px){
+  .dowrow>span,.wlabel{display:none}
+  .dows,.days{gap:6px}
+  .day{min-height:64px;padding:9px 2px}
+  .day .dnum{font-size:1.05rem}
+  .calhead h2{font-size:1.1rem}
+}
 @media (max-width:460px){
   .clock{font-size:1.25rem;min-width:72px}
   .wordlist{columns:1}
   .grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}
+  .bar strong{font-size:.95rem}
 }
 @media print{
   .bar,.endbar,.foot,.ghost,.primary{display:none!important}

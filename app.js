@@ -8,6 +8,10 @@
 
 /* ---------- configuration you may want to change ---------- */
 var START_DATE = "2026-10-27";   // Monday the programme begins. Week 1 starts here.
+
+/* Google Apps Script web-app URL. Blank = results stay on the iPad only.
+   Paste the /exec URL from Deploy → New deployment → Web app. */
+var SYNC_URL = "https://script.google.com/macros/s/AKfycbycGuMQvp88y6-akTuhlSIgdoSCLU9QRn2qWJ2HyHLzWdm_dPjbtlHvJQNZcZCseno/exec";
 var BLOCKS = {
   math:  { label:"Math",       mins:30, icon:"×" },
   think: { label:"Thinking",   mins:20, icon:"?" },
@@ -35,19 +39,16 @@ function pick(arr){ return arr[Math.floor(R()*arr.length)]; }
 function shuffle(a){ a = a.slice(); for(var i=a.length-1;i>0;i--){ var j=Math.floor(R()*(i+1)); var t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
 
 /* ---------- dates & level ---------- */
-function todayKey(){
-  if(location.hash.indexOf("day=") > -1){
-    var m = location.hash.match(/day=(\d{4}-\d{2}-\d{2})/);
-    if(m) return m[1];
-  }
-  var d = new Date();
+var selectedDate = null;           // the day being worked on; null means today
+function keyOf(d){
   return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
 }
+function realTodayKey(){ return keyOf(new Date()); }
+function todayKey(){ return selectedDate || realTodayKey(); }
+function dateFromKey(k){ var p = k.split("-"); return new Date(+p[0], +p[1]-1, +p[2]); }
 function daysSinceStart(){
   var a = new Date(START_DATE + "T00:00:00");
-  var p = todayKey().split("-");
-  var b = new Date(+p[0], +p[1]-1, +p[2]);
-  return Math.floor((b - a) / 86400000);
+  return Math.floor((dateFromKey(todayKey()) - a) / 86400000);
 }
 function weekNumber(){ return Math.max(0, Math.floor(daysSinceStart()/7)); }
 function levelNow(){
@@ -55,10 +56,9 @@ function levelNow(){
   if(manual) return manual;
   return Math.min(4, 1 + Math.floor(weekNumber()/4));
 }
-function prettyDate(){
-  var p = todayKey().split("-");
-  var d = new Date(+p[0], +p[1]-1, +p[2]);
-  return d.toLocaleDateString(undefined, { weekday:"long", month:"long", day:"numeric" });
+function prettyDate(k){
+  return dateFromKey(k || todayKey())
+    .toLocaleDateString(undefined, { weekday:"long", month:"long", day:"numeric" });
 }
 
 /* ---------- storage ---------- */
@@ -394,12 +394,90 @@ function pickEnglish(L){
 }
 
 /* ============================================================
+   SYNC — send results to the Google Sheet, read back retakes
+   Everything here fails silently; the app works with SYNC_URL blank.
+   ============================================================ */
+function syncUrl(){ return store.get("syncUrl", "") || SYNC_URL; }
+
+function queueAdd(payload){
+  var q = store.get("queue", []);
+  q.push(payload);
+  store.set("queue", q.slice(-60));
+}
+
+/* text/plain keeps the browser from sending a CORS preflight Apps Script can't answer */
+function postOne(payload){
+  return fetch(syncUrl(), {
+    method: "POST",
+    mode: "no-cors",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify(payload)
+  });
+}
+
+function flushQueue(){
+  if(!syncUrl()) return;
+  var q = store.get("queue", []);
+  if(!q.length) return;
+  var next = q[0];
+  postOne(next).then(function(){
+    var cur = store.get("queue", []);
+    cur.shift();
+    store.set("queue", cur);
+    if(cur.length) setTimeout(flushQueue, 400);
+  }).catch(function(){ /* stays queued for next time */ });
+}
+
+function sendResult(block, got, total, secs, misses){
+  var r = records()[todayKey()] || {};
+  var payload = {
+    kid: who(), day: todayKey(), block: block,
+    got: got, total: total, secs: secs, level: levelNow(),
+    misses: (misses || []).slice(0, 60),
+    writePrompt: r.writePrompt || "", writeAns: r.writeAns || "",
+    openAns: r.openAns || "", vocabUse: r.vocabUse || ""
+  };
+  if(!syncUrl()) return;
+  queueAdd(payload);
+  flushQueue();
+}
+
+/* ask the sheet which days the parent has marked for a retake */
+function checkRetakes(done){
+  if(!syncUrl() || !who()){ if(done) done(0); return; }
+  var url = syncUrl() + (syncUrl().indexOf("?") > -1 ? "&" : "?") + "kid=" + encodeURIComponent(who());
+  fetch(url).then(function(r){ return r.json(); }).then(function(d){
+    var list = (d && d.retake) || [], cleared = 0;
+    if(!list.length){ if(done) done(0); return; }
+    var all = records();
+    list.forEach(function(item){
+      if(!all[item.day]) return;
+      if(item.block && item.block !== "ALL"){
+        var b = item.block.toLowerCase();
+        delete all[item.day][b];
+        delete all[item.day]["miss:"+b];
+      } else {
+        delete all[item.day];
+      }
+      cleared++;
+    });
+    if(cleared){
+      store.set("rec:" + who(), all);
+      list.forEach(function(item){ queueAdd({ ack: true, kid: who(), day: item.day }); });
+      flushQueue();
+    }
+    if(done) done(cleared);
+  }).catch(function(){ if(done) done(0); });
+}
+
+/* ============================================================
    UI
    ============================================================ */
 var hasDOM = (typeof document !== "undefined" && document && document.querySelector);
 var $ = function(sel, root){ return (root || document).querySelector(sel); };
 var app = hasDOM ? $("#app") : null;
-var timer = { secs:0, id:null, target:0, onTick:null };
+var timer = { secs:0, id:null, target:0 };
+var calMonth = null;   // Date pinned to the 1st of the month being shown
 
 function fmt(s){
   var neg = s < 0; s = Math.abs(s);
@@ -409,16 +487,16 @@ function fmt(s){
 function stopTimer(){ if(timer.id){ clearInterval(timer.id); timer.id = null; } }
 function startTimer(mins, onTick){
   stopTimer();
-  timer.target = mins*60; timer.secs = mins*60; timer.onTick = onTick;
+  timer.target = mins*60; timer.secs = mins*60;
   onTick(timer.secs);
   timer.id = setInterval(function(){ timer.secs--; onTick(timer.secs); }, 1000);
 }
 function elapsed(){ return timer.target - timer.secs; }
+function esc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
 
-function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
-
-/* ---------- screens ---------- */
+/* ---------- profile ---------- */
 function screenProfile(){
+  stopTimer();
   var names = store.get("names", ["", ""]);
   app.innerHTML =
     '<div class="center-card">' +
@@ -426,8 +504,8 @@ function screenProfile(){
       '<p class="sub">Tap your name. The iPad will remember it.</p>' +
       '<div class="pick" id="pick"></div>' +
       '<details class="setup"><summary>Set up names</summary>' +
-        '<label>First name <input id="n0" type="text" value="'+esc(names[0])+'" placeholder="e.g. Anika"></label>' +
-        '<label>Second name <input id="n1" type="text" value="'+esc(names[1])+'" placeholder="e.g. Diya"></label>' +
+        '<label>First name <input id="n0" type="text" value="'+esc(names[0])+'"></label>' +
+        '<label>Second name <input id="n1" type="text" value="'+esc(names[1])+'"></label>' +
         '<button class="primary" id="saveNames">Save names</button>' +
       '</details>' +
     '</div>';
@@ -439,7 +517,7 @@ function screenProfile(){
       if(!n) return;
       var b = document.createElement("button");
       b.className = "bigpick"; b.textContent = n;
-      b.addEventListener("click", function(){ store.set("profile", n); screenHome(); });
+      b.addEventListener("click", function(){ store.set("profile", n); selectedDate = null; screenCalendar(); });
       pick.appendChild(b);
     });
   }
@@ -449,78 +527,187 @@ function screenProfile(){
   });
 }
 
-function blockCard(key){
-  var b = BLOCKS[key], r = resultFor(key);
-  var state = r ? "done" : "todo";
-  var right = r ? '<span class="chip '+(r.got/r.total >= 0.8 ? "good" : "work")+'">'+r.got+" / "+r.total+'</span>'
-                : '<span class="chip">'+b.mins+' min</span>';
-  return '<button class="block '+state+'" data-block="'+key+'">' +
-    '<span class="glyph">'+b.icon+'</span>' +
-    '<span class="btext"><strong>'+b.label+'</strong><small>'+(r ? "Finished in "+fmt(r.secs).replace("+","")+" — tap to do it again" : b.mins+" minutes")+'</small></span>' +
-    right + '</button>';
+/* ---------- top bar used by every screen ---------- */
+function topBar(title, opts){
+  opts = opts || {};
+  return '<div class="bar">' +
+    (opts.back ? '<button class="ghost" id="back">‹ Back</button>' : "") +
+    '<button class="ghost" id="home">⌂ Home</button>' +
+    '<strong>'+esc(title)+'</strong>' +
+    (opts.clock ? '<span class="clock" id="clock">--:--</span>' : '<span class="spacer"></span>') +
+    '</div>';
+}
+function wireBar(onBack){
+  var h = $("#home"); if(h) h.addEventListener("click", function(){ stopTimer(); screenCalendar(); });
+  var b = $("#back"); if(b) b.addEventListener("click", function(){ stopTimer(); (onBack || screenCalendar)(); });
 }
 
-function screenHome(){
+/* ---------- calendar (home) ---------- */
+function monthLabel(d){ return d.toLocaleDateString(undefined, { month:"long", year:"numeric" }); }
+
+function screenCalendar(){
   stopTimer();
-  var L = levelNow(), day = daysSinceStart()+1;
-  var rec = records(), streak = 0, probe = new Date();
-  for(var i=0;i<400;i++){
-    var k = probe.getFullYear()+"-"+String(probe.getMonth()+1).padStart(2,"0")+"-"+String(probe.getDate()).padStart(2,"0");
-    if(rec[k] && (rec[k].math || rec[k].think || rec[k].eng)) streak++;
-    else if(i > 0) break;
-    probe.setDate(probe.getDate()-1);
+  if(!calMonth){
+    var t = dateFromKey(selectedDate || realTodayKey());
+    calMonth = new Date(t.getFullYear(), t.getMonth(), 1);
   }
+  var rec = records(), today = realTodayKey();
+  var first = new Date(calMonth.getFullYear(), calMonth.getMonth(), 1);
+  var last  = new Date(calMonth.getFullYear(), calMonth.getMonth()+1, 0);
+
+  /* build week rows of Mon-Fri only */
+  var rows = [], cur = new Date(first);
+  var back = (cur.getDay() + 6) % 7;            // Monday = 0
+  cur.setDate(cur.getDate() - back);
+  while(cur <= last || ((cur.getDay()+6)%7) !== 0){
+    var week = [];
+    for(var i=0;i<5;i++){                        // Mon..Fri
+      var d = new Date(cur); d.setDate(cur.getDate() + i);
+      week.push(d);
+    }
+    rows.push(week);
+    cur.setDate(cur.getDate() + 7);
+    if(rows.length > 6) break;
+  }
+
+  var weekNo = 0;
+  var body = rows.map(function(week){
+    var inMonth = week.some(function(d){ return d.getMonth() === calMonth.getMonth(); });
+    if(!inMonth) return "";
+    weekNo++;
+    var cells = week.map(function(d){
+      var k = keyOf(d);
+      var other = d.getMonth() !== calMonth.getMonth();
+      var r = rec[k] || {};
+      var done = ["math","think","eng"].filter(function(b){ return r[b]; }).length;
+      var cls = "day";
+      if(other) cls += " other";
+      if(k === today) cls += " today";
+      if(k > today) cls += " ahead";
+      if(done === 3) cls += " full";
+      else if(done > 0) cls += " part";
+      var dots = ["math","think","eng"].map(function(b){
+        return '<i class="dot '+(r[b] ? (r[b].got/r[b].total >= 0.8 ? "g" : "a") : "")+'"></i>';
+      }).join("");
+      return '<button class="'+cls+'" data-date="'+k+'">' +
+        '<span class="dnum">'+d.getDate()+'</span>' +
+        '<span class="dots">'+dots+'</span>' +
+        (k === today ? '<span class="tlabel">today</span>' : "") +
+        '</button>';
+    }).join("");
+    return '<div class="weekrow"><span class="wlabel">Week '+weekNo+'</span><div class="days">'+cells+'</div></div>';
+  }).join("");
+
   app.innerHTML =
     '<header class="hero">' +
-      '<div class="row"><div><h1>Hello, '+esc(who())+'</h1>' +
-      '<p class="sub">'+prettyDate()+' · Day '+(day>0?day:1)+' · Level '+L+'</p></div>' +
+      '<div class="row"><div><h1>'+esc(who())+'</h1>' +
+      '<p class="sub">Pick a day to practise</p></div>' +
       '<button class="ghost" id="switch">Switch</button></div>' +
-      (streak > 1 ? '<p class="streak">'+streak+' days in a row</p>' : '') +
     '</header>' +
-    '<div class="blocks">' + blockCard("math") + blockCard("think") + blockCard("eng") + '</div>' +
-    '<div class="foot"><button class="ghost" id="report">Progress report</button>' +
-    '<button class="ghost" id="parent">For parents</button></div>';
+    '<div class="sheet">' +
+      '<div class="calhead">' +
+        '<button class="ghost sq" id="prev" aria-label="Previous month">‹</button>' +
+        '<h2>'+monthLabel(calMonth)+'</h2>' +
+        '<button class="ghost sq" id="next" aria-label="Next month">›</button>' +
+        '<button class="ghost" id="todayBtn">Today</button>' +
+      '</div>' +
+      '<div class="dowrow"><span></span><div class="dows"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span></div></div>' +
+      body +
+      '<p class="legend"><i class="dot g"></i> 80% or better &nbsp; <i class="dot a"></i> needs another look &nbsp; <i class="dot"></i> not done</p>' +
+      '<div class="foot"><button class="ghost" id="report">Progress report</button>' +
+      '<button class="ghost" id="parent">For parents</button></div>' +
+    '</div>';
 
-  app.querySelectorAll(".block").forEach(function(el){
-    el.addEventListener("click", function(){ openBlock(el.dataset.block); });
+  app.querySelectorAll(".day").forEach(function(el){
+    el.addEventListener("click", function(){ selectedDate = el.dataset.date; screenDay(); });
   });
+  $("#prev").addEventListener("click", function(){ calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth()-1, 1); screenCalendar(); });
+  $("#next").addEventListener("click", function(){ calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth()+1, 1); screenCalendar(); });
+  $("#todayBtn").addEventListener("click", function(){ selectedDate = null; calMonth = null; screenDay(); });
   $("#switch").addEventListener("click", function(){ store.set("profile", null); screenProfile(); });
   $("#report").addEventListener("click", screenReport);
   $("#parent").addEventListener("click", screenParent);
 }
 
-function shell(title, mins, bodyHTML, onMount, onFinish){
+/* ---------- the three blocks for one day ---------- */
+function blockCard(key){
+  var b = BLOCKS[key], r = resultFor(key);
+  var right = r ? '<span class="chip '+(r.got/r.total >= 0.8 ? "good" : "work")+'">'+r.got+" / "+r.total+'</span>'
+                : '<span class="chip">'+b.mins+' min</span>';
+  return '<button class="block '+(r ? "done" : "todo")+'" data-block="'+key+'">' +
+    '<span class="glyph">'+b.icon+'</span>' +
+    '<span class="btext"><strong>'+b.label+'</strong><small>' +
+    (r ? "Finished in "+fmt(r.secs).replace("+","")+" — tap to open" : b.mins+" minutes") +
+    '</small></span>' + right + '</button>';
+}
+
+function screenDay(){
+  stopTimer();
+  var L = levelNow(), day = daysSinceStart()+1, k = todayKey();
+  var ahead = k > realTodayKey();
   app.innerHTML =
-    '<div class="bar">' +
-      '<button class="ghost" id="back">Back</button>' +
-      '<strong>'+title+'</strong>' +
-      '<span class="clock" id="clock">'+mins+':00</span>' +
-    '</div>' +
-    '<div class="sheet">' + bodyHTML + '</div>';
-  $("#back").addEventListener("click", function(){ stopTimer(); screenHome(); });
+    topBar(prettyDate(k)) +
+    '<div class="sheet">' +
+      '<p class="dayline">Day '+(day>0?day:1)+' · Level '+L +
+        (ahead ? ' · <span class="aheadtag">this day is still ahead</span>' : '') + '</p>' +
+      '<div class="blocks">' + blockCard("math") + blockCard("think") + blockCard("eng") + '</div>' +
+      '<div class="foot"><button class="ghost" id="report">Progress report</button>' +
+      '<button class="ghost" id="parent">For parents</button></div>' +
+    '</div>';
+  wireBar();
+  app.querySelectorAll(".block").forEach(function(el){
+    el.addEventListener("click", function(){ openBlock(el.dataset.block); });
+  });
+  $("#report").addEventListener("click", screenReport);
+  $("#parent").addEventListener("click", screenParent);
+}
+
+/* ---------- sheet shell ---------- */
+function shell(title, mins, bodyHTML, onMount){
+  app.innerHTML = topBar(title, { back:true, clock:true }) + '<div class="sheet">' + bodyHTML + '</div>';
+  wireBar(screenDay);
   startTimer(mins, function(s){
     var c = $("#clock"); if(!c) return;
     c.textContent = fmt(s);
     c.className = "clock" + (s <= 0 ? " over" : (s <= 300 ? " soon" : ""));
   });
   if(onMount) onMount();
+  wireLiveClear();
+}
+
+/* typing in a marked box clears its own mark */
+function wireLiveClear(){
+  app.addEventListener("input", function(e){
+    var t = e.target;
+    if(t && t.tagName === "INPUT"){ t.classList.remove("ok","no"); }
+  });
+  app.addEventListener("change", function(e){
+    var t = e.target;
+    if(t && t.type === "radio"){
+      var box = t.closest(".opts");
+      if(box) box.querySelectorAll(".opt").forEach(function(l){ l.classList.remove("ok","no"); });
+    }
+  });
 }
 
 /* ---------- renderers ---------- */
 function numInput(ans, label){
   return '<input class="ans" type="text" inputmode="numeric" autocomplete="off" data-a="'+esc(ans)+'" aria-label="'+esc(label)+'">';
 }
+function clearBar(target){
+  return '<div class="clearrow"><button class="ghost sm" data-clear="'+target+'">Clear this section</button></div>';
+}
 function sectionHTML(sec, idPrefix){
   var rows = sec.items.map(function(it, i){
-    var id = idPrefix+"-"+i;
+    var q = esc(it.q);
     if(it.kind === "divr"){
-      return '<div class="tile"><span class="q">'+it.q+' =</span>' +
+      return '<div class="tile"><span class="q">'+q+' =</span>' +
         '<span class="slot">'+numInput(it.a, it.q)+'</span>' +
         '<span class="rlab">R</span><span class="slot sm">' +
         '<input class="ans" type="text" inputmode="numeric" data-a="'+it.r+'" data-opt="1" aria-label="remainder"></span></div>';
     }
     if(it.kind === "frac"){
-      return '<div class="tile col"><span class="q">'+it.q+' =</span>' +
+      return '<div class="tile col"><span class="q">'+q+' =</span>' +
         '<span class="fracbox" data-w="'+it.w+'" data-n="'+it.n+'" data-d="'+it.d+'"' +
           (/simplif|simplest/i.test(it.q) ? ' data-simp="1"' : '') + '>' +
           (it.simplify ? "" : '<input class="fw" type="text" inputmode="numeric" placeholder="whole" aria-label="whole number">') +
@@ -528,17 +715,25 @@ function sectionHTML(sec, idPrefix){
           '<span class="bar2"></span><input class="fd" type="text" inputmode="numeric" aria-label="denominator"></span>' +
         '</span></div>';
     }
-    return '<div class="tile"><span class="q">'+it.q+' =</span><span class="slot">'+numInput(it.a, it.q)+'</span></div>';
+    return '<div class="tile"><span class="q">'+q+' =</span><span class="slot">'+numInput(it.a, it.q)+'</span></div>';
   }).join("");
-  var wide = sec.items.some(function(it){ return it.kind === "divr" || it.kind === "frac"; }) ? " wide" : "";
-  return '<section class="card"><div class="chead"><h2>'+sec.title+'</h2></div>' +
-    '<p class="note">'+sec.note+'</p><div class="grid'+wide+'">'+rows+'</div></section>';
+  return '<section class="card" data-sec="'+idPrefix+'"><div class="chead"><h2>'+esc(sec.title)+'</h2></div>' +
+    '<p class="note">'+esc(sec.note)+'</p>' +
+    '<div class="grid'+(sec.items.some(function(it){ return it.kind==="divr"||it.kind==="frac"; }) ? " wide" : "")+'">'+rows+'</div>' +
+    clearBar(idPrefix) + '</section>';
 }
 
 function openBlock(key){
   if(key === "math") return blockMath();
   if(key === "think") return blockThink();
   return blockEnglish();
+}
+function endBar(){
+  return '<div class="endbar">' +
+    '<button class="primary" id="check">Check my answers</button>' +
+    '<button class="ghost" id="reveal">Show answers</button>' +
+    '<button class="ghost" id="clearAll">Clear everything</button>' +
+    '<span class="score" id="score">—</span></div>';
 }
 
 /* ---------- MATH ---------- */
@@ -547,14 +742,8 @@ function blockMath(){
   seedFor("math");
   var secs = [genMultiply(L), genDivide(L), genFractions(L)];
   if(L >= 2) secs.push(genDecimals(L));
-  var html = secs.map(function(s,i){ return sectionHTML(s, "m"+i); }).join("") +
-    '<div class="endbar"><button class="primary" id="check">Check my answers</button>' +
-    '<button class="ghost" id="reveal">Show answers</button>' +
-    '<span class="score" id="score">—</span></div>';
-  shell("Math", BLOCKS.math.mins, html, function(){
-    $("#check").addEventListener("click", function(){ gradeSheet("math"); });
-    $("#reveal").addEventListener("click", revealSheet);
-  });
+  var html = secs.map(function(s,i){ return sectionHTML(s, "m"+i); }).join("") + endBar();
+  shell("Math", BLOCKS.math.mins, html, function(){ wireSheet("math"); });
 }
 
 /* ---------- THINKING ---------- */
@@ -563,17 +752,14 @@ function blockThink(){
   seedFor("think");
   var items = genThinking(L);
   var rows = items.map(function(it,i){
-    return '<div class="prob"><p class="pq"><b>'+(i+1)+'.</b> '+it.q+'</p>' +
+    return '<div class="prob"><p class="pq"><b>'+(i+1)+'.</b> '+esc(it.q)+'</p>' +
       '<div class="prow">'+numInput(it.a, "Answer "+(i+1))+
       '<button class="ghost sm" data-hint="'+i+'">Hint</button></div>' +
       '<p class="hint" id="h'+i+'" hidden>'+esc(it.hint)+(it.aNote ? " " + esc(it.aNote) : "")+'</p></div>';
   }).join("");
-  var html = '<section class="card"><div class="chead"><h2>Thinking problems</h2></div>' +
+  var html = '<section class="card" data-sec="t0"><div class="chead"><h2>Thinking problems</h2></div>' +
     '<p class="note">Read each one twice. Work it on paper, then type the number only. Use a hint if you are stuck for more than two minutes.</p>' +
-    rows + '</section>' +
-    '<div class="endbar"><button class="primary" id="check">Check my answers</button>' +
-    '<button class="ghost" id="reveal">Show answers</button>' +
-    '<span class="score" id="score">—</span></div>';
+    rows + clearBar("t0") + '</section>' + endBar();
   shell("Thinking", BLOCKS.think.mins, html, function(){
     app.querySelectorAll("[data-hint]").forEach(function(b){
       b.addEventListener("click", function(){
@@ -581,8 +767,7 @@ function blockThink(){
         b.textContent = h.hidden ? "Hint" : "Hide";
       });
     });
-    $("#check").addEventListener("click", function(){ gradeSheet("think"); });
-    $("#reveal").addEventListener("click", revealSheet);
+    wireSheet("think");
   });
 }
 
@@ -590,6 +775,8 @@ function blockThink(){
 function blockEnglish(){
   var L = levelNow();
   var E = pickEnglish(L);
+  var saved = records()[todayKey()] || {};
+
   var spellRows = E.spelling.map(function(pair, i){
     var blanked = pair[1].replace(new RegExp(pair[0], "ig"), "______");
     return '<div class="srow"><span class="idx">'+(i+1)+'</span>' +
@@ -604,57 +791,49 @@ function blockEnglish(){
       '<p class="vm">'+esc(v.m)+'</p><p class="vu">'+esc(v.u)+'</p><p class="vs">'+esc(v.s)+'</p></div>';
   }).join("");
 
-  var gramRows = E.grammar.map(function(g, i){
-    var opts = g.o.map(function(t, oi){
-      return '<label class="opt"><input type="radio" name="g'+i+'" value="'+oi+'"><span>'+esc(t)+'</span></label>';
+  function mcRows(list, name){
+    return list.map(function(g, i){
+      var opts = g.o.map(function(t, oi){
+        return '<label class="opt"><input type="radio" name="'+name+i+'" value="'+oi+'"><span>'+esc(t)+'</span></label>';
+      }).join("");
+      return '<div class="prob"><p class="pq"><b>'+(i+1)+'.</b> '+esc(g.q)+'</p>' +
+        '<div class="opts" data-ans="'+g.a+'" data-q="'+esc(g.q)+'">'+opts+'</div></div>';
     }).join("");
-    return '<div class="prob"><p class="pq"><b>'+(i+1)+'.</b> '+g.q+'</p>' +
-      '<div class="opts" data-ans="'+g.a+'">'+opts+'</div></div>';
-  }).join("");
+  }
 
   var p = E.reading;
-  var readRows = p.qs.map(function(g, i){
-    var opts = g.o.map(function(t, oi){
-      return '<label class="opt"><input type="radio" name="r'+i+'" value="'+oi+'"><span>'+esc(t)+'</span></label>';
-    }).join("");
-    return '<div class="prob"><p class="pq"><b>'+(i+1)+'.</b> '+esc(g.q)+'</p>' +
-      '<div class="opts" data-ans="'+g.a+'">'+opts+'</div></div>';
-  }).join("");
-
-  var saved = (records()[todayKey()] || {});
   var html =
-    '<section class="card"><div class="chead"><h2>Spelling</h2><span class="chip">10 words</span></div>' +
+    '<section class="card" data-sec="e0"><div class="chead"><h2>Spelling</h2><span class="chip">10 words</span></div>' +
     '<p class="note">Tap the speaker, listen to the word and the sentence, then type it. Do not look at the clue first.</p>' +
     spellRows +
     '<details class="setup"><summary>Word list (for the adult reading them out)</summary><ol class="wordlist">' +
-    E.spelling.map(function(w){ return "<li>"+esc(w[0])+"</li>"; }).join("") + '</ol></details></section>' +
+    E.spelling.map(function(w){ return "<li>"+esc(w[0])+"</li>"; }).join("") + '</ol></details>' +
+    clearBar("e0") + '</section>' +
 
-    '<section class="card"><div class="chead"><h2>Vocabulary</h2><span class="chip">5 words</span></div>' +
+    '<section class="card" data-sec="e1"><div class="chead"><h2>Vocabulary</h2><span class="chip">5 words</span></div>' +
     '<p class="note">Read each one aloud. Then close your eyes and say the meaning in your own words.</p>' +
     '<div class="vgrid">'+vocabRows+'</div>' +
     '<p class="note">Now use two of them in sentences about your own day:</p>' +
-    '<textarea id="vocabUse" rows="3" placeholder="Write two sentences here...">'+esc(saved.vocabUse||"")+'</textarea></section>' +
+    '<textarea id="vocabUse" rows="3" placeholder="Write two sentences here...">'+esc(saved.vocabUse||"")+'</textarea>' +
+    clearBar("e1") + '</section>' +
 
-    '<section class="card"><div class="chead"><h2>Grammar</h2><span class="chip">10 questions</span></div>' +
-    gramRows + '</section>' +
+    '<section class="card" data-sec="e2"><div class="chead"><h2>Grammar</h2><span class="chip">10 questions</span></div>' +
+    mcRows(E.grammar, "g") + clearBar("e2") + '</section>' +
 
-    '<section class="card"><div class="chead"><h2>Reading</h2></div>' +
+    '<section class="card" data-sec="e3"><div class="chead"><h2>Reading</h2></div>' +
     '<p class="note">Read it twice — once for the story, once for the details.</p>' +
     '<article class="passage"><h3>'+esc(p.title)+'</h3>' +
     p.body.map(function(t){ return "<p>"+esc(t)+"</p>"; }).join("") + '</article>' +
-    readRows +
+    mcRows(p.qs, "r") +
     '<div class="prob"><p class="pq"><b>5.</b> '+esc(p.open.q)+'</p>' +
     '<textarea id="openAns" rows="4" placeholder="Answer in two or three sentences...">'+esc(saved.openAns||"")+'</textarea>' +
-    '<div class="model" id="openModel" hidden><strong>A good answer says:</strong> '+esc(p.open.model)+'</div></div></section>' +
+    '<div class="model" id="openModel" hidden><strong>A good answer says:</strong> '+esc(p.open.model)+'</div></div>' +
+    clearBar("e3") + '</section>' +
 
-    '<section class="card"><div class="chead"><h2>Writing</h2><span class="chip">10 min</span></div>' +
+    '<section class="card" data-sec="e4"><div class="chead"><h2>Writing</h2><span class="chip">10 min</span></div>' +
     '<p class="note">'+esc(E.writing.p)+'</p>' +
     '<textarea id="writeAns" rows="10" placeholder="Start writing here. Aim for at least six sentences.">'+esc(saved.writeAns||"")+'</textarea>' +
-    '<p class="count" id="wcount">0 words</p></section>' +
-
-    '<div class="endbar"><button class="primary" id="check">Check my answers</button>' +
-    '<button class="ghost" id="reveal">Show answers</button>' +
-    '<span class="score" id="score">—</span></div>';
+    '<p class="count" id="wcount">0 words</p>' + clearBar("e4") + '</section>' + endBar();
 
   shell("English", BLOCKS.eng.mins, html, function(){
     app.querySelectorAll(".speak").forEach(function(b){
@@ -666,16 +845,12 @@ function blockEnglish(){
       wc.textContent = n + " word" + (n===1?"":"s");
     }
     wa.addEventListener("input", count); count();
-    $("#check").addEventListener("click", function(){
+    wireSheet("eng", function(){
       saveDetail("writeAns", wa.value);
       saveDetail("openAns", $("#openAns").value);
       saveDetail("vocabUse", $("#vocabUse").value);
       saveDetail("writePrompt", E.writing.p);
-      gradeSheet("eng");
-      var m = $("#openModel"); if(m) m.hidden = false;
-    });
-    $("#reveal").addEventListener("click", function(){
-      revealSheet();
+      saveDetail("readTitle", p.title);
       var m = $("#openModel"); if(m) m.hidden = false;
     });
   });
@@ -691,6 +866,41 @@ function say(text){
   }catch(e){}
 }
 
+/* ---------- wiring shared by all three sheets ---------- */
+function wireSheet(block, beforeGrade){
+  $("#check").addEventListener("click", function(){
+    if(beforeGrade) beforeGrade();
+    gradeSheet(block);
+  });
+  $("#reveal").addEventListener("click", function(){
+    revealSheet();
+    var m = $("#openModel"); if(m) m.hidden = false;
+  });
+  $("#clearAll").addEventListener("click", function(){
+    clearScope(app, true);
+    var el = $("#score"); el.textContent = "—"; el.className = "score";
+  });
+  app.querySelectorAll("[data-clear]").forEach(function(b){
+    b.addEventListener("click", function(){
+      clearScope(app.querySelector('[data-sec="'+b.dataset.clear+'"]'), false);
+    });
+  });
+}
+
+function clearScope(root, alsoText){
+  if(!root) return;
+  root.querySelectorAll("input.ans, .fracbox input").forEach(function(i){
+    i.value = ""; i.classList.remove("ok","no");
+  });
+  root.querySelectorAll(".opts input").forEach(function(i){ i.checked = false; });
+  root.querySelectorAll(".opt").forEach(function(l){ l.classList.remove("ok","no"); });
+  root.querySelectorAll("textarea").forEach(function(t){
+    if(alsoText || root.dataset.sec){ t.value = ""; t.dispatchEvent(new Event("input")); }
+  });
+  var m = root.querySelector ? root.querySelector("#openModel") : null;
+  if(m) m.hidden = true;
+}
+
 /* ---------- grading ---------- */
 function norm(v){ return String(v==null?"":v).trim().toLowerCase().replace(/,/g,""); }
 function sameNum(a,b){
@@ -699,7 +909,7 @@ function sameNum(a,b){
   return Math.abs(x-y) < 1e-6;
 }
 function gradeSheet(block){
-  var got = 0, total = 0;
+  var got = 0, total = 0, misses = [];
 
   app.querySelectorAll("input.ans").forEach(function(inp){
     var want = inp.dataset.a, have = inp.value;
@@ -708,6 +918,7 @@ function gradeSheet(block){
     var right = inp.classList.contains("word") ? norm(have) === norm(want) : sameNum(have, want);
     inp.classList.toggle("ok", right); inp.classList.toggle("no", !right);
     if(right) got++;
+    else misses.push({ q: inp.getAttribute("aria-label") || "", gave: inp.value, want: want });
   });
 
   app.querySelectorAll(".fracbox").forEach(function(box){
@@ -723,12 +934,19 @@ function gradeSheet(block){
     if(right && box.dataset.simp === "1" && vn > 0 && gcd(vn, vd) !== 1) right = false;
     [fw, fn, fd].forEach(function(el){ if(el){ el.classList.toggle("ok", right); el.classList.toggle("no", !right); } });
     if(right) got++;
+    else {
+      var qt = box.parentNode.querySelector(".q");
+      misses.push({ q: qt ? qt.textContent : "fraction",
+                    gave: (fw ? fw.value+" " : "") + fn.value + "/" + fd.value,
+                    want: (W ? W+" " : "") + (N ? N+"/"+D : "") });
+    }
   });
 
   app.querySelectorAll(".opts").forEach(function(opts){
     total++;
     var want = opts.dataset.ans;
-    opts.querySelectorAll(".opt").forEach(function(lab, i){
+    var labels = opts.querySelectorAll(".opt");
+    labels.forEach(function(lab, i){
       var picked = lab.querySelector("input").checked;
       lab.classList.remove("ok","no");
       if(String(i) === want && picked) lab.classList.add("ok");
@@ -736,19 +954,25 @@ function gradeSheet(block){
     });
     var sel = opts.querySelector("input:checked");
     if(sel && sel.value === want) got++;
+    else misses.push({ q: opts.dataset.q || "",
+                       gave: sel ? labels[+sel.value].textContent.trim() : "(blank)",
+                       want: labels[+want].textContent.trim() });
   });
 
-  var secs = elapsed();
-  saveResult(block, got, total, secs);
+  saveResult(block, got, total, elapsed());
+  saveDetail("miss:"+block, misses.slice(0, 40));
+  sendResult(block, got, total, elapsed(), misses);
+
   var el = $("#score");
   if(el){
     var pct = total ? Math.round(got/total*100) : 0;
     el.textContent = got + " / " + total + "  ·  " + pct + "%";
     el.className = "score " + (pct >= 80 ? "good" : "work");
   }
-  var first = app.querySelector(".no, .opt.no");
+  var first = app.querySelector("input.no, .opt.no");
   if(first) first.scrollIntoView({ behavior:"smooth", block:"center" });
 }
+
 function revealSheet(){
   app.querySelectorAll("input.ans").forEach(function(inp){
     inp.value = inp.dataset.a; inp.classList.remove("no"); inp.classList.add("ok");
@@ -793,17 +1017,16 @@ function screenReport(){
     function cell(b){ return r[b] ? r[b].got+"/"+r[b].total : "—"; }
     return "<tr><td>"+d+"</td><td>"+cell("math")+"</td><td>"+cell("think")+"</td><td>"+cell("eng")+"</td></tr>";
   }).join("");
-  app.innerHTML =
-    '<div class="bar"><button class="ghost" id="back">Back</button><strong>Progress</strong><span></span></div>' +
-    '<div class="sheet"><section class="card">' +
+  app.innerHTML = topBar("Progress") + '<div class="sheet"><section class="card">' +
     '<div class="chead"><h2>'+esc(who())+' — last 30 days</h2></div>' +
     barRow("math") + barRow("think") + barRow("eng") +
     (days.length ? '<div class="tablewrap"><table><thead><tr><th>Day</th><th>Math</th><th>Thinking</th><th>English</th></tr></thead><tbody>'+rows+'</tbody></table></div>'
                  : '<p class="note">No sessions recorded yet. Finish a block and it will appear here.</p>') +
     '</section></div>';
-  $("#back").addEventListener("click", screenHome);
+  wireBar();
 }
 
+/* ---------- parent ---------- */
 function screenParent(){
   stopTimer();
   var names = store.get("names", []);
@@ -813,51 +1036,116 @@ function screenParent(){
     var rec = store.get("rec:"+n, {});
     var days = Object.keys(rec).sort().reverse().slice(0,14);
     lines.push("### " + n);
+    if(!days.length) lines.push("(nothing recorded on this iPad)");
     days.forEach(function(d){
       var r = rec[d], bits = [];
       ["math","think","eng"].forEach(function(b){
         if(r[b]) bits.push(BLOCKS[b].label+" "+r[b].got+"/"+r[b].total+" ("+Math.round(r[b].secs/60)+"m)");
       });
       lines.push(d + " — " + (bits.join(", ") || "nothing recorded"));
-      if(r.writePrompt) lines.push("  Prompt: " + r.writePrompt);
+      ["math","think","eng"].forEach(function(b){
+        var m = r["miss:"+b];
+        if(m && m.length){
+          lines.push("  Got wrong in " + BLOCKS[b].label + ":");
+          m.forEach(function(x){ lines.push("    " + x.q + "  → wrote: " + (x.gave||"(blank)") + " | correct: " + x.want); });
+        }
+      });
+      if(r.writePrompt) lines.push("  Writing prompt: " + r.writePrompt);
       if(r.writeAns) lines.push("  Writing: " + r.writeAns);
       if(r.openAns) lines.push("  Reading answer: " + r.openAns);
+      if(r.vocabUse) lines.push("  Vocabulary sentences: " + r.vocabUse);
     });
     lines.push("");
   });
-  var text = "Daily Drills report — " + prettyDate() + "\nLevel " + levelNow() + ", week " + (weekNumber()+1) + "\n\n" + lines.join("\n");
-  app.innerHTML =
-    '<div class="bar"><button class="ghost" id="back">Back</button><strong>For parents</strong><span></span></div>' +
-    '<div class="sheet"><section class="card">' +
-    '<div class="chead"><h2>Send to Dad</h2></div>' +
-    '<p class="note">Copy this and paste it into Claude, or print the page. It includes both girls, their scores for the last two weeks, and everything they wrote.</p>' +
+  var text = "Daily Drills report — " + prettyDate(realTodayKey()) +
+    "\nLevel " + levelNow() + ", week " + (weekNumber()+1) + "\n\n" + lines.join("\n");
+
+  var rec = records();
+  var recent = Object.keys(rec).sort().reverse().slice(0,20);
+  var retakeRows = recent.length ? recent.map(function(d){
+    var r = rec[d];
+    var bits = ["math","think","eng"].filter(function(b){ return r[b]; })
+      .map(function(b){ return BLOCKS[b].label+" "+r[b].got+"/"+r[b].total; }).join(", ");
+    return '<tr><td>'+d+'</td><td>'+(bits||"—")+'</td>' +
+      '<td><button class="ghost sm" data-retake="'+d+'">Clear</button></td></tr>';
+  }).join("") : '<tr><td colspan="3">Nothing recorded yet.</td></tr>';
+
+  app.innerHTML = topBar("For parents") + '<div class="sheet">' +
+    '<section class="card"><div class="chead"><h2>Send to Dad</h2></div>' +
+    '<p class="note">Copy this and paste it into Claude. It lists both girls, the last two weeks, every question they got wrong with what they wrote, and everything they typed.</p>' +
     '<div class="endbar"><button class="primary" id="copy">Copy report</button>' +
     '<button class="ghost" id="print">Print</button>' +
     '<button class="ghost" id="lvl">Change level</button></div>' +
-    '<pre class="report" id="rep">'+esc(text)+'</pre>' +
+    '<pre class="report" id="rep">'+esc(text)+'</pre></section>' +
+
+    '<section class="card"><div class="chead"><h2>Make them retake a day</h2></div>' +
+    '<p class="note">Clearing a day wipes '+esc(who())+'’s scores and answers for it. The problems stay the same, so they sit the identical sheet again.</p>' +
+    '<div class="tablewrap"><table><thead><tr><th>Day</th><th>Result</th><th></th></tr></thead>' +
+    '<tbody>'+retakeRows+'</tbody></table></div></section>' +
+
+    '<section class="card"><div class="chead"><h2>Sending results to the Sheet</h2>' +
+    '<span class="chip '+(syncUrl() ? "good" : "")+'">'+(syncUrl() ? "connected" : "not set up")+'</span></div>' +
+    '<p class="note">Paste the web-app URL from Google Apps Script. Once set, every finished block is sent to your Drill Results sheet. Leave it blank to keep everything on this iPad.</p>' +
+    '<input id="syncIn" type="url" placeholder="https://script.google.com/macros/s/..../exec" value="'+esc(store.get("syncUrl",""))+'">' +
+    '<div class="endbar"><button class="primary" id="saveSync">Save</button>' +
+    '<button class="ghost" id="testSync">Send a test</button>' +
+    '<button class="ghost" id="pullRetake">Check for retakes</button>' +
+    '<span class="chip" id="qchip">'+store.get("queue",[]).length+' waiting to send</span></div>' +
     '</section></div>';
-  $("#back").addEventListener("click", screenHome);
+
+  wireBar();
+  $("#saveSync").addEventListener("click", function(){
+    var v = $("#syncIn").value.trim();
+    store.set("syncUrl", v);
+    toast(v ? "Saved — results will be sent from now on" : "Sync turned off");
+    screenParent();
+  });
+  $("#testSync").addEventListener("click", function(){
+    if(!syncUrl()){ toast("Paste the URL and press Save first"); return; }
+    queueAdd({ kid: who(), day: todayKey(), block: "test", got: 1, total: 1, secs: 0, level: levelNow(), misses: [] });
+    flushQueue();
+    toast("Test sent — look for a new row in the sheet");
+  });
+  $("#pullRetake").addEventListener("click", function(){
+    if(!syncUrl()){ toast("Set the URL first"); return; }
+    checkRetakes(function(n){
+      toast(n ? n + " day(s) cleared for a retake" : "Nothing marked for a retake");
+      if(n) screenParent();
+    });
+  });
   $("#print").addEventListener("click", function(){ window.print(); });
   $("#copy").addEventListener("click", function(){
     var btn = $("#copy");
     function done(){ btn.textContent = "Copied"; setTimeout(function(){ btn.textContent = "Copy report"; }, 1800); }
-    try{
-      navigator.clipboard.writeText(text).then(done, selectFallback);
-    }catch(e){ selectFallback(); }
-    function selectFallback(){
+    function fallback(){
       var r = document.createRange(); r.selectNodeContents($("#rep"));
       var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
       btn.textContent = "Selected — press Copy";
     }
+    try{ navigator.clipboard.writeText(text).then(done, fallback); }catch(e){ fallback(); }
   });
   $("#lvl").addEventListener("click", function(){
     var cur = store.get("levelOverride", 0);
     var next = cur >= 4 ? 0 : cur + 1;
     store.set("levelOverride", next);
-    alertish(next ? "Level locked to " + next : "Back to the automatic level (" + levelNow() + ")");
+    toast(next ? "Level locked to " + next : "Back to the automatic level (" + levelNow() + ")");
+  });
+  app.querySelectorAll("[data-retake]").forEach(function(b){
+    b.addEventListener("click", function(){
+      var d = b.dataset.retake;
+      if(b.dataset.armed === "1"){
+        var all = records(); delete all[d]; store.set("rec:" + who(), all);
+        toast(d + " cleared — ready to retake");
+        screenParent();
+      } else {
+        b.dataset.armed = "1"; b.textContent = "Tap again";
+        setTimeout(function(){ if(b.dataset.armed){ b.dataset.armed = ""; b.textContent = "Clear"; } }, 4000);
+      }
+    });
   });
 }
-function alertish(msg){
+
+function toast(msg){
   var d = document.createElement("div");
   d.className = "toast"; d.textContent = msg;
   document.body.appendChild(d);
@@ -870,9 +1158,16 @@ window.__drills = {
   genDecimals:genDecimals, genThinking:genThinking, pickEnglish:pickEnglish,
   seedFor:function(t,dayKey){ R = mulberry(hash((dayKey||"test") + "|" + t)); }
 };
-if(typeof document !== "undefined" && document.getElementById("app")){
+if(hasDOM && document.getElementById("app")){
   window.addEventListener("beforeunload", stopTimer);
-  if(who()) screenHome(); else screenProfile();
+  window.addEventListener("online", flushQueue);
+  if(who()){
+    screenCalendar();
+    flushQueue();
+    checkRetakes(function(n){ if(n){ toast(n + " day(s) cleared — ready to retake"); screenCalendar(); } });
+  } else {
+    screenProfile();
+  }
 }
 
 })();
