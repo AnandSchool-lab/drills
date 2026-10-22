@@ -163,58 +163,93 @@ function genDivide(L){
 
 function gcd(a,b){ return b ? gcd(b, a%b) : a; }
 function genFractions(L){
-  var items = [], dens;
+  var items = [];
+  var smallDens = [2,3,4,5,6,8];
+
+  /* a numerator that shares no factor with the denominator */
+  function coprimeNumer(base){
+    var n = ri(1, base-1), guard = 0;
+    while(gcd(n, base) !== 1 && guard++ < 25){ n = ri(1, base-1); }
+    return gcd(n, base) === 1 ? n : 1;
+  }
+
+  /* n/d = ?/(d*m) — the school's "multiply top and bottom" exercise */
+  function equivalent(maxMult){
+    var d = pick(smallDens), n = coprimeNumer(d), m = ri(2, maxMult);
+    return { q:n+"/"+d+"  =  ?/"+(d*m), w:0, n:n*m, d:d*m, kind:"frac", exact:true };
+  }
+
+  /* (n*m)/(d*m) back down to n/d */
+  function simplify(maxMult){
+    var d = pick(smallDens), n = coprimeNumer(d), m = ri(2, maxMult);
+    return { q:(n*m)+"/"+(d*m)+"  in simplest form", w:0, n:n, d:d, kind:"frac", simplify:true };
+  }
+
+  function likeAdd(maxWhole, alsoSimplify){
+    var d = pick(smallDens), a = ri(1,maxWhole), b = ri(1,maxWhole);
+    var x = ri(1,d-1), y = ri(1,d-1), t = x + y;
+    var W = a + b + Math.floor(t/d), N = t % d;
+    var g = (alsoSimplify && N) ? gcd(N, d) : 1;
+    return { q:a+" "+x+"/"+d+"  +  "+b+" "+y+"/"+d+(alsoSimplify ? "  (simplify)" : ""),
+             w:W, n:N/g, d:d/g, kind:"frac" };
+  }
+
+  function likeSub(){
+    var d = pick(smallDens), bigW = ri(3,8), smW = ri(1,2);
+    var x = ri(1,d-1), y = ri(1,d-1);
+    var tot = bigW*d + x - (smW*d + y);
+    if(tot <= 0){ bigW += 2; tot = bigW*d + x - (smW*d + y); }
+    return { q:bigW+" "+x+"/"+d+"  \u2212  "+smW+" "+y+"/"+d,
+             w:Math.floor(tot/d), n:tot%d, d:d, kind:"frac" };
+  }
+
+  function unlike(pairs){
+    var pr = pick(pairs), dA = pr[0], dB = pr[1];
+    var wA = ri(1,4), wB = ri(1,4), nA = ri(1,dA-1), nB = ri(1,dB-1);
+    var LC = dA*dB/gcd(dA,dB);
+    var tot = nA*(LC/dA) + nB*(LC/dB);
+    var W = wA + wB + Math.floor(tot/LC), N = tot % LC;
+    var g = N ? gcd(N, LC) : 1;
+    return { q:wA+" "+nA+"/"+dA+"  +  "+wB+" "+nB+"/"+dB, w:W, n:N/g, d:N?LC/g:LC, kind:"frac" };
+  }
+
+  function improper(){
+    var d = pick(smallDens), W = ri(2,5), n = coprimeNumer(d);
+    return { q:(W*d + n)+"/"+d+"  as a mixed number", w:W, n:n, d:d, kind:"frac", exact:true };
+  }
+
+  function fracTimesWhole(){
+    var d = pick(smallDens), n = coprimeNumer(d), w = ri(2,9);
+    var tot = n*w, g = gcd(tot, d), num = tot/g, den = d/g;
+    return { q:n+"/"+d+"  \u00d7  "+w, w:Math.floor(num/den), n:num%den, d:den, kind:"frac" };
+  }
+
   if(L === 1){
-    dens = [2,3,4,5,6,8];
-    collect(3, function(){ var d=pick(dens), w=ri(1,6), n=ri(1,d-1);
+    collect(2, function(){ return likeAdd(4, false); }, items);
+    collect(2, function(){ return equivalent(3); }, items);
+    collect(1, function(){ return simplify(3); }, items);
+    collect(1, function(){ var d=pick(smallDens), w=ri(1,6), n=ri(1,d-1);
       return {q:w+" + "+n+"/"+d, w:w, n:n, d:d, kind:"frac"}; }, items);
-    collect(3, function(){ var d=pick(dens), a=ri(1,4), b=ri(1,4), x=ri(1,d-1), y=ri(1,d-1);
-      var t=x+y;
-      return {q:a+" "+x+"/"+d+"  +  "+b+" "+y+"/"+d, w:a+b+Math.floor(t/d), n:t%d, d:d, kind:"frac"}; }, items);
   } else if(L === 2){
-    dens = [3,4,5,6,8,10];
-    collect(3, function(){ var d=pick(dens), a=ri(1,5), b=ri(1,4), x=ri(1,d-1), y=ri(1,d-1);
-      var t=x+y;
-      return {q:a+" "+x+"/"+d+"  +  "+b+" "+y+"/"+d, w:a+b+Math.floor(t/d), n:t%d, d:d, kind:"frac"}; }, items);
-    collect(3, function(){ var d=pick(dens), bigW=ri(3,8), smW=ri(1,2), x=ri(1,d-1), y=ri(1,d-1);
-      var tot = bigW*d + x - (smW*d + y);
-      if(tot <= 0){ bigW += 2; tot = bigW*d + x - (smW*d + y); }
-      return {q:bigW+" "+x+"/"+d+"  −  "+smW+" "+y+"/"+d, w:Math.floor(tot/d), n:tot%d, d:d, kind:"frac"}; }, items);
+    collect(2, function(){ return likeAdd(5, true); }, items);
+    collect(1, function(){ return likeSub(); }, items);
+    collect(1, function(){ return equivalent(4); }, items);
+    collect(2, function(){ return simplify(4); }, items);
   } else if(L === 3){
-    collect(3, function(){
-      var base = pick([2,3,4,5,6,8]), num = ri(1, base-1), guard = 0;
-      while(gcd(num, base) !== 1 && guard++ < 20){ num = ri(1, base-1); }
-      if(gcd(num, base) !== 1){ base = 5; num = ri(1,4); }
-      var mult = ri(2,6);
-      return {q:(num*mult)+"/"+(base*mult)+"  in simplest form", w:0, n:num, d:base, kind:"frac", simplify:true};
-    }, items);
-    collect(3, function(){
-      var d = pick([4,6,8,10,12]), a=ri(1,4), b=ri(1,4), x=ri(1,d-1), y=ri(1,d-1);
-      var t=x+y, W=a+b+Math.floor(t/d), N=t%d, g=N?gcd(N,d):1;
-      return {q:a+" "+x+"/"+d+"  +  "+b+" "+y+"/"+d+"  (simplify)", w:W, n:N/g, d:d/g, kind:"frac"};
-    }, items);
+    collect(2, function(){ return unlike([[2,4],[2,6],[3,6],[2,8],[4,8],[3,9],[5,10],[2,10]]); }, items);
+    collect(2, function(){ return simplify(5); }, items);
+    collect(1, function(){ return likeAdd(4, true); }, items);
+    collect(1, function(){ return improper(); }, items);
   } else {
-    var pairs = [[2,3],[3,4],[2,5],[4,6],[3,8],[5,10],[2,6],[4,10]];
-    collect(4, function(){
-      var pr = pick(pairs), dA = pr[0], dB = pr[1];
-      var wA = ri(1,4), wB = ri(1,4), nA = ri(1,dA-1), nB = ri(1,dB-1);
-      var LC = dA*dB/gcd(dA,dB);
-      var tot = nA*(LC/dA) + nB*(LC/dB);
-      var W = wA + wB + Math.floor(tot/LC), N = tot % LC;
-      var g = N ? gcd(N, LC) : 1;
-      return {q:wA+" "+nA+"/"+dA+"  +  "+wB+" "+nB+"/"+dB, w:W, n:N/g, d:N?LC/g:LC, kind:"frac"};
-    }, items);
-    collect(2, function(){
-      var dC = pick([2,3,4,5,6,8]), nC = ri(1,dC-1), wholeC = ri(2,9);
-      var totC = nC * wholeC, gC = gcd(totC, dC);
-      return {q:nC+"/"+dC+"  ×  "+wholeC, w:Math.floor((totC/gC)/(dC/gC)), n:(totC/gC)%(dC/gC), d:dC/gC, kind:"frac"};
-    }, items);
+    collect(3, function(){ return unlike([[2,3],[3,4],[2,5],[3,8],[4,6],[5,10],[4,10],[3,5]]); }, items);
+    collect(1, function(){ return improper(); }, items);
+    collect(2, function(){ return fracTimesWhole(); }, items);
   }
   var notes = {
-    1:"Same bottom number each time. Add the tops, then trade 4/4 or 5/5 for a whole.",
-    2:"Adding and subtracting. For subtraction you may need to borrow a whole first.",
-    3:"Simplify every answer. Divide top and bottom by the biggest number that fits both.",
-    4:"Different bottom numbers. Find a common denominator first, then add."
+    1:"Same bottom number: add the tops only. For \u201c= ?/\u2026\u201d multiply top and bottom by the same number.",
+    2:"Simplify where it asks. To make an equal fraction, whatever you do to the top you do to the bottom.",
+    3:"Different bottom numbers now \u2014 but one divides into the other, so only one needs changing.",
+    4:"Find a common denominator first. Simplify every answer."
   };
   return { title:"Fractions", note:notes[L], items:shuffle(items) };
 }
@@ -719,10 +754,12 @@ function sectionHTML(sec, idPrefix){
         '<input class="ans" type="text" inputmode="numeric" data-a="'+it.r+'" data-opt="1" aria-label="remainder"></span></div>';
     }
     if(it.kind === "frac"){
-      return '<div class="tile col"><span class="q">'+q+' =</span>' +
+      var tail = /=|simplest form|mixed number/.test(it.q) ? "" : " =";
+      return '<div class="tile col"><span class="q">'+q+tail+'</span>' +
         '<span class="fracbox" data-w="'+it.w+'" data-n="'+it.n+'" data-d="'+it.d+'"' +
-          (/simplif|simplest/i.test(it.q) ? ' data-simp="1"' : '') + '>' +
-          (it.simplify ? "" : '<input class="fw" type="text" inputmode="numeric" placeholder="whole" aria-label="whole number">') +
+          (/simplif|simplest/i.test(it.q) ? ' data-simp="1"' : '') +
+          (it.exact ? ' data-exact="1"' : '') + '>' +
+          ((it.simplify || it.exact && !it.w) ? "" : '<input class="fw" type="text" inputmode="numeric" placeholder="whole" aria-label="whole number">') +
           '<span class="stack"><input class="fn" type="text" inputmode="numeric" aria-label="numerator">' +
           '<span class="bar2"></span><input class="fd" type="text" inputmode="numeric" aria-label="denominator"></span>' +
         '</span></div>';
@@ -836,7 +873,7 @@ function blockEnglish(){
     '<section class="card" data-sec="e3"><div class="chead"><h2>Reading</h2></div>' +
     '<p class="note">Read it twice — once for the story, once for the details.</p>' +
     '<article class="passage"><h3>'+esc(p.title)+'</h3>' +
-    p.body.map(function(t){ return "<p>"+esc(t)+"</p>"; }).join("") + '</article>' +
+    p.body.map(function(t,i){ return '<p><span class="pnum">'+(i+1)+'</span>'+esc(t)+'</p>'; }).join("") + '</article>' +
     mcRows(p.qs, "r") +
     '<div class="prob"><p class="pq"><b>5.</b> '+esc(p.open.q)+'</p>' +
     '<textarea id="openAns" rows="4" placeholder="Answer in two or three sentences...">'+esc(saved.openAns||"")+'</textarea>' +
@@ -945,6 +982,9 @@ function gradeSheet(block){
     var touched = (fw && fw.value.trim()) || fn.value.trim() || fd.value.trim();
     var right = !!touched && Math.abs(have - want) < 1e-9 && (N === 0 || vd > 0);
     if(right && box.dataset.simp === "1" && vn > 0 && gcd(vn, vd) !== 1) right = false;
+    if(box.dataset.exact === "1"){
+      right = !!touched && vn === N && vd === D && vw === W;
+    }
     [fw, fn, fd].forEach(function(el){ if(el){ el.classList.toggle("ok", right); el.classList.toggle("no", !right); } });
     if(right) got++;
     else {
@@ -994,8 +1034,9 @@ function revealSheet(){
     var fw = box.querySelector(".fw"), fn = box.querySelector(".fn"), fd = box.querySelector(".fd");
     if(fw) fw.value = box.dataset.w;
     var n = box.dataset.n;
-    fn.value = n === "0" ? "" : n;
-    fd.value = n === "0" ? "" : box.dataset.d;
+    var exact = box.dataset.exact === "1";
+    fn.value = (n === "0" && !exact) ? "" : n;
+    fd.value = (n === "0" && !exact) ? "" : box.dataset.d;
     [fw,fn,fd].forEach(function(el){ if(el){ el.classList.remove("no"); el.classList.add("ok"); } });
   });
   app.querySelectorAll(".opts").forEach(function(opts){
