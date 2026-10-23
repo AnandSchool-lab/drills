@@ -8,6 +8,7 @@
 
 /* ---------- configuration you may want to change ---------- */
 var START_DATE = "2026-10-27";   // Monday the programme begins. Week 1 starts here.
+var APP_VERSION = "8";           // shown on the home screen; keep in step with CACHE in sw.js
 
 /* Google Apps Script web-app URL. Blank = results stay on the iPad only.
    Paste the /exec URL from Deploy → New deployment → Web app. */
@@ -815,7 +816,9 @@ function screenCalendar(){
     '<header class="hero">' +
       '<div class="row"><div><h1>'+esc(who())+'</h1>' +
       '<p class="sub">Pick a day to practise</p></div>' +
-      '<button class="ghost" id="switch">Switch</button></div>' +
+      '<div class="hbtns"><button class="ghost" id="refresh">⟳ Update</button>' +
+      '<button class="ghost" id="switch">Switch</button></div></div>' +
+      '<p class="ver">Version '+APP_VERSION+'</p>' +
     '</header>' +
     '<div class="sheet">' +
       '<div class="calhead">' +
@@ -838,6 +841,7 @@ function screenCalendar(){
   $("#next").addEventListener("click", function(){ calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth()+1, 1); screenCalendar(); });
   $("#todayBtn").addEventListener("click", function(){ selectedDate = null; calMonth = null; screenDay(); });
   $("#switch").addEventListener("click", function(){ store.set("profile", null); screenProfile(); });
+  $("#refresh").addEventListener("click", getLatest);
   $("#report").addEventListener("click", screenReport);
   $("#parent").addEventListener("click", screenParent);
 }
@@ -1380,6 +1384,34 @@ function screenParent(){
       }
     });
   });
+}
+
+/* ---------- update button ----------
+   Re-downloads every app file past the browser cache, refreshes the
+   offline copy, then reloads. Offline, it leaves the saved copy alone. */
+function getLatest(){
+  var btn = $("#refresh");
+  if(!navigator.onLine){ toast("No internet — connect to Wi-Fi and try again"); return; }
+  if(btn){ btn.disabled = true; btn.textContent = "Updating…"; }
+  var files = ["./", "./index.html", "./app.js", "./content.js", "./sw.js", "./manifest.webmanifest"];
+  var swUpdate = ("serviceWorker" in navigator)
+    ? navigator.serviceWorker.getRegistration().then(function(r){ return r ? r.update() : null; }).catch(function(){})
+    : Promise.resolve();
+  var pulls = Promise.all(files.map(function(f){
+    return fetch(f + (f.indexOf("?") > -1 ? "&" : "?") + "t=" + Date.now(), { cache:"reload" })
+      .then(function(res){
+        if(!res.ok || !window.caches) return;
+        return caches.keys().then(function(keys){
+          return Promise.all(keys.map(function(k){
+            return caches.open(k).then(function(c){ return c.put(f, res.clone()); });
+          }));
+        });
+      }).catch(function(){});
+  }));
+  var done = false;
+  function reload(){ if(done) return; done = true; location.reload(); }
+  Promise.all([swUpdate, pulls]).then(reload, reload);
+  setTimeout(reload, 8000);
 }
 
 function toast(msg){

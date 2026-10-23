@@ -101,7 +101,12 @@ ideas. Each has a hint, and a worked solution appears after **Check**. Their
 scores count toward the Thinking total and any misses show up in the report
 marked with ★.
 
-## Offline
+## Offline and updates
 
 After the first visit, the app works with no internet. Changes you upload are
 picked up the next time the iPad is online.
+
+To pull a change right away, tap **⟳ Update** on the home screen. It downloads
+the newest files, skipping the browser's cache, and reloads. The version number
+under the name confirms it worked. When you change a file, bump both
+`APP_VERSION` in `app.js` and `CACHE` in `sw.js` to the same number.
