@@ -404,6 +404,173 @@ function genThinking(L){
 }
 
 /* ============================================================
+   CHALLENGE PROBLEMS — two a day, harder than the thinking set.
+   Each type has a minimum level and a family; the two picked on
+   one day always come from different families.
+   Each returns { q, a, hint, sol }.
+   ============================================================ */
+function lcm(a,b){ return a/gcd(a,b)*b; }
+function choose(n,k){ var r=1; for(var i=1;i<=k;i++){ r = r*(n-k+i)/i; } return Math.round(r); }
+
+var CHALLENGES = [
+  { fam:"swap", min:1, make:function(L){
+    var cows = ri(3, L>2?18:9), hens = ri(4, L>2?20:10);
+    var heads = cows+hens, legs = 4*cows + 2*hens, extra = legs - 2*heads;
+    return { q:"A farm has only chickens and cows. Altogether there are "+heads+" heads and "+legs+" legs. How many cows are there?",
+      a:cows, hint:"Pretend every animal is a chicken. How many legs would that be? Each cow adds 2 extra legs.",
+      sol:"If all "+heads+" animals were chickens there would be "+(2*heads)+" legs. There are "+extra+" more than that, and each cow brings 2 extra legs, so "+extra+" ÷ 2 = "+cows+" cows." };
+  }},
+  { fam:"swap", min:1, make:function(L){
+    var n = ri(3,12), d = ri(3,12), coins = n+d, cents = 5*n + 10*d;
+    return { q:"A jar has only nickels and dimes — "+coins+" coins worth "+cents+" cents. How many dimes are in the jar?",
+      a:d, hint:"If every coin were a nickel, how much would the jar be worth? Each dime is worth 5 cents more than a nickel.",
+      sol:"All nickels would be "+(5*coins)+" cents. The jar has "+(cents-5*coins)+" cents more, and each dime adds 5, so "+(cents-5*coins)+" ÷ 5 = "+d+" dimes." };
+  }},
+  { fam:"triangle", min:1, make:function(L){
+    var n = ri(5, L>2?14:9), a = n*(n-1)/2;
+    return { q:n+" friends meet at a party. Each person shakes hands with every other person exactly once. How many handshakes happen?",
+      a:a, hint:"Start small: how many with 3 people? With 4? Or: each person shakes "+(n-1)+" hands — but is each handshake counted twice?",
+      sol:"Each of the "+n+" people shakes "+(n-1)+" hands, giving "+(n*(n-1))+". But every handshake has two people, so it was counted twice: "+(n*(n-1))+" ÷ 2 = "+a+"." };
+  }},
+  { fam:"triangle", min:1, make:function(L){
+    var n = ri(5, L>2?20:10), a = n*(n+1)/2;
+    return { q:"A shop stacks cans in a triangle: 1 can on the top row, 2 on the next, 3 on the next, and so on. The bottom row has "+n+" cans. How many cans are in the stack?",
+      a:a, hint:"Pair the top row with the bottom row, the second row with the second-to-last row… what does each pair add up to?",
+      sol:"1 + "+n+" = "+(n+1)+", 2 + "+(n-1)+" = "+(n+1)+", and so on. "+n+" rows make "+n+" × "+(n+1)+" = "+(n*(n+1))+" counted twice, so "+(n*(n+1))+" ÷ 2 = "+a+"." };
+  }},
+  { fam:"sumdiff", min:1, make:function(L){
+    var n1 = pick(NAMES), n2 = pick(NAMES.filter(function(x){return x!==n1;}));
+    var small = ri(8, L>2?60:30), diff = ri(4, L>2?30:14), big = small+diff, sum = big+small;
+    return { q:n1+" and "+n2+" have "+sum+" stickers together. "+n1+" has "+diff+" more than "+n2+". How many stickers does "+n1+" have?",
+      a:big, hint:"Take away the extra "+diff+" first. Then the two piles are equal.",
+      sol:"Remove "+n1+"'s extra "+diff+": "+sum+" − "+diff+" = "+(2*small)+". Split equally: "+small+" each. "+n1+" has "+small+" + "+diff+" = "+big+"." };
+  }},
+  { fam:"parts", min:2, make:function(L){
+    var c = ri(4,11), k = ri(3,5), mom = c*k, s = c+mom;
+    return { q:"Mom is "+k+" times as old as Ria. Their ages add up to "+s+". How old is Ria?",
+      a:c, hint:"Draw it: Ria is 1 box, Mom is "+k+" boxes the same size. How many boxes altogether?",
+      sol:"1 box for Ria + "+k+" boxes for Mom = "+(k+1)+" equal boxes = "+s+". One box = "+s+" ÷ "+(k+1)+" = "+c+"." };
+  }},
+  { fam:"parts", min:2, make:function(L){
+    var w = ri(2,9), k = ri(2,4), l = k*w, P = 2*(l+w);
+    return { q:"A rectangle's length is "+k+" times its width. Its perimeter is "+P+" cm. What is its area in square cm?",
+      a:l*w, hint:"Call the width 1 part. The length is "+k+" parts. How many parts go all the way round?",
+      sol:"Going round: width + length + width + length = 1 + "+k+" + 1 + "+k+" = "+(2*(k+1))+" parts = "+P+" cm, so the width is "+w+" cm and the length "+l+" cm. Area = "+l+" × "+w+" = "+(l*w)+"." };
+  }},
+  { fam:"fence", min:1, make:function(L){
+    var k = ri(2,6), seg = ri(5,15), len = k*seg;
+    return { q:"A straight fence is "+len+" metres long. There is a post at each end and a post every "+k+" metres. How many posts are there?",
+      a:seg+1, hint:"Draw a short fence with 2 or 3 gaps. Count the gaps, then count the posts.",
+      sol:len+" ÷ "+k+" = "+seg+" gaps between posts. There is always one more post than gaps, so "+(seg+1)+" posts." };
+  }},
+  { fam:"fence", min:1, make:function(L){
+    var u = ri(3,6), dn = ri(1,u-1), H = ri(u+6, L>2?40:24), pos = 0, day = 0;
+    while(true){ day++; pos += u; if(pos >= H) break; pos -= dn; }
+    var gain = u-dn;
+    return { q:"A snail is at the bottom of a well "+H+" feet deep. Each day it climbs up "+u+" feet, and each night it slides back "+dn+" feet. On which day does it get out?",
+      a:day, hint:"It gains "+gain+" foot"+(gain>1?"s":"")+" per day and night — but on the last day it climbs out before it can slide back.",
+      sol:"After "+(day-1)+" full day"+(day-1===1?"":"s")+" and night"+(day-1===1?"":"s")+" it is "+((day-1)*gain)+" feet up. On day "+day+" it climbs "+u+" more to "+((day-1)*gain+u)+" feet — out of the "+H+"-foot well." };
+  }},
+  { fam:"backward", min:1, make:function(L){
+    var n1 = pick(NAMES), y = ri(3, L>2?20:12), c = ri(2,9), start = 2*(2*y + c);
+    return { q:n1+" had some money. "+n1+" spent half of it on a book, then $"+c+" on lunch, then gave half of what was left to a friend. Now "+n1+" has $"+y+". How much did "+n1+" start with?",
+      a:start, hint:"Work backwards from $"+y+". Undo each step: halving is undone by doubling, spending is undone by adding.",
+      sol:"Before giving half away: $"+y+" × 2 = $"+(2*y)+". Before lunch: $"+(2*y)+" + $"+c+" = $"+(2*y+c)+". Before the book: $"+(2*y+c)+" × 2 = $"+start+"." };
+  }},
+  { fam:"consec", min:1, make:function(L){
+    var n = L>2 ? pick([3,4,5]) : 3, first = ri(10, L>2?80:40), S = 0, extras = n*(n-1)/2;
+    for(var i=0;i<n;i++) S += first+i;
+    return { q:"The sum of "+n+" numbers in a row (like 7, 8, 9…) is "+S+". What is the largest of the "+n+" numbers?",
+      a:first+n-1, hint:"If all "+n+" numbers were the smallest one, how much less would the sum be?",
+      sol:"The numbers are smallest, +1, +2"+(n>3?", …":"")+", so the extras add to "+extras+". "+S+" − "+extras+" = "+(S-extras)+", ÷ "+n+" = "+first+" is the smallest. The largest is "+(first+n-1)+"." };
+  }},
+  { fam:"count", min:1, make:function(L){
+    var three = L>=3, S, list = [], i, s;
+    if(three){
+      S = ri(3,8);
+      var byH = {};
+      for(i=100;i<=999;i++){ s = Math.floor(i/100) + Math.floor(i/10)%10 + i%10; if(s===S){ list.push(i); byH[Math.floor(i/100)] = (byH[Math.floor(i/100)]||0)+1; } }
+      var parts = Object.keys(byH).map(function(h){ return "starting with "+h+": "+byH[h]; });
+      return { q:"How many three-digit numbers have digits that add up to "+S+"? (For example, "+(100+S-1)+" counts, because 1 + 0 + "+(S-1)+" = "+S+".)",
+        a:list.length, hint:"Be organised. Fix the hundreds digit first, then count the ways to finish the other two digits.",
+        sol:"Count by the first digit — "+parts.join(", ")+". Total: "+list.length+"." };
+    }
+    S = ri(4,14);
+    for(i=10;i<=99;i++){ s = Math.floor(i/10) + i%10; if(s===S) list.push(i); }
+    return { q:"How many two-digit numbers have digits that add up to "+S+"?",
+      a:list.length, hint:"List them in order, starting with the smallest tens digit that works.",
+      sol:"They are "+list.join(", ")+" — that is "+list.length+" numbers." };
+  }},
+  { fam:"count", min:1, make:function(L){
+    var n = ri(3, L>2?6:4), a = 0, parts = [];
+    for(var k=1;k<=n;k++){ var c = (n-k+1)*(n-k+1); a += c; parts.push(k+"×"+k+": "+c); }
+    return { q:"A square board is divided into a "+n+" by "+n+" grid of small squares. How many squares of any size can you find on it?",
+      a:a, hint:"Don't just count the small ones. Count 1×1 squares, then 2×2 squares, and so on up to "+n+"×"+n+".",
+      sol:parts.join(", ")+". Add them: "+a+"." };
+  }},
+  { fam:"digits", min:1, make:function(L){
+    var N = ri(30, L>2?260:99), d = 0, i;
+    for(i=1;i<=N;i++) d += String(i).length;
+    var one = Math.min(N,9), two = Math.max(0, Math.min(N,99)-9), thr = Math.max(0, N-99);
+    var sol = "Pages 1–9 use "+one+" digits. Pages 10–"+Math.min(N,99)+" are "+two+" pages × 2 = "+(two*2)+" digits.";
+    if(thr) sol += " Pages 100–"+N+" are "+thr+" pages × 3 = "+(thr*3)+" digits.";
+    sol += " Total: "+d+".";
+    return { q:"A book has "+N+" pages, numbered 1 to "+N+". How many digits does the printer use to number all the pages?",
+      a:d, hint:"Split the pages into groups: one-digit page numbers, two-digit page numbers"+(N>99?", three-digit page numbers":"")+".",
+      sol:sol };
+  }},
+  { fam:"balance", min:2, make:function(L){
+    var k1 = ri(2,4), P = ri(1,6)*10, apple = 3*k1*P/2;
+    return { q:k1+" plums weigh the same as 1 pear. 2 apples weigh the same as 3 pears. A plum weighs "+P+" g. How many grams does one apple weigh?",
+      a:apple, hint:"Find the pear first, then 3 pears, then split between 2 apples.",
+      sol:"A pear = "+k1+" × "+P+" = "+(k1*P)+" g. 3 pears = "+(3*k1*P)+" g, which equals 2 apples, so one apple = "+(3*k1*P)+" ÷ 2 = "+apple+" g." };
+  }},
+  { fam:"remainder", min:2, make:function(L){
+    var sets = L>=3 ? [[2,3,4,5],[3,4,5],[2,3,4,5,6],[4,5,6]] : [[2,3,4],[2,3,5],[3,4],[2,5]];
+    var ds = pick(sets), m = ds.reduce(lcm), r = 1;
+    return { q:"What is the smallest number bigger than 1 that leaves a remainder of 1 when you divide it by "+ds.slice(0,-1).join(", ")+" or "+ds[ds.length-1]+"?",
+      a:m+r, hint:"If you take 1 away from the number, it divides exactly by all of them. What is the smallest number every one of them goes into?",
+      sol:"The smallest number that "+ds.join(", ")+" all divide into is "+m+". Add the remainder: "+m+" + 1 = "+(m+1)+"." };
+  }},
+  { fam:"coins", min:2, make:function(L){
+    var N = pick(L>2 ? [40,45,50,55,60] : [25,30,35,40]), q, total = 0, parts = [];
+    for(q=0;q*25<=N;q++){ var w = Math.floor((N-25*q)/10)+1; total += w; parts.push(q+" quarter"+(q===1?"":"s")+": "+w+" way"+(w===1?"":"s")); }
+    return { q:"How many different ways can you make "+N+" cents using nickels, dimes and quarters? (The order of the coins doesn't matter.)",
+      a:total, hint:"Be organised: first count the ways with no quarters, then with one quarter, and so on. For each, try 0 dimes, 1 dime, 2 dimes…",
+      sol:parts.join("; ")+". Once quarters and dimes are chosen, nickels fill the rest. Total: "+total+"." };
+  }},
+  { fam:"paths", min:3, make:function(L){
+    var w = ri(2,4), h = ri(2,4), a = choose(w+h, w);
+    return { q:"A street map is a grid "+w+" blocks wide and "+h+" blocks tall. You walk from the bottom-left corner to the top-right corner, moving only right or up along the streets. How many different routes are there?",
+      a:a, hint:"Write a number at each corner: the ways to reach it. A corner's number is the corner to its left plus the corner below it.",
+      sol:"Every corner on the bottom edge and left edge has 1 way. Fill in the rest by adding left + below. The top-right corner ends up with "+a+"." };
+  }},
+  { fam:"cube", min:3, make:function(L){
+    var n = ri(3,6), two = ri(0,1) === 1;
+    var a = two ? 12*(n-2) : 6*(n-2)*(n-2);
+    return { q:"A "+n+"×"+n+"×"+n+" cube is painted red on the outside, then cut into small 1×1×1 cubes. How many small cubes have paint on exactly "+(two?"two faces":"one face")+"?",
+      a:a, hint: two ? "Two painted faces means the cube sits on an edge, but not a corner. How many edges does a cube have?"
+                     : "One painted face means the cube is in the middle of a face, not on an edge. What size is that middle square?",
+      sol: two ? "Each of the 12 edges has "+n+" cubes; drop the 2 corners, leaving "+(n-2)+". 12 × "+(n-2)+" = "+a+"."
+               : "Each face has a "+(n-2)+"×"+(n-2)+" middle = "+((n-2)*(n-2))+" cubes. 6 faces × "+((n-2)*(n-2))+" = "+a+"." };
+  }},
+  { fam:"multiples", min:3, make:function(L){
+    var pr = pick([[2,3],[3,5],[2,5],[4,6],[3,4]]), x = pr[0], y = pr[1], N = ri(30,100), m = lcm(x,y);
+    var cx = Math.floor(N/x), cy = Math.floor(N/y), cb = Math.floor(N/m);
+    return { q:"How many whole numbers from 1 to "+N+" are multiples of "+x+" or "+y+" (or both)?",
+      a:cx+cy-cb, hint:"Count the multiples of "+x+", count the multiples of "+y+" — but some numbers got counted twice. Which ones?",
+      sol:"Multiples of "+x+": "+cx+". Multiples of "+y+": "+cy+". Multiples of both (of "+m+"): "+cb+", counted twice. "+cx+" + "+cy+" − "+cb+" = "+(cx+cy-cb)+"." };
+  }}
+];
+
+function genChallenge(L){
+  var pool = shuffle(CHALLENGES.filter(function(c){ return c.min <= L; }));
+  var first = pool[0], second = null;
+  for(var i=1;i<pool.length;i++){ if(pool[i].fam !== first.fam){ second = pool[i]; break; } }
+  return [first, second].map(function(c){ var it = c.make(L); it.kind = "num"; return it; });
+}
+
+/* ============================================================
    ENGLISH SELECTION
    ============================================================ */
 function atLevel(arr, L){
@@ -801,13 +968,25 @@ function blockThink(){
   var L = levelNow();
   seedFor("think");
   var items = genThinking(L);
+  seedFor("challenge");
+  var chal = genChallenge(L);
+  var chalRows = chal.map(function(it,i){
+    return '<div class="prob"><p class="pq"><b>★'+(i+1)+'.</b> '+esc(it.q)+'</p>' +
+      '<div class="prow">'+numInput(it.a, "Challenge "+(i+1), "★ "+it.q)+
+      '<button class="ghost sm" data-hint="c'+i+'">Hint</button></div>' +
+      '<p class="hint" id="hc'+i+'" hidden>'+esc(it.hint)+'</p>' +
+      '<div class="model" data-sol hidden><strong>How to solve it:</strong> '+esc(it.sol)+'</div></div>';
+  }).join("");
+  var chalHTML = '<section class="card challenge" data-sec="c0"><div class="chead"><h2>★ Challenge of the day</h2><span class="chip work">2 puzzles</span></div>' +
+    '<p class="note">These are meant to be hard. Draw a picture, try small numbers, look for a pattern. Give each one at least 5 minutes before you open the hint. The full solution appears after you check.</p>' +
+    chalRows + clearBar("c0") + '</section>';
   var rows = items.map(function(it,i){
     return '<div class="prob"><p class="pq"><b>'+(i+1)+'.</b> '+esc(it.q)+'</p>' +
       '<div class="prow">'+numInput(it.a, "Answer "+(i+1), it.q)+
       '<button class="ghost sm" data-hint="'+i+'">Hint</button></div>' +
       '<p class="hint" id="h'+i+'" hidden>'+esc(it.hint)+(it.aNote ? " " + esc(it.aNote) : "")+'</p></div>';
   }).join("");
-  var html = '<section class="card" data-sec="t0"><div class="chead"><h2>Thinking problems</h2></div>' +
+  var html = chalHTML + '<section class="card" data-sec="t0"><div class="chead"><h2>Thinking problems</h2></div>' +
     '<p class="note">Read each one twice. Work it on paper, then type the number only. Use a hint if you are stuck for more than two minutes.</p>' +
     rows + clearBar("t0") + '</section>' + endBar();
   shell("Thinking", BLOCKS.think.mins, html, function(){
@@ -817,7 +996,9 @@ function blockThink(){
         b.textContent = h.hidden ? "Hint" : "Hide";
       });
     });
-    wireSheet("think");
+    wireSheet("think", function(){
+      app.querySelectorAll("[data-sol]").forEach(function(s){ s.hidden = false; });
+    });
   });
 }
 
@@ -925,6 +1106,7 @@ function wireSheet(block, beforeGrade){
   $("#reveal").addEventListener("click", function(){
     revealSheet();
     var m = $("#openModel"); if(m) m.hidden = false;
+    app.querySelectorAll("[data-sol]").forEach(function(s){ s.hidden = false; });
   });
   $("#clearAll").addEventListener("click", function(){
     clearScope(app, true);
@@ -949,6 +1131,7 @@ function clearScope(root, alsoText){
   });
   var m = root.querySelector ? root.querySelector("#openModel") : null;
   if(m) m.hidden = true;
+  root.querySelectorAll("[data-sol]").forEach(function(s){ s.hidden = true; });
 }
 
 /* ---------- grading ---------- */
@@ -1210,6 +1393,7 @@ function toast(msg){
 window.__drills = {
   genMultiply:genMultiply, genDivide:genDivide, genFractions:genFractions,
   genDecimals:genDecimals, genThinking:genThinking, pickEnglish:pickEnglish,
+  genChallenge:genChallenge, CHALLENGES:CHALLENGES,
   seedFor:function(t,dayKey){ R = mulberry(hash((dayKey||"test") + "|" + t)); }
 };
 if(hasDOM && document.getElementById("app")){

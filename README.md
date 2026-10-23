@@ -42,7 +42,7 @@ Repeat on the second iPad. Each iPad keeps its own scores.
 | Block | Time | What it covers |
 |---|---|---|
 | Math | 30 min | Multiplication, division, fractions, and decimals from level 2 |
-| Thinking | 20 min | Word problems, patterns, missing numbers, measurement, reasoning |
+| Thinking | 20 min | ★ 2 challenge puzzles, then word problems, patterns, missing numbers, measurement, reasoning |
 | English | 40 min | Spelling, vocabulary, grammar, a reading passage, a writing prompt |
 
 Each block has its own countdown. The clock turns amber with five minutes left
@@ -89,6 +89,17 @@ from 1 to 4. Add or replace items there, re-upload that one file, and bump the
 version in `sw.js` (`drills-v1` → `drills-v2`) so the iPads pick it up.
 
 Math and thinking problems are generated in `app.js` and need no content file.
+
+### Challenge of the day
+
+The Thinking block opens with two harder puzzles (the `CHALLENGES` list in
+`app.js`): chickens-and-cows, handshakes, working backwards, fence posts, the
+snail in the well, counting squares, page digits, making change, and more. New
+types unlock at level 2 (balance scales, remainders, parts) and level 3 (grid
+routes, painted cubes, multiples). The two puzzles on a day always use different
+ideas. Each has a hint, and a worked solution appears after **Check**. Their
+scores count toward the Thinking total and any misses show up in the report
+marked with ★.
 
 ## Offline
 
