@@ -183,7 +183,7 @@ function genFractions(L){
   /* (n*m)/(d*m) back down to n/d */
   function simplify(maxMult){
     var d = pick(smallDens), n = coprimeNumer(d), m = ri(2, maxMult);
-    return { q:(n*m)+"/"+(d*m)+"  in simplest form", w:0, n:n, d:d, kind:"frac", simplify:true };
+    return { q:(n*m)+"/"+(d*m)+"  in simplest form", w:0, n:n, d:d, kind:"frac", simplify:true, noWhole:true };
   }
 
   function likeAdd(maxWhole, alsoSimplify){
@@ -214,6 +214,20 @@ function genFractions(L){
     return { q:wA+" "+nA+"/"+dA+"  +  "+wB+" "+nB+"/"+dB, w:W, n:N/g, d:N?LC/g:LC, kind:"frac" };
   }
 
+  /* Mixed - mixed, like denominators, no borrowing, answer must simplify.
+     Mirrors "Subtracting Mixed Numbers with Like Denominators, Requires Simplifying". */
+  function subMixedSimplify(){
+    var dens = [4,6,8,9,10,12,14];
+    var d = pick(dens), diff, guard = 0;
+    do { diff = ri(1, d-2); } while(gcd(diff, d) === 1 && guard++ < 40);
+    if(gcd(diff, d) === 1){ d = 6; diff = 2; }
+    var y = ri(1, d-1-diff), x = y + diff;
+    var B = ri(0,4), A = B + ri(1,4);
+    var g = gcd(diff, d);
+    return { q:A+" "+x+"/"+d+"  \u2212  "+(B ? B+" " : "")+y+"/"+d+"  (simplify)",
+             w:A-B, n:diff/g, d:d/g, kind:"frac" };
+  }
+
   function improper(){
     var d = pick(smallDens), W = ri(2,5), n = coprimeNumer(d);
     return { q:(W*d + n)+"/"+d+"  as a mixed number", w:W, n:n, d:d, kind:"frac", exact:true };
@@ -226,19 +240,22 @@ function genFractions(L){
   }
 
   if(L === 1){
-    collect(2, function(){ return likeAdd(4, false); }, items);
-    collect(2, function(){ return equivalent(3); }, items);
+    collect(1, function(){ return likeAdd(4, false); }, items);
+    collect(2, function(){ return subMixedSimplify(); }, items);
+    collect(1, function(){ return equivalent(3); }, items);
     collect(1, function(){ return simplify(3); }, items);
     collect(1, function(){ var d=pick(smallDens), w=ri(1,6), n=ri(1,d-1);
       return {q:w+" + "+n+"/"+d, w:w, n:n, d:d, kind:"frac"}; }, items);
   } else if(L === 2){
-    collect(2, function(){ return likeAdd(5, true); }, items);
+    collect(1, function(){ return likeAdd(5, true); }, items);
+    collect(2, function(){ return subMixedSimplify(); }, items);
     collect(1, function(){ return likeSub(); }, items);
     collect(1, function(){ return equivalent(4); }, items);
-    collect(2, function(){ return simplify(4); }, items);
+    collect(1, function(){ return simplify(4); }, items);
   } else if(L === 3){
     collect(2, function(){ return unlike([[2,4],[2,6],[3,6],[2,8],[4,8],[3,9],[5,10],[2,10]]); }, items);
-    collect(2, function(){ return simplify(5); }, items);
+    collect(1, function(){ return subMixedSimplify(); }, items);
+    collect(1, function(){ return simplify(5); }, items);
     collect(1, function(){ return likeAdd(4, true); }, items);
     collect(1, function(){ return improper(); }, items);
   } else {
@@ -247,8 +264,8 @@ function genFractions(L){
     collect(2, function(){ return fracTimesWhole(); }, items);
   }
   var notes = {
-    1:"Same bottom number: add the tops only. For \u201c= ?/\u2026\u201d multiply top and bottom by the same number.",
-    2:"Simplify where it asks. To make an equal fraction, whatever you do to the top you do to the bottom.",
+    1:"Same bottom number \u2014 add or take away the tops only. Where it says simplify, divide top and bottom by the same number.",
+    2:"Subtract the wholes, then the tops. Always simplify the answer at the end.",
     3:"Different bottom numbers now \u2014 but one divides into the other, so only one needs changing.",
     4:"Find a common denominator first. Simplify every answer."
   };
@@ -752,8 +769,10 @@ function topBar(title, opts){
     '</div>';
 }
 function wireBar(onBack){
-  var h = $("#home"); if(h) h.addEventListener("click", function(){ stopTimer(); screenCalendar(); });
-  var b = $("#back"); if(b) b.addEventListener("click", function(){ stopTimer(); (onBack || screenCalendar)(); });
+  var h = $("#home");
+  if(h) h.addEventListener("click", function(){ saveDraft(); stopTimer(); activeBlock = null; screenCalendar(); });
+  var b = $("#back");
+  if(b) b.addEventListener("click", function(){ saveDraft(); stopTimer(); activeBlock = null; (onBack || screenCalendar)(); });
 }
 
 /* ---------- calendar (home) ---------- */
@@ -879,8 +898,84 @@ function screenDay(){
   $("#parent").addEventListener("click", screenParent);
 }
 
+/* ============================================================
+   DRAFTS - keep half-finished work when they navigate away
+   ============================================================ */
+var activeBlock = null, draftTimer = null;
+
+function draftKey(block){ return "draft:" + who() + ":" + todayKey() + ":" + block; }
+
+function saveDraft(){
+  if(!activeBlock || !app) return;
+  try{
+    var d = { ans:[], frac:[], opts:[], text:{} };
+    app.querySelectorAll("input.ans").forEach(function(i){ d.ans.push(i.value); });
+    app.querySelectorAll(".fracbox").forEach(function(b){
+      var fw = b.querySelector(".fw"), fn = b.querySelector(".fn"), fd = b.querySelector(".fd");
+      d.frac.push([fw ? fw.value : "", fn ? fn.value : "", fd ? fd.value : ""]);
+    });
+    app.querySelectorAll(".opts").forEach(function(o){
+      var sel = o.querySelector("input:checked");
+      d.opts.push(sel ? sel.value : "");
+    });
+    app.querySelectorAll("textarea").forEach(function(t){ if(t.id) d.text[t.id] = t.value; });
+    store.set(draftKey(activeBlock), d);
+  }catch(e){}
+}
+
+function saveDraftSoon(){
+  if(draftTimer) clearTimeout(draftTimer);
+  draftTimer = setTimeout(saveDraft, 400);
+}
+
+function loadDraft(block){
+  var d = store.get(draftKey(block), null);
+  if(!d) return false;
+  var filled = 0;
+  var a = app.querySelectorAll("input.ans");
+  (d.ans || []).forEach(function(v, i){ if(a[i] && v){ a[i].value = v; filled++; } });
+  var f = app.querySelectorAll(".fracbox");
+  (d.frac || []).forEach(function(v, i){
+    var b = f[i]; if(!b) return;
+    var fw = b.querySelector(".fw"), fn = b.querySelector(".fn"), fd = b.querySelector(".fd");
+    if(fw && v[0]){ fw.value = v[0]; filled++; }
+    if(fn && v[1]){ fn.value = v[1]; filled++; }
+    if(fd && v[2]){ fd.value = v[2]; filled++; }
+  });
+  var o = app.querySelectorAll(".opts");
+  (d.opts || []).forEach(function(v, i){
+    if(!o[i] || v === "") return;
+    var inp = o[i].querySelectorAll(".opt input")[+v];
+    if(inp){ inp.checked = true; filled++; }
+  });
+  Object.keys(d.text || {}).forEach(function(id){
+    var t = document.getElementById(id);
+    if(t && d.text[id]){ t.value = d.text[id]; t.dispatchEvent(new Event("input")); filled++; }
+  });
+  return filled > 0;
+}
+
+function clearDraft(block){
+  try{ localStorage.removeItem("dd:" + draftKey(block)); }catch(e){}
+}
+
+/* drop drafts older than three weeks so storage cannot creep up */
+function pruneDrafts(){
+  try{
+    var cutoff = keyOf(new Date(Date.now() - 21*86400000));
+    for(var i = localStorage.length - 1; i >= 0; i--){
+      var k = localStorage.key(i);
+      if(k && k.indexOf("dd:draft:") === 0){
+        var m = k.match(/:(\d{4}-\d{2}-\d{2}):/);
+        if(m && m[1] < cutoff) localStorage.removeItem(k);
+      }
+    }
+  }catch(e){}
+}
+
 /* ---------- sheet shell ---------- */
-function shell(title, mins, bodyHTML, onMount){
+function shell(title, mins, bodyHTML, onMount, block){
+  activeBlock = block || null;
   app.innerHTML = topBar(title, { back:true, clock:true }) + '<div class="sheet">' + bodyHTML + '</div>';
   wireBar(screenDay);
   startTimer(mins, function(s){
@@ -890,13 +985,15 @@ function shell(title, mins, bodyHTML, onMount){
   });
   if(onMount) onMount();
   wireLiveClear();
+  if(block && loadDraft(block)) toast("Your answers from before are still here");
 }
 
-/* typing in a marked box clears its own mark */
+/* typing in a marked box clears its own mark, and saves the draft */
 function wireLiveClear(){
   app.addEventListener("input", function(e){
     var t = e.target;
     if(t && t.tagName === "INPUT"){ t.classList.remove("ok","no"); }
+    saveDraftSoon();
   });
   app.addEventListener("change", function(e){
     var t = e.target;
@@ -904,6 +1001,7 @@ function wireLiveClear(){
       var box = t.closest(".opts");
       if(box) box.querySelectorAll(".opt").forEach(function(l){ l.classList.remove("ok","no"); });
     }
+    saveDraftSoon();
   });
 }
 
@@ -925,12 +1023,12 @@ function sectionHTML(sec, idPrefix){
         '<input class="ans" type="text" inputmode="numeric" data-a="'+it.r+'" data-opt="1" aria-label="remainder"></span></div>';
     }
     if(it.kind === "frac"){
-      var tail = /=|simplest form|mixed number/.test(it.q) ? "" : " =";
+      var tail = /=|simplest form|mixed number|\(simplify\)/.test(it.q) ? "" : " =";
       return '<div class="tile col"><span class="q">'+q+tail+'</span>' +
         '<span class="fracbox" data-w="'+it.w+'" data-n="'+it.n+'" data-d="'+it.d+'"' +
           (/simplif|simplest/i.test(it.q) ? ' data-simp="1"' : '') +
           (it.exact ? ' data-exact="1"' : '') + '>' +
-          ((it.simplify || it.exact && !it.w) ? "" : '<input class="fw" type="text" inputmode="numeric" placeholder="whole" aria-label="whole number">') +
+          ((it.noWhole || (it.exact && !it.w)) ? "" : '<input class="fw" type="text" inputmode="numeric" placeholder="whole" aria-label="whole number">') +
           '<span class="stack"><input class="fn" type="text" inputmode="numeric" aria-label="numerator">' +
           '<span class="bar2"></span><input class="fd" type="text" inputmode="numeric" aria-label="denominator"></span>' +
         '</span></div>';
@@ -964,7 +1062,7 @@ function blockMath(){
   var secs = [genMultiply(L), genDivide(L), genFractions(L)];
   if(L >= 2) secs.push(genDecimals(L));
   var html = secs.map(function(s,i){ return sectionHTML(s, "m"+i); }).join("") + endBar();
-  shell("Math", BLOCKS.math.mins, html, function(){ wireSheet("math"); });
+  shell("Math", BLOCKS.math.mins, html, function(){ wireSheet("math"); }, "math");
 }
 
 /* ---------- THINKING ---------- */
@@ -1003,7 +1101,7 @@ function blockThink(){
     wireSheet("think", function(){
       app.querySelectorAll("[data-sol]").forEach(function(s){ s.hidden = false; });
     });
-  });
+  }, "think");
 }
 
 /* ---------- ENGLISH ---------- */
@@ -1088,7 +1186,7 @@ function blockEnglish(){
       saveDetail("readTitle", p.title);
       var m = $("#openModel"); if(m) m.hidden = false;
     });
-  });
+  }, "eng");
 }
 
 function say(text){
@@ -1114,11 +1212,13 @@ function wireSheet(block, beforeGrade){
   });
   $("#clearAll").addEventListener("click", function(){
     clearScope(app, true);
+    clearDraft(block);
     var el = $("#score"); el.textContent = "—"; el.className = "score";
   });
   app.querySelectorAll("[data-clear]").forEach(function(b){
     b.addEventListener("click", function(){
       clearScope(app.querySelector('[data-sec="'+b.dataset.clear+'"]'), false);
+      saveDraft();
     });
   });
 }
@@ -1429,8 +1529,11 @@ window.__drills = {
   seedFor:function(t,dayKey){ R = mulberry(hash((dayKey||"test") + "|" + t)); }
 };
 if(hasDOM && document.getElementById("app")){
-  window.addEventListener("beforeunload", stopTimer);
+  window.addEventListener("beforeunload", function(){ saveDraft(); stopTimer(); });
+  window.addEventListener("pagehide", saveDraft);
+  document.addEventListener("visibilitychange", function(){ if(document.hidden) saveDraft(); });
   window.addEventListener("online", flushQueue);
+  pruneDrafts();
   if(who()){
     screenCalendar();
     flushQueue();
