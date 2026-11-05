@@ -302,15 +302,20 @@ function mount(host, key, opts){
   var maxShots = opts.maxShots || 4;
 
   host.classList.add("pad");
+  if(opts.compact) host.classList.add("compact");
   host.innerHTML =
     '<div class="pad-tools">' +
-      '<button type="button" class="pad-btn" data-m="ink">&#9998; Pencil</button>' +
-      '<button type="button" class="pad-btn" data-m="type">&#9000; Type</button>' +
+      '<button type="button" class="pad-btn" data-m="ink">&#9998;' +
+        (opts.compact ? '' : ' Pencil') + '</button>' +
+      '<button type="button" class="pad-btn" data-m="type">&#9000;' +
+        (opts.compact ? '' : ' Type') + '</button>' +
       '<label class="pad-btn" data-m="photo">&#128247; Photo' +
         '<input type="file" accept="image/*" capture="environment" hidden></label>' +
       '<span class="pad-gap"></span>' +
-      '<button type="button" class="pad-btn" data-undo>&#9003; Undo</button>' +
-      '<button type="button" class="pad-btn" data-clear>Clear</button>' +
+      '<button type="button" class="pad-btn" data-undo>&#9003;' +
+        (opts.compact ? '' : ' Undo') + '</button>' +
+      '<button type="button" class="pad-btn" data-clear>' +
+        (opts.compact ? '&times;' : 'Clear') + '</button>' +
       '<span class="pad-state"></span>' +
     '</div>' +
     '<div class="pad-body">' +

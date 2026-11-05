@@ -8,7 +8,7 @@
 
 /* ---------- configuration you may want to change ---------- */
 var START_DATE = "2026-10-27";   // Monday the programme begins. Week 1 starts here.
-var APP_VERSION = "19";          // shown on the home screen; keep in step with CACHE in sw.js
+var APP_VERSION = "20";          // shown on the home screen; keep in step with CACHE in sw.js
 
 /* Google Apps Script web-app URL. Blank = results stay on the iPad only.
    Paste the /exec URL from Deploy → New deployment → Web app. */
@@ -1425,12 +1425,20 @@ function blockEnglish(){
   var E = pickEnglish(L);
   var saved = records()[todayKey()] || {};
 
+  /* Spelling is written by hand, not typed.
+     iPadOS Scribble turns handwriting in a text box into text it
+     recognises - so "importent" comes back as "important" and the one
+     thing a spelling test exists to capture is quietly repaired before
+     anyone sees it. A canvas is not a text box, so nothing is corrected
+     and the word survives exactly as she formed it.
+     The keyboard is still there for anyone without a Pencil. */
   var spellRows = E.spelling.map(function(pair, i){
     var blanked = pair[1].replace(new RegExp(pair[0], "ig"), "______");
-    return '<div class="srow"><span class="idx">'+(i+1)+'</span>' +
+    return '<div class="srow spell"><span class="idx">'+(i+1)+'</span>' +
       '<button class="speak" data-say="'+esc(pair[0]+". "+pair[1])+'" aria-label="Hear word '+(i+1)+'">🔊</button>' +
-      '<input class="ans word" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" data-a="'+esc(pair[0])+'" aria-label="Spelling '+(i+1)+'">' +
-      '<span class="clue">'+esc(blanked)+'</span></div>';
+      '<div class="wordpad" data-pad="sp'+i+'" data-a="'+esc(pair[0])+'"></div>' +
+      '<span class="clue">'+esc(blanked)+'</span>' +
+      '<span class="answer" hidden>'+esc(pair[0])+'</span></div>';
   }).join("");
 
   var vocabRows = E.vocab.map(function(v){
@@ -1452,7 +1460,7 @@ function blockEnglish(){
   var p = E.reading;
   var html =
     '<section class="card" data-sec="e0"><div class="chead"><h2>Spelling</h2><span class="chip">10 words</span></div>' +
-    '<p class="note">Tap the speaker, listen to the word and the sentence, then type it. Do not look at the clue first.</p>' +
+    '<p class="note">Tap the speaker, listen to the word and the sentence, then write it with your Pencil. Do not look at the clue first.</p>' +
     spellRows +
     '<details class="setup"><summary>Word list (for the adult reading them out)</summary><ol class="wordlist">' +
     E.spelling.map(function(w){ return "<li>"+esc(w[0])+"</li>"; }).join("") + '</ol></details>' +
@@ -1491,6 +1499,17 @@ function blockEnglish(){
       b.addEventListener("click", function(){ say(b.dataset.say); });
     });
 
+    /* one small writing strip per spelling word */
+    if(window.Ink && Ink.available()){
+      var sbase = "ink:" + who() + ":" + todayKey() + ":eng:";
+      app.querySelectorAll(".wordpad").forEach(function(w){
+        var id = w.dataset.pad;
+        Ink.mount(w, sbase + id, { height: 56, compact: true,
+          placeholder: " ", label: "write word " + (id.slice(2) * 1 + 1),
+          onChange: function(d){ sendInk("eng", id, d); } });
+      });
+    }
+
     /* Writing opens on nearly the whole screen rather than a box on the
        sheet - a page of handwriting needs a page. The hidden #writeAns
        keeps whatever was typed, so drafts, grading and the upload carry
@@ -1524,6 +1543,10 @@ function blockEnglish(){
       saveDetail("writePrompt", E.writing.p);
       saveDetail("readTitle", p.title);
       var m = $("#openModel"); if(m) m.hidden = false;
+      /* handwriting cannot be marked by the app - show the right spelling
+         beside each one so she can compare, and Claude reads the writing
+         itself overnight to find what actually went wrong */
+      app.querySelectorAll(".srow.spell .answer").forEach(function(a){ a.hidden = false; });
     });
   }, "eng");
 }
