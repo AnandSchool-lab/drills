@@ -333,19 +333,8 @@ function mount(host, key, opts){
   var state  = host.querySelector(".pad-state");
 
   var data = { v:1, mode: prefersTyping() ? "type" : "ink", w:0, h:height, s:[], imgs:[], text:"" };
-  var ctx = null, rect = null, drawing = false, cur = null;
+  var ctx = null, drawing = false, cur = null, orig = null;
   var t0 = Date.now(), saveTimer = null, dirty = false;
-
-  /* ---- the measurement that used to be in the hot path ---- */
-  function measure(){ rect = surf.getBoundingClientRect(); }
-  var remeasure = false;
-  function askMeasure(){
-    if(remeasure) return;
-    remeasure = true;
-    requestAnimationFrame(function(){ remeasure = false; measure(); });
-  }
-  window.addEventListener("resize", askMeasure, { passive:true });
-  window.addEventListener("scroll", askMeasure, { passive:true, capture:true });
 
   function sizeCanvas(){
     var w = Math.max(40, Math.round(surf.clientWidth));
@@ -360,7 +349,6 @@ function mount(host, key, opts){
     data.w = w; data.h = h;
     if(old && Math.abs(w / old - 1) > 0.02) rescale(w / old);
     redraw();
-    measure();
   }
 
   function rescale(k){
@@ -390,31 +378,42 @@ function mount(host, key, opts){
     return true;
   }
 
+  /* Where the nib is, without ever measuring the panel.
+
+     offsetX/offsetY are already relative to the surface, so they stay
+     right no matter what the panel does - moved by a zoomed Safari,
+     scrolled, resized mid-stroke. Coalesced points carry only client
+     coordinates, so they are placed as a delta from the event that
+     brought them, which is exact and still touches no layout. */
   surf.addEventListener("pointerdown", function(e){
     if(data.mode !== "ink" || !accepts(e)) return;
-    measure();                                   /* once, here - not per point */
     drawing = true;
     try{ surf.setPointerCapture(e.pointerId); }catch(err){}
-    cur = { t: Date.now() - t0,
-            p: [ Math.round((e.clientX - rect.left)*10)/10,
-                 Math.round((e.clientY - rect.top )*10)/10 ] };
+    cur = { t: Date.now() - t0, p: [ r1(e.offsetX), r1(e.offsetY) ] };
     data.s.push(cur);
-    host.querySelector(".pad-ph") && host.querySelector(".pad-ph").remove();
+    var ph = host.querySelector(".pad-ph"); if(ph) ph.remove();
     e.preventDefault();
   });
 
+  function r1(n){ return Math.round(n * 10) / 10; }
+
   surf.addEventListener("pointermove", function(e){
-    if(!drawing || !cur || !rect) return;
+    if(!drawing || !cur) return;
     var co = e.getCoalescedEvents ? e.getCoalescedEvents() : null;
-    var evts = (co && co.length) ? co : [e];
-    var p = cur.p, L = rect.left, T = rect.top;
+    var evts = (co && co.length) ? co : null;
+    var p = cur.p;
     ctx.beginPath();
     ctx.moveTo(p[p.length-2], p[p.length-1]);
-    for(var i = 0; i < evts.length; i++){
-      var x = Math.round((evts[i].clientX - L)*10)/10;
-      var y = Math.round((evts[i].clientY - T)*10)/10;
-      p.push(x, y);
-      ctx.lineTo(x, y);
+    if(!evts){
+      var x = r1(e.offsetX), y = r1(e.offsetY);
+      p.push(x, y); ctx.lineTo(x, y);
+    } else {
+      var ox = e.offsetX, oy = e.offsetY, cx = e.clientX, cy = e.clientY;
+      for(var i = 0; i < evts.length; i++){
+        var gx = r1(ox + (evts[i].clientX - cx));
+        var gy = r1(oy + (evts[i].clientY - cy));
+        p.push(gx, gy); ctx.lineTo(gx, gy);
+      }
     }
     ctx.stroke();
     e.preventDefault();
@@ -446,8 +445,9 @@ function mount(host, key, opts){
     var f = fileIn.files && fileIn.files[0];
     fileIn.value = "";
     if(!f) return;
-    state.textContent = "adding…";
+    state.textContent = "adding photo…";
     shrink(f).then(function(src){
+      state.textContent = "";
       data.imgs.push(src);
       if(data.imgs.length > maxShots) data.imgs = data.imgs.slice(-maxShots);
       setMode("photo"); paintShots(); touch();
@@ -492,13 +492,14 @@ function mount(host, key, opts){
     return { v:1, mode:data.mode, w:data.w, h:data.h,
              s:data.s, imgs:data.imgs, text:ta.value || "" };
   }
+  /* Saves quietly. It still writes every half second so nothing is ever
+     lost, but a child does not need a running commentary about it - the
+     only thing worth saying is when it has gone wrong. */
   function flush(){
     if(!dirty) return;
     dirty = false;
-    state.textContent = "saving";
-    put(key, current()).then(function(){
-      state.textContent = "saved";
-      setTimeout(function(){ if(state.textContent === "saved") state.textContent = ""; }, 1600);
+    put(key, current()).then(function(ok){
+      state.textContent = (ok === null) ? "could not save" : "";
     });
     if(opts.onChange) opts.onChange(current());
   }
@@ -586,31 +587,16 @@ function openSheet(key, opts){
     onChange: opts.onChange
   });
 
-  /* Safari can be pinch-zoomed, and a fixed element in a zoomed page does
-     not stay where it is told - which is how Done ended up off the left
-     edge of the screen. Pin the box to the visual viewport instead. */
-  function fit(){
-    var vv = window.visualViewport;
-    if(!vv) return;
-    back.style.width  = vv.width + "px";
-    back.style.height = vv.height + "px";
-    back.style.left   = vv.offsetLeft + "px";
-    back.style.top    = vv.offsetTop + "px";
-  }
-  fit();
-  if(window.visualViewport){
-    window.visualViewport.addEventListener("resize", fit);
-    window.visualViewport.addEventListener("scroll", fit);
-  }
+  /* The panel used to be re-positioned on every visual-viewport change, to
+     keep Done on screen when Safari was pinch-zoomed. That moved the
+     writing surface out from under its own coordinates mid-stroke, so the
+     ink landed away from the nib. The drawing no longer cares where the
+     panel is, so the panel can hold still. */
 
   function close(){
     try{ pad.flush(); }catch(e){}
     var data = null;
     try{ data = pad.data(); }catch(e){}
-    if(window.visualViewport){
-      window.visualViewport.removeEventListener("resize", fit);
-      window.visualViewport.removeEventListener("scroll", fit);
-    }
     document.body.classList.remove("sheetopen");
     back.remove();
     live = live.filter(function(p){ return p !== pad; });
