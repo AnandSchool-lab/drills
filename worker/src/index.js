@@ -264,6 +264,19 @@ async function getLive(url, env) {
   };
 }
 
+/* One day's pencil work, so the dashboard can replay it stroke by stroke.
+   Behind the parent key: this is the child's actual work. */
+async function getInk(url, env) {
+  const kid = url.searchParams.get("kid");
+  const date = url.searchParams.get("date");
+  if (!isKid(kid) || !isDate(date)) return { ok: false, error: "bad fields" };
+  const rows = await env.DB.prepare(
+    `SELECT block, pad, data, mode, bytes, at FROM ink
+     WHERE kid = ?1 AND date = ?2 ORDER BY block, pad`
+  ).bind(kid, date).all();
+  return { ok: true, kid, date, pads: rows.results || [] };
+}
+
 /* ---------- the entry point ---------- */
 
 export default {
@@ -287,6 +300,13 @@ export default {
           return bad("wrong key", origin, 401);
         }
         return json(await getLive(url, env), 200, origin);
+      }
+
+      if (path === "/ink" && request.method === "GET") {
+        if (!keyOk(url.searchParams.get("key"), env.PARENT_KEY)) {
+          return bad("wrong key", origin, 401);
+        }
+        return json(await getInk(url, env), 200, origin);
       }
 
       if (path === "/retake" && request.method === "POST") {

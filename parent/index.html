@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Daily Drills &mdash; Parent</title>
+<title>Daily Drills — Parent</title>
 <link rel="icon" href="data:,">
 <style>
 :root{
@@ -22,170 +22,344 @@
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);line-height:1.55;
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-  padding:22px max(16px,env(safe-area-inset-left,0)) 64px max(16px,env(safe-area-inset-right,0))}
-.wrap{max-width:780px;margin:0 auto}
-h1{font-size:25px;margin:0 0 4px;letter-spacing:-.01em}
-.sub{color:var(--muted);font-size:15px;margin:0 0 22px}
-.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;margin:14px 0}
-h2{font-size:17px;margin:0 0 4px}
-.note{color:var(--muted);font-size:14px;margin:0 0 14px}
-.state{display:flex;gap:11px;align-items:flex-start;background:var(--amber-soft);
-  border:1px solid var(--amber);border-radius:11px;padding:13px 15px}
-.state .big{font-size:19px;line-height:1.1}
-.state b{display:block;margin-bottom:2px}
-.state span{font-size:14px;color:var(--muted)}
-.rows{margin-top:6px}
-.r{display:flex;align-items:center;gap:11px;padding:11px 0;border-bottom:1px solid var(--line)}
-.r:last-child{border-bottom:0}
-.r .host{flex:1;min-width:0;font-size:15px;font-weight:600}
-.r .why{display:block;font:13px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
-  color:var(--muted);margin-top:2px}
-.pill{font-size:12px;font-weight:700;border-radius:999px;padding:3px 11px;white-space:nowrap;
-  border:1px solid var(--line);color:var(--muted);background:var(--surface-2)}
-.pill.ok{background:var(--good-soft);color:var(--good);border-color:var(--good)}
-.pill.no{background:var(--bad-soft);color:var(--bad);border-color:var(--bad)}
-.pill.run{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
-button{font:inherit;font-size:15px;border-radius:11px;border:1px solid var(--line);
-  background:var(--surface);color:var(--ink);padding:10px 16px;cursor:pointer}
+  padding:20px max(14px,env(safe-area-inset-left,0)) 60px max(14px,env(safe-area-inset-right,0))}
+.wrap{max-width:840px;margin:0 auto}
+header{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:4px}
+h1{font-size:23px;margin:0;letter-spacing:-.01em}
+.when{color:var(--muted);font-size:13px;margin-left:auto}
+.sub{color:var(--muted);font-size:14px;margin:0 0 18px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;margin:12px 0}
+h2{font-size:15px;margin:0 0 10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+button{font:inherit;font-size:15px;border-radius:10px;border:1px solid var(--line);
+  background:var(--surface);color:var(--ink);padding:9px 15px;cursor:pointer}
 button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}
-.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}
-.verdict{margin-top:14px;border-radius:11px;padding:13px 15px;font-size:14.5px;display:none}
-.verdict.show{display:block}
-.verdict.good{background:var(--good-soft);border:1px solid var(--good)}
-.verdict.bad{background:var(--bad-soft);border:1px solid var(--bad)}
-.soon{display:grid;gap:9px}
-.soon div{display:flex;gap:10px;align-items:flex-start;font-size:14.5px;color:var(--muted)}
-.soon b{color:var(--ink);font-weight:600}
-.tick{color:var(--accent);font-weight:800}
-.foot{color:var(--muted);font-size:13px;text-align:center;margin-top:24px}
+button.sm{font-size:13px;padding:5px 11px;border-radius:8px}
+button:disabled{opacity:.5;cursor:default}
+input{font:inherit;font-size:16px;padding:10px 12px;border-radius:10px;border:1px solid var(--line);
+  background:var(--surface);color:var(--ink);width:100%}
+
+/* gate */
+#gate{max-width:380px;margin:12vh auto 0}
+#gate p{color:var(--muted);font-size:14px}
+.err{color:var(--bad);font-size:14px;min-height:20px;margin:8px 0 0}
+
+/* live rows */
+.kid{border:1px solid var(--line);border-radius:12px;padding:13px 15px;margin-bottom:10px;background:var(--surface-2)}
+.kid .top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.kid .nm{font-weight:700;font-size:16px}
+.kid .blk{color:var(--muted);font-size:14px}
+.kid .num{margin-left:auto;font-variant-numeric:tabular-nums;font-weight:700}
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block;flex:none}
+.dot.on{background:var(--good)} .dot.idle{background:var(--amber)} .dot.off{background:var(--line)}
+.bar{height:7px;border-radius:999px;background:var(--line);overflow:hidden;margin-top:9px}
+.bar i{display:block;height:100%;background:var(--accent)}
+.stuck{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}
+.stuck span{font-size:12.5px;font-weight:600;color:var(--amber);background:var(--amber-soft);
+  border:1px solid var(--amber);border-radius:7px;padding:2px 9px}
+.seen{color:var(--muted);font-size:12.5px;margin-top:6px}
+.quiet{color:var(--muted);font-size:14.5px;padding:6px 0}
+
+/* results */
+table{width:100%;border-collapse:collapse;font-size:14.5px}
+th,td{text-align:left;padding:8px 9px;border-bottom:1px solid var(--line)}
+th{font-size:11.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600}
+td.sc{font-variant-numeric:tabular-nums;font-weight:700;white-space:nowrap}
+td.sc.good{color:var(--good)} td.sc.work{color:var(--amber)}
+
+/* misses */
+.miss{padding:9px 0;border-bottom:1px solid var(--line);font-size:14.5px}
+.miss:last-child{border-bottom:0}
+.miss .q{font-weight:600}
+.miss .a{color:var(--muted);font-size:13.5px;margin-top:2px}
+.miss .a b{color:var(--bad);font-weight:600}
+.miss .a i{color:var(--good);font-style:normal;font-weight:600}
+.who{font-size:12px;font-weight:700;color:var(--accent);background:var(--accent-soft);
+  border-radius:6px;padding:1px 7px;margin-right:7px}
+
+/* working replay */
+.pads{display:grid;gap:12px}
+.pad{border:1px solid var(--line);border-radius:11px;padding:11px;background:var(--surface-2)}
+.pad .lbl{font-size:13px;color:var(--muted);margin-bottom:7px;display:flex;align-items:center;gap:9px}
+.pad canvas{display:block;width:100%;background:var(--surface);border:1px solid var(--line);border-radius:8px}
+.pad .typed{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:9px 11px;
+  font-size:14px;white-space:pre-wrap}
+.row{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-top:12px}
+.row select{font:inherit;padding:8px 10px;border-radius:9px;border:1px solid var(--line);
+  background:var(--surface);color:var(--ink)}
+.note{color:var(--muted);font-size:13px;margin-top:10px}
 a{color:var(--accent)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
 <body>
-<div class="wrap">
 
-  <h1>Parent view</h1>
-  <p class="sub">Daily Drills &mdash; Andrila and Alvina</p>
-
-  <div class="card">
-    <div class="state">
-      <span class="big">&#9888;</span>
-      <span><b>Not connected yet</b>
-      <span>The dashboard needs the Cloudflare Worker, which has not been built. This page exists
-      so the address works &mdash; and so you can run the network check below from this exact machine.</span></span>
-    </div>
-  </div>
-
-  <div class="card">
-    <h2>Can this computer reach the pieces?</h2>
-    <p class="note">The dashboard is only useful if it loads from your desk. This checks what your
-      network actually allows, from here, right now.</p>
-
-    <div class="rows" id="rows"></div>
-
-    <div class="actions">
-      <button class="primary" id="run">Run the check</button>
-    </div>
-
-    <div class="verdict" id="verdict"></div>
-  </div>
-
-  <div class="card">
-    <h2>What will be on this page</h2>
-    <div class="soon">
-      <div><span class="tick">&#9679;</span><span><b>Who is working right now</b> &mdash; which block, how far in, last seen.</span></div>
-      <div><span class="tick">&#9679;</span><span><b>Where they are stuck</b> &mdash; a box left blank while later ones get filled, or an answer rewritten five times.</span></div>
-      <div><span class="tick">&#9679;</span><span><b>Their working, replayed</b> &mdash; the pencil strokes in the order she wrote them.</span></div>
-      <div><span class="tick">&#9679;</span><span><b>Topic by topic, month over month</b> &mdash; the flat lines are the ones to look at.</span></div>
-      <div><span class="tick">&#9679;</span><span><b>Overdue tests</b> &mdash; who has not done the weekly or monthly one.</span></div>
-    </div>
-  </div>
-
-  <p class="foot">Kids&#8217; app: <a href="../">anandschool-lab.github.io/drills/</a></p>
+<!-- ---------- passphrase ---------- -->
+<div id="gate" class="card" hidden>
+  <h1 style="margin-bottom:4px">Parent view</h1>
+  <p>Enter your passphrase to see Andrila and Alvina's work.</p>
+  <input id="pass" type="password" autocomplete="current-password" placeholder="passphrase"
+         aria-label="passphrase">
+  <p class="err" id="gateErr"></p>
+  <button class="primary" id="go" style="width:100%">Open</button>
 </div>
 
+<!-- ---------- dashboard ---------- -->
+<div class="wrap" id="board" hidden>
+  <header>
+    <h1>Today</h1>
+    <span class="when" id="when">—</span>
+  </header>
+  <p class="sub" id="dateLine">—</p>
+
+  <div class="card">
+    <h2>Working now</h2>
+    <div id="live"></div>
+  </div>
+
+  <div class="card">
+    <h2>Finished today</h2>
+    <div id="done"></div>
+  </div>
+
+  <div class="card">
+    <h2>Their working</h2>
+    <div class="row">
+      <select id="padKid"><option>Alvina</option><option>Andrila</option></select>
+      <input id="padDate" type="date" style="width:auto">
+      <button class="sm" id="padLoad">Show</button>
+    </div>
+    <div class="pads" id="pads" style="margin-top:12px"></div>
+    <p class="note">Press play on a page to watch it drawn back in the order she wrote it.</p>
+  </div>
+
+  <div class="card">
+    <h2>Wrong in the last week</h2>
+    <div id="misses"></div>
+  </div>
+
+  <div class="card">
+    <h2>Ask for a day again</h2>
+    <div class="row">
+      <select id="rtKid"><option>Alvina</option><option>Andrila</option></select>
+      <input id="rtDate" type="date" style="width:auto">
+      <button class="sm" id="rtGo">Clear that day</button>
+      <span id="rtMsg" class="note" style="margin:0"></span>
+    </div>
+    <p class="note">Clears their score for that day so the sheets come back blank. Their pencil work is kept.</p>
+  </div>
+
+  <p class="note" style="text-align:center">
+    Kids' app: <a href="../">anandschool-lab.github.io/drills/</a> ·
+    <button class="sm" id="forget" style="margin-left:6px">Forget passphrase</button>
+  </p>
+</div>
+
+<script src="../ink.js"></script>
 <script>
-/* A deliberately simple reachability probe.
+var API = "https://drills-api.anandm401-amazon.workers.dev";
+var KEY = "";
+var timer = null;
 
-   We cannot read a cross-origin response, so each host is fetched with
-   mode:"no-cors". The body is opaque, but the promise still tells us
-   whether the connection happened at all - which is the question.
+function $(s){ return document.querySelector(s); }
+function esc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function today(){ return new Date().toISOString().slice(0,10); }
 
-   Honest limitation, stated on screen: a corporate proxy that answers with
-   its own block page looks like a success here. A hard block - refused
-   connection, DNS blackhole, timeout - shows up correctly as blocked. */
-var TESTS = [
-  { host:"https://anandschool-lab.github.io/drills/",
-    label:"The kids' app",
-    why:"Already proven - this page came from here." },
-  { host:"https://cloudflare.com/cdn-cgi/trace",
-    label:"Cloudflare",
-    why:"Where the new server will live." },
-  { host:"https://workers.dev/",
-    label:"workers.dev",
-    why:"The address the dashboard will call for data." },
-  { host:"https://script.google.com/",
-    label:"Google Apps Script",
-    why:"The bridge in use today." }
-];
-
-var rowsEl = document.getElementById("rows");
-var runBtn = document.getElementById("run");
-var verdictEl = document.getElementById("verdict");
-
-function draw(){
-  rowsEl.innerHTML = TESTS.map(function(t, i){
-    return '<div class="r">' +
-      '<span class="host">' + t.label +
-        '<span class="why">' + t.why + '</span></span>' +
-      '<span class="pill" id="p' + i + '">not run</span>' +
-    '</div>';
-  }).join("");
-}
-draw();
-
-function probe(url, ms){
-  return new Promise(function(resolve){
-    var done = false;
-    var timer = setTimeout(function(){ if(!done){ done = true; resolve("blocked"); } }, ms || 7000);
-    fetch(url, { mode:"no-cors", cache:"no-store" })
-      .then(function(){ if(!done){ done = true; clearTimeout(timer); resolve("ok"); } })
-      .catch(function(){ if(!done){ done = true; clearTimeout(timer); resolve("blocked"); } });
-  });
+function ago(iso){
+  if(!iso) return "";
+  var s = Math.max(0, Math.round((Date.now() - new Date(iso).getTime())/1000));
+  if(s < 60) return s + "s ago";
+  var m = Math.round(s/60);
+  if(m < 60) return m + " min ago";
+  return Math.round(m/60) + "h ago";
 }
 
-function run(){
-  runBtn.disabled = true; runBtn.textContent = "Checking…";
-  verdictEl.className = "verdict";
-  var results = [];
-  TESTS.forEach(function(t, i){
-    var p = document.getElementById("p" + i);
-    p.className = "pill run"; p.textContent = "checking";
-  });
-  Promise.all(TESTS.map(function(t, i){
-    return probe(t.host).then(function(res){
-      var p = document.getElementById("p" + i);
-      p.className = "pill " + (res === "ok" ? "ok" : "no");
-      p.textContent = res === "ok" ? "reachable" : "blocked";
-      results[i] = res;
-      return res;
+/* ---------- the gate ---------- */
+function openGate(msg){
+  $("#board").hidden = true;
+  $("#gate").hidden = false;
+  $("#gateErr").textContent = msg || "";
+  $("#pass").focus();
+}
+
+function tryKey(k){
+  return fetch(API + "/live?key=" + encodeURIComponent(k))
+    .then(function(r){
+      if(r.status === 401) return { bad:true };
+      if(!r.ok) throw new Error("server " + r.status);
+      return r.json();
     });
-  })).then(function(){
-    runBtn.disabled = false; runBtn.textContent = "Run the check again";
-    var cf = results[1] === "ok" || results[2] === "ok";
-    verdictEl.className = "verdict show " + (cf ? "good" : "bad");
-    verdictEl.innerHTML = cf
-      ? "<b>Good.</b> Cloudflare is reachable from this machine, so the dashboard will load at your desk. " +
-        "Note that a proxy answering with its own block page can look like success here &mdash; " +
-        "the real proof comes when the Worker is live and returns actual data."
-      : "<b>Cloudflare looks blocked here.</b> The dashboard would not load at your desk. " +
-        "Tell Claude and we will switch to a different route &mdash; your phone on cellular, " +
-        "or a scheduled summary sent to you instead of a live page.";
+}
+
+$("#go").addEventListener("click", submitKey);
+$("#pass").addEventListener("keydown", function(e){ if(e.key === "Enter") submitKey(); });
+
+function submitKey(){
+  var k = $("#pass").value.trim();
+  if(!k) return;
+  $("#go").disabled = true; $("#gateErr").textContent = "checking…";
+  tryKey(k).then(function(d){
+    $("#go").disabled = false;
+    if(d.bad){ $("#gateErr").textContent = "That passphrase was not accepted."; return; }
+    KEY = k;
+    try{ localStorage.setItem("dd:parentKey", k); }catch(e){}
+    $("#gate").hidden = true; $("#board").hidden = false;
+    render(d);
+    start();
+  }).catch(function(e){
+    $("#go").disabled = false;
+    $("#gateErr").textContent = "Could not reach the server. " + e.message;
   });
 }
 
-runBtn.addEventListener("click", run);
+$("#forget").addEventListener("click", function(){
+  try{ localStorage.removeItem("dd:parentKey"); }catch(e){}
+  KEY = ""; stop(); $("#pass").value = ""; openGate("Passphrase forgotten on this device.");
+});
+
+/* ---------- drawing the board ---------- */
+function render(d){
+  $("#when").textContent = "updated " + ago(d.serverTime).replace(" ago","") + " ago";
+  $("#dateLine").textContent = new Date(d.date + "T12:00:00").toLocaleDateString(undefined,
+    { weekday:"long", day:"numeric", month:"long" });
+
+  /* who is on it right now */
+  var live = d.live || [];
+  $("#live").innerHTML = live.length ? live.map(function(r){
+    var pct = r.total ? Math.round(r.answered / r.total * 100) : 0;
+    var secs = (Date.now() - new Date(r.seen_at).getTime())/1000;
+    var cls = secs < 150 ? "on" : (secs < 900 ? "idle" : "off");
+    var stuck = [];
+    try{ stuck = JSON.parse(r.stuck || "[]"); }catch(e){}
+    return '<div class="kid">' +
+      '<div class="top"><span class="dot '+cls+'"></span>' +
+      '<span class="nm">'+esc(r.kid)+'</span>' +
+      '<span class="blk">'+esc(r.block)+'</span>' +
+      '<span class="num">'+r.answered+' / '+r.total+' · '+r.mins+' min</span></div>' +
+      '<div class="bar"><i style="width:'+pct+'%"></i></div>' +
+      (stuck.length ? '<div class="stuck">' + stuck.map(function(s){
+        return '<span>Q'+esc(s.q)+' — '+esc(s.why)+'</span>'; }).join("") + '</div>' : "") +
+      '<div class="seen">last seen '+ago(r.seen_at)+'</div>' +
+    '</div>';
+  }).join("") : '<p class="quiet">Nobody has a sheet open.</p>';
+
+  /* finished today */
+  var done = d.today || [];
+  $("#done").innerHTML = done.length ?
+    '<table><tr><th>Who</th><th>Block</th><th>Score</th><th>Took</th></tr>' +
+    done.map(function(r){
+      var pc = r.total ? r.got / r.total : 0;
+      return '<tr><td>'+esc(r.kid)+'</td><td>'+esc(r.block)+'</td>' +
+        '<td class="sc '+(pc >= 0.8 ? "good" : "work")+'">'+r.got+' / '+r.total+'</td>' +
+        '<td>'+Math.round(r.secs/60)+' min</td></tr>';
+    }).join("") + '</table>'
+    : '<p class="quiet">Nothing finished yet today.</p>';
+
+  /* wrong answers, newest first */
+  var ms = d.misses || [];
+  $("#misses").innerHTML = ms.length ? ms.slice(0, 40).map(function(m){
+    return '<div class="miss"><div class="q"><span class="who">'+esc(m.kid)+'</span>'+esc(m.q)+'</div>' +
+      '<div class="a">wrote <b>'+esc(m.gave || "nothing")+'</b> · answer <i>'+esc(m.want)+'</i>' +
+      ' · '+esc(m.date)+'</div></div>';
+  }).join("") : '<p class="quiet">Nothing wrong in the last week.</p>';
+}
+
+/* ---------- pencil work ---------- */
+$("#padLoad").addEventListener("click", loadPads);
+
+function loadPads(){
+  var kid = $("#padKid").value, date = $("#padDate").value || today();
+  var host = $("#pads");
+  host.innerHTML = '<p class="quiet">Loading…</p>';
+  fetch(API + "/ink?key=" + encodeURIComponent(KEY) +
+        "&kid=" + encodeURIComponent(kid) + "&date=" + encodeURIComponent(date))
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      var pads = (d && d.pads) || [];
+      if(!pads.length){
+        host.innerHTML = '<p class="quiet">No working saved for ' + esc(kid) + ' on that day.</p>';
+        return;
+      }
+      host.innerHTML = "";
+      pads.forEach(function(p, i){
+        var data = {};
+        try{ data = JSON.parse(p.data || "{}"); }catch(e){}
+        var wrap = document.createElement("div");
+        wrap.className = "pad";
+        if(data.mode === "type"){
+          wrap.innerHTML = '<div class="lbl">'+esc(p.block)+' · '+esc(p.pad)+' · typed</div>' +
+            '<div class="typed">'+esc(data.text || "")+'</div>';
+        } else {
+          wrap.innerHTML = '<div class="lbl">'+esc(p.block)+' · '+esc(p.pad)+
+            ' · '+((data.s||[]).length)+' strokes ' +
+            '<button class="sm" data-play="'+i+'">▶ Replay</button></div>' +
+            '<canvas id="cv'+i+'"></canvas>';
+        }
+        host.appendChild(wrap);
+        if(data.mode !== "type"){
+          var cv = wrap.querySelector("canvas");
+          /* draw it complete first, so the page is readable before any replay */
+          Ink.replay(cv, data, { speed: 1000 });
+          wrap.querySelector("[data-play]").addEventListener("click", function(){
+            Ink.replay(cv, data, { speed: 1 });
+          });
+        }
+      });
+    }).catch(function(e){
+      host.innerHTML = '<p class="quiet">Could not load it. ' + esc(e.message) + '</p>';
+    });
+}
+
+/* ---------- retake ---------- */
+$("#rtGo").addEventListener("click", function(){
+  var kid = $("#rtKid").value, date = $("#rtDate").value;
+  if(!date){ $("#rtMsg").textContent = "Pick a date first."; return; }
+  $("#rtGo").disabled = true; $("#rtMsg").textContent = "clearing…";
+  fetch(API + "/retake", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ key: KEY, kid: kid, date: date })
+  }).then(function(r){
+    $("#rtGo").disabled = false;
+    $("#rtMsg").textContent = r.ok
+      ? kid + "'s " + date + " cleared — it resets on her iPad next time she opens the app."
+      : "That did not work (" + r.status + ").";
+    if(r.ok) refresh();
+  }).catch(function(){
+    $("#rtGo").disabled = false; $("#rtMsg").textContent = "Could not reach the server.";
+  });
+});
+
+/* ---------- refresh loop ---------- */
+function refresh(){
+  if(!KEY) return;
+  tryKey(KEY).then(function(d){
+    if(d.bad){ stop(); openGate("The passphrase changed. Enter it again."); return; }
+    render(d);
+  }).catch(function(){
+    $("#when").textContent = "could not reach the server";
+  });
+}
+function start(){ stop(); timer = setInterval(refresh, 30000); }
+function stop(){ if(timer){ clearInterval(timer); timer = null; } }
+
+document.addEventListener("visibilitychange", function(){
+  if(document.visibilityState === "visible" && KEY){ refresh(); start(); }
+  else stop();
+});
+
+/* ---------- boot ---------- */
+(function(){
+  $("#padDate").value = today();
+  $("#rtDate").value = today();
+  var saved = "";
+  try{ saved = localStorage.getItem("dd:parentKey") || ""; }catch(e){}
+  if(!saved){ openGate(); return; }
+  tryKey(saved).then(function(d){
+    if(d.bad){ openGate("Saved passphrase no longer works."); return; }
+    KEY = saved;
+    $("#gate").hidden = true; $("#board").hidden = false;
+    render(d); start();
+  }).catch(function(){ openGate("Could not reach the server."); });
+})();
 </script>
 </body>
 </html>
