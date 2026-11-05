@@ -8,7 +8,7 @@
 
 /* ---------- configuration you may want to change ---------- */
 var START_DATE = "2026-10-27";   // Monday the programme begins. Week 1 starts here.
-var APP_VERSION = "17";          // shown on the home screen; keep in step with CACHE in sw.js
+var APP_VERSION = "18";          // shown on the home screen; keep in step with CACHE in sw.js
 
 /* Google Apps Script web-app URL. Blank = results stay on the iPad only.
    Paste the /exec URL from Deploy → New deployment → Web app. */
@@ -1259,7 +1259,7 @@ function flushPads(){
    all. So the sheet stays short, and tapping opens most of the screen. */
 function padHost(idPrefix, i, q){
   return '<div class="workrow" data-pad="' + idPrefix + '-' + i + '" data-q="' + esc(q || "") + '">' +
-    '<button type="button" class="workbtn">&#128247; Add your working</button>' +
+    '<button type="button" class="workbtn">&#9998; Show your working</button>' +
     '<div class="workprev" hidden></div></div>';
 }
 
@@ -1267,19 +1267,24 @@ function padHost(idPrefix, i, q){
    a glance which problems they have worked and which they have not. */
 function paintPreview(row, data){
   var btn = row.querySelector(".workbtn"), prev = row.querySelector(".workprev");
-  var shots = (data && data.imgs) || [];
-  var typed = data && data.mode === "type" && (data.text || "").trim();
-  var has = shots.length || typed;
+  var strokes = (data && data.s) || [], shots = (data && data.imgs) || [];
+  var text = (data && data.text || "").trim();
+  var has = strokes.length || shots.length || text;
   btn.classList.toggle("has", !!has);
-  btn.innerHTML = (typed ? "&#9000; " : "&#128247; ") +
-    (has ? (shots.length ? shots.length + (shots.length === 1 ? " page" : " pages")
-                         : (row.dataset.done || "Typed"))
-         : (row.dataset.label || "Add your working"));
+  btn.innerHTML = has
+    ? (strokes.length ? "&#9998; Working"
+      : shots.length ? "&#128247; " + shots.length + (shots.length === 1 ? " page" : " pages")
+      : "&#9000; Typed")
+    : "&#9998; " + (row.dataset.label || "Show your working");
   prev.hidden = !has;
-  prev.className = "workprev" + (typed && !shots.length ? " txt" : "");
+  prev.className = "workprev" + (!strokes.length && !shots.length ? " txt" : "");
   if(!has){ prev.innerHTML = ""; return; }
+  if(strokes.length){
+    try{ prev.innerHTML = '<img alt="your working" src="' + Ink.toImage(data, 1) + '">'; return; }
+    catch(e){ /* fall through */ }
+  }
   if(shots.length){ prev.innerHTML = '<img alt="your working" src="' + shots[0] + '">'; return; }
-  prev.textContent = data.text;
+  prev.textContent = text;
 }
 
 function mountPads(block){
@@ -1295,7 +1300,7 @@ function mountPads(block){
     row.querySelector(".workbtn").addEventListener("click", function(){
       Ink.openSheet(key, {
         title: row.dataset.q || "Your working",
-        placeholder: "Work it out on paper, then photograph it.",
+        placeholder: "write your working here",
         onClose: function(data){
           paintPreview(row, data);
           if(data) sendInk(block, pad, data);
@@ -1475,9 +1480,9 @@ function blockEnglish(){
 
     '<section class="card" data-sec="e4"><div class="chead"><h2>Writing</h2><span class="chip">10 min</span></div>' +
     '<p class="note">'+esc(E.writing.p)+'</p>' +
-    '<div class="workrow big" data-pad="write" data-label="Add your writing" ' +
+    '<div class="workrow big" data-pad="write" data-label="Open the writing page" ' +
       'data-done="Your writing"><button type="button" class="workbtn">' +
-      '&#128247; Add your writing</button><div class="workprev" hidden></div></div>' +
+      '&#9998; Open the writing page</button><div class="workprev" hidden></div></div>' +
     '<textarea id="writeAns" hidden aria-hidden="true"></textarea>' +
     clearBar("e4") + '</section>' + endBar();
 
@@ -1502,7 +1507,7 @@ function blockEnglish(){
         Ink.openSheet(wkey, {
           title: E.writing.p,
           maxShots: 6,
-          placeholder: "Write it in your notebook, then photograph each page.",
+          placeholder: "start writing here",
           onClose: function(data){
             paintPreview(wrow, data);
             /* typed writing still reaches the sheet; handwriting goes up as ink */

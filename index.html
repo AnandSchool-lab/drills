@@ -265,25 +265,48 @@ th{font-family:var(--display);font-weight:600;color:var(--muted);font-size:.78re
 .recall{color:var(--muted);font-size:.86rem;margin:2px 0 8px}
 .recall b{color:var(--amber);font-weight:700}
 
-/* ---------- work pad: a photo of their paper, or typing ---------- */
+/* ---------- work pad: pencil, photo or typing ---------- */
 .pad{display:flex;flex-direction:column;min-height:0}
-.pad-tools{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;flex:none}
-.pad-btn{font-size:.9rem;padding:9px 15px;border-radius:10px;border:1px solid var(--line);
+.pad-tools{display:flex;align-items:center;gap:7px;margin-bottom:9px;flex-wrap:wrap;flex:none}
+.pad-gap{flex:1}
+.pad-btn{font-size:.86rem;padding:8px 13px;border-radius:9px;border:1px solid var(--line);
   background:var(--surface);color:var(--ink);cursor:pointer;line-height:1.5}
-.pad-btn.shoot{border-color:var(--accent);background:var(--accent);color:#fff;font-weight:700}
 .pad-btn.on{border-color:var(--accent);color:var(--accent);background:var(--accent-soft);font-weight:700}
-.pad-state{margin-left:auto;font-size:.78rem;color:var(--muted);min-width:52px;text-align:right}
-.pad-body{flex:1;min-height:0;overflow:auto;border:1px solid var(--line);border-radius:12px;
-  background:var(--surface-2);padding:12px}
-.pad-ph{color:var(--muted);font-size:.92rem;margin:6px 2px;text-align:center}
-.shots{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+.pad-state{font-size:.76rem;color:var(--muted);min-width:50px;text-align:right}
+.pad-body{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;
+  border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.pad-surface{flex:1;min-height:0;position:relative;touch-action:none;
+  -webkit-user-select:none;user-select:none;
+  background-image:repeating-linear-gradient(to bottom,
+    transparent 0,transparent 33px,var(--line) 33px,var(--line) 34px);
+  background-position:0 8px}
+.pad-canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+.pad-ph{position:absolute;left:14px;top:7px;font-size:.82rem;color:var(--muted);
+  opacity:.7;pointer-events:none}
+.shots{flex:1;min-height:0;overflow:auto;padding:12px;display:grid;gap:12px;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));align-content:start}
 .shot{position:relative;margin:0;border:1px solid var(--line);border-radius:10px;
   overflow:hidden;background:var(--surface);line-height:0}
 .shot img{width:100%;display:block}
 .shotx{position:absolute;top:7px;right:7px;width:30px;height:30px;border-radius:50%;
   border:0;background:rgba(10,18,30,.72);color:#fff;font-size:17px;line-height:1;cursor:pointer}
-.pad-text{width:100%;min-height:200px;border:1px solid var(--line);border-radius:10px;
-  background:var(--surface);padding:11px 13px;font-size:1rem;line-height:1.7;resize:vertical}
+.pad-text{flex:1;min-height:0;border:0;border-radius:12px;background:transparent;
+  padding:11px 14px;font-size:1rem;line-height:1.8;resize:none}
+.pad-text:focus{outline:2px solid var(--accent);outline-offset:-2px}
+
+/* while a Pencil is in use a resting palm must not press anything or start
+   an iOS text selection, which throws Copy / Look Up across the page */
+body.pen-mode{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+body.pen-mode input,body.pen-mode textarea{-webkit-user-select:auto;user-select:auto;
+  -webkit-touch-callout:default}
+.palmshield{position:fixed;left:50%;transform:translateX(-50%);
+  bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:80;
+  display:flex;align-items:center;gap:12px;
+  background:var(--ink);color:var(--bg);border-radius:999px;
+  padding:8px 10px 8px 18px;box-shadow:0 6px 20px rgba(0,0,0,.28);
+  font-size:.86rem;font-weight:600;max-width:calc(100vw - 28px)}
+.palmshield button{background:var(--bg);color:var(--ink);border:0;border-radius:999px;
+  padding:6px 14px;font-size:.84rem;font-weight:700;white-space:nowrap}
 
 /* a button that destroys work, part-way through asking twice */
 .armed{border-color:var(--bad)!important;color:var(--bad)!important;

@@ -162,26 +162,106 @@ function replay(cv, data, opts){
 
 /* A Pencil on the glass means the hand resting beside it is not a stroke.
    Once we have seen a real pen, touches stop counting as drawing. */
+var penSeen = false;
 var live = [];          // pads currently on screen, so we can flush them all at once
+
+/* ============================================================
+   PALM SHIELD
+
+   Writing with a Pencil means resting a wrist on the glass, and a
+   wrist lands wherever it lands - on Undo, on Clear, on Clear
+   everything. Rejecting palm touches inside the writing box was never
+   enough: the damage happens to the buttons around it.
+
+   So while a Pencil is actually in use, a finger or palm cannot press
+   anything. The Pencil still can - with one in your hand you tap
+   buttons with its tip anyway - and plain scrolling still works,
+   because only interactive targets are blocked, never the page.
+
+   It lifts itself 45 seconds after the last stroke, so putting the
+   Pencil down and using fingers needs no thought and no toggle.
+   ============================================================ */
+var SHIELD_MS = 45000;
+var shieldUntil = 0, swallowClick = false;
+
+function shieldOn(){ return Date.now() < shieldUntil; }
+function touchPen(){
+  var was = shieldOn();
+  shieldUntil = Date.now() + SHIELD_MS;
+  if(!was) paintShield(true);
+  clearTimeout(touchPen._t);
+  touchPen._t = setTimeout(function(){ paintShield(false); }, SHIELD_MS + 50);
+}
+
+function paintShield(on){
+  /* A palm resting on the glass does not only press things - it also
+     starts an iOS text selection, which throws Copy / Look Up / Translate
+     over the page mid-sentence. Turning selection off while the Pencil is
+     in use stops that; the answer boxes stay selectable so typing and
+     editing still work normally. */
+  try{ document.body.classList.toggle("pen-mode", !!on); }catch(e){}
+  var el = document.getElementById("palmShield");
+  if(!el && !on) return;
+  if(!el){
+    el = document.createElement("div");
+    el.id = "palmShield";
+    el.className = "palmshield";
+    el.innerHTML = '<span>&#9998; Pencil in use — taps ignored</span>' +
+                   '<button type="button">Use my finger</button>';
+    el.querySelector("button").addEventListener("click", function(){
+      shieldUntil = 0; paintShield(false);
+    });
+    document.body.appendChild(el);
+  }
+  el.hidden = !on;
+}
+
+var BLOCKABLE = "button,a,input,select,textarea,label,summary,[data-clear],[role=button]";
+
+function guard(e){
+  if(!shieldOn()) return;
+  if(e.pointerType && e.pointerType !== "touch") return;   // the Pencil may press anything
+  var t = e.target;
+  if(!t || !t.closest) return;
+  if(t.closest(".pad-surface")) return;                    // the pad does its own rejecting
+  if(t.closest("#palmShield")) return;                     // never block the way out
+  if(!t.closest(BLOCKABLE)) return;                        // let scrolling and plain taps through
+  e.preventDefault();
+  e.stopPropagation();
+  swallowClick = true;
+}
+
+if(typeof document !== "undefined"){
+  document.addEventListener("pointerdown", guard, true);
+  document.addEventListener("click", function(e){
+    if(!swallowClick) return;
+    swallowClick = false;
+    if(e.target && e.target.closest && e.target.closest(".pad-surface, #palmShield")) return;
+    e.preventDefault();
+    e.stopPropagation();
+  }, true);
+}
+
+function prefersTyping(){
+  try{ return !(navigator.maxTouchPoints > 0); }catch(e){ return true; }
+}
 
 /*  Ink.mount(host, key, opts)
 
-    A place to put their working. Two ways in:
+    Three ways to show working, in one pad. Whatever they pick, the
+    others keep whatever was already in them.
 
-      Photo  - they work it out on paper and photograph it. This is the
-               one that wins. Handwriting on paper is better practice
-               than handwriting on glass, their school work is on paper
-               anyway, and a photo cannot be ruined by a resting wrist,
-               a pinch-zoom or Safari deciding to scroll instead.
-      Type   - a keyboard, for a laptop or a quick line of reasoning.
+      Pencil - write straight on the problem. The default on an iPad.
+      Photo  - for work already done on paper, or a school sheet.
+      Type   - a keyboard, for a laptop.
 
-    Photographs are shrunk and re-encoded in the browser before they go
-    anywhere: a 4MB iPad photo becomes about 150KB, which is the
-    difference between this fitting in the free tier for years and not.
-
-      host : element to fill
-      key  : storage key, e.g. ink:Alvina:2026-11-05:math:7
-      opts : { placeholder, textId, label, onChange, maxShots }
+    On the lag: the first version of this measured the canvas position
+    once per point, inside a loop over coalesced events, inside every
+    pointermove. An Apple Pencil reports about ten points a frame, so
+    that was ten forced layout calculations per frame and the stroke
+    visibly trailed the nib. The rect is now measured when it can
+    actually have changed - on pointer down, on resize, on scroll -
+    and never in the drawing path.
 */
 var MAX_EDGE = 1400;      // px on the long side - plenty to read handwriting
 var JPEG_Q   = 0.68;
@@ -197,12 +277,11 @@ function shrink(file){
         var k = Math.min(1, MAX_EDGE / Math.max(w, h));
         var cv = document.createElement("canvas");
         cv.width = Math.round(w * k); cv.height = Math.round(h * k);
-        var ctx = cv.getContext("2d");
-        ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, cv.width, cv.height);
-        ctx.drawImage(img, 0, 0, cv.width, cv.height);
+        var c = cv.getContext("2d");
+        c.fillStyle = "#fff"; c.fillRect(0, 0, cv.width, cv.height);
+        c.drawImage(img, 0, 0, cv.width, cv.height);
         URL.revokeObjectURL(url);
         var out = cv.toDataURL("image/jpeg", JPEG_Q);
-        /* one more pass if a very busy page still came out large */
         if(out.length > MAX_SHOT) out = cv.toDataURL("image/jpeg", 0.5);
         if(out.length > MAX_SHOT) return reject(new Error("photo too large"));
         resolve(out);
@@ -213,40 +292,206 @@ function shrink(file){
   });
 }
 
+function prefersTyping(){
+  try{ return !(navigator.maxTouchPoints > 0); }catch(e){ return true; }
+}
+
 function mount(host, key, opts){
   opts = opts || {};
+  var height   = opts.height || 300;
   var maxShots = opts.maxShots || 4;
 
   host.classList.add("pad");
   host.innerHTML =
     '<div class="pad-tools">' +
-      '<label class="pad-btn shoot">&#128247; Take a photo' +
+      '<button type="button" class="pad-btn" data-m="ink">&#9998; Pencil</button>' +
+      '<button type="button" class="pad-btn" data-m="type">&#9000; Type</button>' +
+      '<label class="pad-btn" data-m="photo">&#128247; Photo' +
         '<input type="file" accept="image/*" capture="environment" hidden></label>' +
-      '<button type="button" class="pad-btn" data-type>&#9000; Type instead</button>' +
+      '<span class="pad-gap"></span>' +
+      '<button type="button" class="pad-btn" data-undo>&#9003; Undo</button>' +
+      '<button type="button" class="pad-btn" data-clear>Clear</button>' +
       '<span class="pad-state"></span>' +
     '</div>' +
     '<div class="pad-body">' +
-      '<div class="shots"></div>' +
-      '<p class="pad-ph">' + (opts.placeholder || "Work it out on paper, then photograph it.") + '</p>' +
-      '<textarea class="pad-text"' + (opts.textId ? ' id="' + opts.textId + '"' : "") +
-        ' hidden spellcheck="false" placeholder="Type your working here"' +
+      '<div class="pad-surface ruled"><span class="pad-ph">' +
+        (opts.placeholder || "write your working here") + '</span>' +
+        '<canvas class="pad-canvas"></canvas></div>' +
+      '<div class="shots" hidden></div>' +
+      '<textarea class="pad-text" hidden spellcheck="false"' +
+        (opts.textId ? ' id="' + opts.textId + '"' : "") +
+        ' placeholder="Type your working here"' +
         ' aria-label="' + (opts.label || "your working") + '"></textarea>' +
     '</div>';
 
+  var body   = host.querySelector(".pad-body");
+  var surf   = host.querySelector(".pad-surface");
+  var cv     = host.querySelector(".pad-canvas");
+  var shotsEl= host.querySelector(".shots");
+  var ta     = host.querySelector(".pad-text");
   var fileIn = host.querySelector("input[type=file]");
-  var shotsEl = host.querySelector(".shots");
-  var ta = host.querySelector(".pad-text");
-  var ph = host.querySelector(".pad-ph");
-  var state = host.querySelector(".pad-state");
+  var state  = host.querySelector(".pad-state");
 
-  var imgs = [], typing = false, saveTimer = null, dirty = false;
+  var data = { v:1, mode: prefersTyping() ? "type" : "ink", w:0, h:height, s:[], imgs:[], text:"" };
+  var ctx = null, rect = null, drawing = false, cur = null;
+  var t0 = Date.now(), saveTimer = null, dirty = false;
 
-  function current(){
-    return typing
-      ? { v:1, mode:"type", text: ta.value }
-      : { v:1, mode:"photo", imgs: imgs, text: ta.value || "" };
+  /* ---- the measurement that used to be in the hot path ---- */
+  function measure(){ rect = surf.getBoundingClientRect(); }
+  var remeasure = false;
+  function askMeasure(){
+    if(remeasure) return;
+    remeasure = true;
+    requestAnimationFrame(function(){ remeasure = false; measure(); });
+  }
+  window.addEventListener("resize", askMeasure, { passive:true });
+  window.addEventListener("scroll", askMeasure, { passive:true, capture:true });
+
+  function sizeCanvas(){
+    var w = Math.max(40, Math.round(surf.clientWidth));
+    var h = Math.max(80, Math.round(surf.clientHeight));
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+    ctx = cv.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.lineCap = "round"; ctx.lineJoin = "round";
+    ctx.strokeStyle = "#1D4ED8"; ctx.lineWidth = 2.4;   /* set once, never per stroke */
+    var old = data.w;
+    data.w = w; data.h = h;
+    if(old && Math.abs(w / old - 1) > 0.02) rescale(w / old);
+    redraw();
+    measure();
   }
 
+  function rescale(k){
+    data.s = data.s.map(function(st){
+      var p = st.p.slice();
+      for(var i = 0; i < p.length; i += 2) p[i] = Math.round(p[i] * k * 10) / 10;
+      return { t: st.t, p: p };
+    });
+  }
+
+  function redraw(){
+    if(!ctx) return;
+    ctx.clearRect(0, 0, data.w, data.h);
+    data.s.forEach(function(st){
+      var p = st.p;
+      if(p.length < 2) return;
+      ctx.beginPath(); ctx.moveTo(p[0], p[1]);
+      if(p.length === 2) ctx.lineTo(p[0] + 0.1, p[1] + 0.1);
+      else for(var i = 2; i < p.length; i += 2) ctx.lineTo(p[i], p[i+1]);
+      ctx.stroke();
+    });
+  }
+
+  function accepts(e){
+    if(e.pointerType === "pen"){ penSeen = true; touchPen(); return true; }
+    if(e.pointerType === "touch") return !penSeen;   /* palm, once a Pencil is in use */
+    return true;
+  }
+
+  surf.addEventListener("pointerdown", function(e){
+    if(data.mode !== "ink" || !accepts(e)) return;
+    measure();                                   /* once, here - not per point */
+    drawing = true;
+    try{ surf.setPointerCapture(e.pointerId); }catch(err){}
+    cur = { t: Date.now() - t0,
+            p: [ Math.round((e.clientX - rect.left)*10)/10,
+                 Math.round((e.clientY - rect.top )*10)/10 ] };
+    data.s.push(cur);
+    host.querySelector(".pad-ph") && host.querySelector(".pad-ph").remove();
+    e.preventDefault();
+  });
+
+  surf.addEventListener("pointermove", function(e){
+    if(!drawing || !cur || !rect) return;
+    var co = e.getCoalescedEvents ? e.getCoalescedEvents() : null;
+    var evts = (co && co.length) ? co : [e];
+    var p = cur.p, L = rect.left, T = rect.top;
+    ctx.beginPath();
+    ctx.moveTo(p[p.length-2], p[p.length-1]);
+    for(var i = 0; i < evts.length; i++){
+      var x = Math.round((evts[i].clientX - L)*10)/10;
+      var y = Math.round((evts[i].clientY - T)*10)/10;
+      p.push(x, y);
+      ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    e.preventDefault();
+  });
+
+  function endStroke(e){
+    if(!drawing) return;
+    drawing = false;
+    try{ surf.releasePointerCapture(e.pointerId); }catch(err){}
+    if(cur && cur.p.length < 2) data.s.pop();
+    cur = null;
+    touch();
+  }
+  surf.addEventListener("pointerup", endStroke);
+  surf.addEventListener("pointercancel", endStroke);
+
+  /* ---- photos ---- */
+  function paintShots(){
+    shotsEl.innerHTML = data.imgs.map(function(src, i){
+      return '<figure class="shot"><img src="' + src + '" alt="page ' + (i+1) + '">' +
+        '<button type="button" class="shotx" data-i="' + i + '" aria-label="remove page">&times;</button></figure>';
+    }).join("");
+    shotsEl.querySelectorAll(".shotx").forEach(function(b){
+      b.addEventListener("click", function(){ data.imgs.splice(+b.dataset.i, 1); paintShots(); touch(); });
+    });
+  }
+
+  fileIn.addEventListener("change", function(){
+    var f = fileIn.files && fileIn.files[0];
+    fileIn.value = "";
+    if(!f) return;
+    state.textContent = "adding…";
+    shrink(f).then(function(src){
+      data.imgs.push(src);
+      if(data.imgs.length > maxShots) data.imgs = data.imgs.slice(-maxShots);
+      setMode("photo"); paintShots(); touch();
+    }).catch(function(e){
+      state.textContent = e.message || "could not add that";
+      setTimeout(function(){ state.textContent = ""; }, 3000);
+    });
+  });
+
+  /* ---- modes ---- */
+  function setMode(m){
+    data.mode = m;
+    host.querySelectorAll(".pad-btn[data-m]").forEach(function(b){
+      b.classList.toggle("on", b.dataset.m === m);
+    });
+    surf.hidden    = m !== "ink";
+    shotsEl.hidden = m !== "photo";
+    ta.hidden      = m !== "type";
+    host.querySelector("[data-undo]").hidden = m === "photo";
+    if(m === "ink") requestAnimationFrame(sizeCanvas);
+  }
+
+  host.querySelectorAll("button.pad-btn[data-m]").forEach(function(b){
+    b.addEventListener("click", function(){ setMode(b.dataset.m); touch(); if(b.dataset.m === "type") ta.focus(); });
+  });
+
+  host.querySelector("[data-undo]").addEventListener("click", function(){
+    if(data.mode === "type") ta.value = "";
+    else { data.s.pop(); redraw(); }
+    touch();
+  });
+  host.querySelector("[data-clear]").addEventListener("click", function(){
+    if(data.mode === "photo") data.imgs = [];
+    else if(data.mode === "type") ta.value = "";
+    else { data.s = []; redraw(); }
+    paintShots(); touch();
+  });
+  ta.addEventListener("input", function(){ touch(); });
+
+  /* ---- saving ---- */
+  function current(){
+    return { v:1, mode:data.mode, w:data.w, h:data.h,
+             s:data.s, imgs:data.imgs, text:ta.value || "" };
+  }
   function flush(){
     if(!dirty) return;
     dirty = false;
@@ -263,61 +508,16 @@ function mount(host, key, opts){
     saveTimer = setTimeout(flush, 500);
   }
 
-  function paint(){
-    shotsEl.innerHTML = imgs.map(function(src, i){
-      return '<figure class="shot"><img src="' + src + '" alt="page ' + (i+1) + '">' +
-             '<button type="button" class="shotx" data-i="' + i + '" ' +
-             'aria-label="remove page ' + (i+1) + '">&times;</button></figure>';
-    }).join("");
-    shotsEl.querySelectorAll(".shotx").forEach(function(b){
-      b.addEventListener("click", function(){
-        imgs.splice(+b.dataset.i, 1); paint(); touch();
-      });
-    });
-    ph.hidden = typing || imgs.length > 0;
-    host.querySelector(".shoot").hidden = typing || imgs.length >= maxShots;
-  }
-
-  fileIn.addEventListener("change", function(){
-    var f = fileIn.files && fileIn.files[0];
-    fileIn.value = "";
-    if(!f) return;
-    state.textContent = "adding…";
-    shrink(f).then(function(src){
-      imgs.push(src);
-      if(imgs.length > maxShots) imgs = imgs.slice(-maxShots);
-      paint(); touch();
-    }).catch(function(e){
-      state.textContent = e.message || "could not add that";
-      setTimeout(function(){ state.textContent = ""; }, 3000);
-    });
-  });
-
-  host.querySelector("[data-type]").addEventListener("click", function(){
-    typing = !typing;
-    ta.hidden = !typing;
-    shotsEl.hidden = typing;
-    host.querySelector("[data-type]").classList.toggle("on", typing);
-    host.querySelector("[data-type]").innerHTML = typing
-      ? "&#128247; Photo instead" : "&#9000; Type instead";
-    paint();
-    if(typing) ta.focus();
-    touch();
-  });
-
-  ta.addEventListener("input", function(){ touch(); });
-
   var ready = get(key).then(function(saved){
-    if(saved && saved.mode === "type"){
-      typing = true; ta.value = saved.text || "";
-      ta.hidden = false; shotsEl.hidden = true;
-      host.querySelector("[data-type]").classList.add("on");
-      host.querySelector("[data-type]").innerHTML = "&#128247; Photo instead";
-    } else if(saved){
-      imgs = saved.imgs || [];
-      ta.value = saved.text || "";
+    if(saved){
+      data.s    = saved.s || [];
+      data.imgs = saved.imgs || [];
+      ta.value  = saved.text || "";
+      data.w    = saved.w || 0;
+      if(saved.mode) data.mode = saved.mode;
     }
-    paint();
+    paintShots();
+    setMode(data.mode);
     return true;
   });
 
@@ -325,7 +525,7 @@ function mount(host, key, opts){
     key: key,
     ready: ready,
     flush: function(){ if(saveTimer) clearTimeout(saveTimer); flush(); },
-    isEmpty: function(){ return typing ? !ta.value.trim() : !imgs.length; },
+    isEmpty: function(){ return !data.s.length && !data.imgs.length && !ta.value.trim(); },
     data: current
   };
   live.push(handle);
