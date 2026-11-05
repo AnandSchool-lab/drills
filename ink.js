@@ -406,20 +406,9 @@ function mount(host, key, opts){
     else { data.s.pop(); redraw(); }
     showPlaceholder(); touch();
   });
-  /* Clear asks twice. Losing a page of working to one stray press is
-     the kind of thing that makes a child stop trusting the app. */
-  var clearBtn = host.querySelector("[data-clear]"), armed = null;
-  clearBtn.addEventListener("click", function(){
-    if(!armed){
-      clearBtn.textContent = "Really?";
-      clearBtn.classList.add("armed");
-      armed = setTimeout(function(){
-        armed = null; clearBtn.textContent = "Clear"; clearBtn.classList.remove("armed");
-      }, 3000);
-      return;
-    }
-    clearTimeout(armed); armed = null;
-    clearBtn.textContent = "Clear"; clearBtn.classList.remove("armed");
+  /* Clears straight away - Undo is right beside it, and the palm shield
+     is what keeps a resting wrist off it. */
+  host.querySelector("[data-clear]").addEventListener("click", function(){
     data.s = []; ta.value = "";
     if(ctx) ctx.clearRect(0, 0, data.w, height);
     showPlaceholder(); touch();
@@ -483,8 +472,66 @@ if(typeof document !== "undefined"){
   });
 }
 
+/* ============================================================
+   FULL-PAGE WORKING SHEET
+
+   A 116px strip under a problem is not room to work out a fraction.
+   This opens most of the screen instead: the question stays at the
+   top so they can see what they are answering, and Done puts them
+   back where they were with the working saved.
+   ============================================================ */
+function openSheet(key, opts){
+  opts = opts || {};
+  var back = document.createElement("div");
+  back.className = "sheetback";
+  back.innerHTML =
+    '<div class="sheetbox" role="dialog" aria-modal="true" aria-label="Working space">' +
+      '<div class="sheethead">' +
+        '<button type="button" class="sheetdone">&#8249; Done</button>' +
+        '<span class="sheetq"></span>' +
+      '</div>' +
+      '<div class="sheetbody"></div>' +
+    '</div>';
+  back.querySelector(".sheetq").textContent = opts.title || "Your working";
+  document.body.appendChild(back);
+  document.body.classList.add("sheetopen");
+
+  var body = back.querySelector(".sheetbody");
+  var host = document.createElement("div");
+  body.appendChild(host);
+
+  /* fill the box, minus the header and the pad's own toolbar */
+  var h = Math.max(240, Math.round(body.clientHeight - 54));
+  var pad = mount(host, key, {
+    height: h,
+    ruled: opts.ruled !== false,
+    placeholder: opts.placeholder || "work it out here",
+    textId: opts.textId,
+    label: opts.label,
+    onChange: opts.onChange
+  });
+
+  function close(){
+    try{ pad.flush(); }catch(e){}
+    var data = null;
+    try{ data = pad.data(); }catch(e){}
+    document.body.classList.remove("sheetopen");
+    back.remove();
+    live = live.filter(function(p){ return p !== pad; });
+    if(opts.onClose) opts.onClose(data);
+  }
+
+  back.querySelector(".sheetdone").addEventListener("click", close);
+  back.addEventListener("click", function(e){ if(e.target === back) close(); });
+  document.addEventListener("keydown", function esc(e){
+    if(e.key === "Escape"){ document.removeEventListener("keydown", esc); close(); }
+  });
+  return { close: close, pad: pad };
+}
+
 window.Ink = {
   mount: mount,
+  openSheet: openSheet,
   flushAll: flushAll,
   forget: forget,
   save: put,

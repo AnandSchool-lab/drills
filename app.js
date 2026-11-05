@@ -8,7 +8,7 @@
 
 /* ---------- configuration you may want to change ---------- */
 var START_DATE = "2026-10-27";   // Monday the programme begins. Week 1 starts here.
-var APP_VERSION = "14";          // shown on the home screen; keep in step with CACHE in sw.js
+var APP_VERSION = "15";          // shown on the home screen; keep in step with CACHE in sw.js
 
 /* Google Apps Script web-app URL. Blank = results stay on the iPad only.
    Paste the /exec URL from Deploy → New deployment → Web app. */
@@ -1227,22 +1227,51 @@ function flushPads(){
   try{ Ink.flushAll(); Ink.forget(); }catch(e){}
 }
 
-/* A place to show the working. Mounted lazily by mountPads() - the canvas
-   itself is not created until the pen actually touches it. */
-function padHost(idPrefix, i){
-  return '<div class="padhost" data-pad="' + idPrefix + '-' + i + '"></div>';
+/* Working lives behind a button, not in a strip under the question.
+   A fraction needs room to work out; a times-table fact needs none at
+   all. So the sheet stays short, and tapping opens most of the screen. */
+function padHost(idPrefix, i, q){
+  return '<div class="workrow" data-pad="' + idPrefix + '-' + i + '" data-q="' + esc(q || "") + '">' +
+    '<button type="button" class="workbtn">&#9998; Show your working</button>' +
+    '<div class="workprev" hidden></div></div>';
 }
 
-/* Turn every .padhost on screen into a real work pad. */
+/* Draw the small reminder of what is already on a pad, so they can see at
+   a glance which problems they have worked and which they have not. */
+function paintPreview(row, data){
+  var btn = row.querySelector(".workbtn"), prev = row.querySelector(".workprev");
+  var has = data && (data.mode === "type" ? !!(data.text || "").trim() : (data.s || []).length);
+  btn.classList.toggle("has", !!has);
+  btn.innerHTML = "&#9998; " + (has ? (row.dataset.done || "Working")
+                                    : (row.dataset.label || "Show your working"));
+  prev.hidden = !has;
+  prev.className = "workprev" + (has && data.mode === "type" ? " txt" : "");
+  if(!has){ prev.innerHTML = ""; return; }
+  if(data.mode === "type"){ prev.textContent = data.text; return; }
+  try{ prev.innerHTML = '<img alt="your working">';
+       prev.querySelector("img").src = Ink.toImage(data, 1); }catch(e){ prev.hidden = true; }
+}
+
 function mountPads(block){
   if(!window.Ink || !Ink.available()) return;
   var base = "ink:" + who() + ":" + todayKey() + ":" + block + ":";
-  app.querySelectorAll(".padhost").forEach(function(h){
-    if(h.dataset.mounted) return;
-    h.dataset.mounted = "1";
-    var pad = h.dataset.pad;
-    Ink.mount(h, base + pad, { height: 116, placeholder: "show your working",
-      onChange: function(data){ sendInk(block, pad, data); } });
+  app.querySelectorAll(".workrow").forEach(function(row){
+    if(row.dataset.wired) return;
+    row.dataset.wired = "1";
+    var pad = row.dataset.pad, key = base + pad;
+
+    Ink.load(key).then(function(saved){ if(saved) paintPreview(row, saved); });
+
+    row.querySelector(".workbtn").addEventListener("click", function(){
+      Ink.openSheet(key, {
+        title: row.dataset.q || "Your working",
+        placeholder: "work it out here",
+        onClose: function(data){
+          paintPreview(row, data);
+          if(data) sendInk(block, pad, data);
+        }
+      });
+    });
   });
 }
 
@@ -1260,7 +1289,7 @@ function sectionHTML(sec, idPrefix){
   var rows = sec.items.map(function(it, i){
     var q = esc(it.q);
     var mine = pad && needsWork(it);
-    var work = mine ? padHost(idPrefix, i) : "";
+    var work = mine ? padHost(idPrefix, i, it.q) : "";
     var pc = mine ? " haspad" : "";
     if(it.kind === "divr"){
       return '<div class="tile'+pc+'"><span class="q">'+q+' =</span>' +
@@ -1416,7 +1445,10 @@ function blockEnglish(){
 
     '<section class="card" data-sec="e4"><div class="chead"><h2>Writing</h2><span class="chip">10 min</span></div>' +
     '<p class="note">'+esc(E.writing.p)+'</p>' +
-    '<div class="padhost big" data-pad="write"></div>' +
+    '<div class="workrow big" data-pad="write" data-label="Open the writing page" ' +
+      'data-done="Your writing"><button type="button" class="workbtn">' +
+      '&#9998; Open the writing page</button><div class="workprev" hidden></div></div>' +
+    '<textarea id="writeAns" hidden aria-hidden="true"></textarea>' +
     clearBar("e4") + '</section>' + endBar();
 
   shell("English", BLOCKS.eng.mins, html, function(){
@@ -1424,23 +1456,31 @@ function blockEnglish(){
       b.addEventListener("click", function(){ say(b.dataset.say); });
     });
 
-    /* The writing page is one big pad: Pencil on the iPad, keyboard anywhere.
-       Its text box keeps the id #writeAns, so drafts, grading and the upload
-       all carry on working exactly as before. */
-    var host = app.querySelector('.padhost[data-pad="write"]');
-    if(host && window.Ink && Ink.available()){
-      host.dataset.mounted = "1";
-      Ink.mount(host, "ink:" + who() + ":" + todayKey() + ":eng:write", {
-        height: 330, textId: "writeAns", label: "your writing",
-        placeholder: "Start writing here - aim for at least six sentences.",
-        onChange: function(data){ sendInk("eng", "write", data); }
-      });
-    } else if(host){
-      host.innerHTML = '<textarea id="writeAns" rows="10" ' +
-        'placeholder="Start writing here. Aim for at least six sentences."></textarea>';
-    }
+    /* Writing opens on nearly the whole screen rather than a box on the
+       sheet - a page of handwriting needs a page. The hidden #writeAns
+       keeps whatever was typed, so drafts, grading and the upload carry
+       on working exactly as before. */
     var wa = $("#writeAns");
-    if(wa && saved.writeAns && !wa.value) wa.value = saved.writeAns;
+    if(wa && saved.writeAns) wa.value = saved.writeAns;
+
+    var wrow = app.querySelector('.workrow[data-pad="write"]');
+    if(wrow && window.Ink && Ink.available()){
+      var wkey = "ink:" + who() + ":" + todayKey() + ":eng:write";
+      wrow.dataset.wired = "1";
+      Ink.load(wkey).then(function(d){ if(d) paintPreview(wrow, d); });
+      wrow.querySelector(".workbtn").addEventListener("click", function(){
+        Ink.openSheet(wkey, {
+          title: E.writing.p,
+          placeholder: "Start writing here - aim for at least six sentences.",
+          onClose: function(data){
+            paintPreview(wrow, data);
+            /* typed writing still reaches the sheet; handwriting goes up as ink */
+            if(wa) wa.value = (data && data.mode === "type") ? (data.text || "") : "";
+            if(data) sendInk("eng", "write", data);
+          }
+        });
+      });
+    }
     wireSheet("eng", function(){
       saveDetail("writeAns", wa ? wa.value : "");
       saveDetail("openAns", $("#openAns").value);
@@ -1477,19 +1517,23 @@ function wireSheet(block, beforeGrade){
     clearScope(app, true);
     clearDraft(block);
     var el = $("#score"); el.textContent = "—"; el.className = "score";
-  });
+  }, true);
   app.querySelectorAll("[data-clear]").forEach(function(b){
     armClear(b, "Clear this section", function(){
       clearScope(app.querySelector('[data-sec="'+b.dataset.clear+'"]'), false);
       saveDraft();
-    });
+    }, false);
   });
 }
 
-/* Anything that destroys work asks twice. One stray press - a resting
-   wrist, a mis-tap - should never be able to wipe a sheet. */
-function armClear(btn, label, action){
+/* Only the button that wipes a whole sheet asks twice, and it waits ten
+   seconds for the answer - three was short enough that reading the words
+   ran the clock out, so a second tap started over and it never cleared.
+   The smaller clears just clear; the palm shield is what stops stray
+   presses now, and Undo covers the rest. */
+function armClear(btn, label, action, confirm){
   if(!btn) return;
+  if(!confirm){ btn.addEventListener("click", action); return; }
   var armed = null;
   function reset(){
     if(armed) clearTimeout(armed);
@@ -1497,9 +1541,9 @@ function armClear(btn, label, action){
   }
   btn.addEventListener("click", function(){
     if(!armed){
-      btn.textContent = "Tap again to clear";
+      btn.textContent = "Yes, clear it all";
       btn.classList.add("armed");
-      armed = setTimeout(reset, 3000);
+      armed = setTimeout(reset, 10000);
       return;
     }
     reset();
