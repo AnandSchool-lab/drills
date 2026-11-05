@@ -8,12 +8,13 @@
 
 /* ---------- configuration you may want to change ---------- */
 var START_DATE = "2026-10-27";   // Monday the programme begins. Week 1 starts here.
-var APP_VERSION = "10";          // shown on the home screen; keep in step with CACHE in sw.js
+var APP_VERSION = "11";          // shown on the home screen; keep in step with CACHE in sw.js
 
 /* Google Apps Script web-app URL. Blank = results stay on the iPad only.
    Paste the /exec URL from Deploy → New deployment → Web app. */
 var SYNC_URL = "https://script.google.com/macros/s/AKfycbycGuMQvp88y6-akTuhlSIgdoSCLU9QRn2qWJ2HyHLzWdm_dPjbtlHvJQNZcZCseno/exec";
 var BLOCKS = {
+  recap:{ label:"Recap", mins:15, icon:"↻" },
   math:  { label:"Math",       mins:30, icon:"×" },
   think: { label:"Thinking",   mins:20, icon:"?" },
   eng:   { label:"English",    mins:40, icon:"A" }
@@ -812,14 +813,14 @@ function screenCalendar(){
       var k = keyOf(d);
       var other = d.getMonth() !== calMonth.getMonth();
       var r = rec[k] || {};
-      var done = ["math","think","eng"].filter(function(b){ return r[b]; }).length;
+      var done = ["recap","math","think","eng"].filter(function(b){ return r[b]; }).length;
       var cls = "day";
       if(other) cls += " other";
       if(k === today) cls += " today";
       if(k > today) cls += " ahead";
       if(done === 3) cls += " full";
       else if(done > 0) cls += " part";
-      var dots = ["math","think","eng"].map(function(b){
+      var dots = ["recap","math","think","eng"].map(function(b){
         return '<i class="dot '+(r[b] ? (r[b].got/r[b].total >= 0.8 ? "g" : "a") : "")+'"></i>';
       }).join("");
       return '<button class="'+cls+'" data-date="'+k+'">' +
@@ -868,13 +869,25 @@ function screenCalendar(){
 /* ---------- the three blocks for one day ---------- */
 function blockCard(key){
   var b = BLOCKS[key], r = resultFor(key);
+  var sub = r ? "Finished in "+fmt(r.secs).replace("+","")+" — tap to open" : b.mins+" minutes";
   var right = r ? '<span class="chip '+(r.got/r.total >= 0.8 ? "good" : "work")+'">'+r.got+" / "+r.total+'</span>'
                 : '<span class="chip">'+b.mins+' min</span>';
-  return '<button class="block '+(r ? "done" : "todo")+'" data-block="'+key+'">' +
+  var extra = "";
+
+  if(key === "recap"){
+    extra = " recap";
+    if(!r){
+      var n = recapParts().total;
+      sub = n ? n + " thing" + (n===1?"":"s") + " you got wrong before"
+              : "nothing to go back over yet";
+      if(!n){ extra += " quiet"; right = '<span class="chip">clear</span>'; }
+    }
+  }
+
+  return '<button class="block '+(r ? "done" : "todo")+extra+'" data-block="'+key+'">' +
     '<span class="glyph">'+b.icon+'</span>' +
-    '<span class="btext"><strong>'+b.label+'</strong><small>' +
-    (r ? "Finished in "+fmt(r.secs).replace("+","")+" — tap to open" : b.mins+" minutes") +
-    '</small></span>' + right + '</button>';
+    '<span class="btext"><strong>'+b.label+'</strong><small>'+sub+'</small></span>' +
+    right + '</button>';
 }
 
 function screenDay(){
@@ -886,7 +899,7 @@ function screenDay(){
     '<div class="sheet">' +
       '<p class="dayline">Day '+(day>0?day:1)+' · Level '+L +
         (ahead ? ' · <span class="aheadtag">this day is still ahead</span>' : '') + '</p>' +
-      '<div class="blocks">' + blockCard("math") + blockCard("think") + blockCard("eng") + '</div>' +
+      '<div class="blocks">' + blockCard("recap") + blockCard("math") + blockCard("think") + blockCard("eng") + '</div>' +
       '<div class="foot"><button class="ghost" id="report">Progress report</button>' +
       '<button class="ghost" id="parent">For parents</button></div>' +
     '</div>';
@@ -978,6 +991,91 @@ function pruneDrafts(){
       Ink.pruneBefore(keyOf(new Date(Date.now() - 120*86400000)));
     }
   }catch(e){}
+}
+
+/* ============================================================
+   RECAP - the first 15 minutes, built from what they personally
+   got wrong. Not a fresh sheet: the same questions again, after
+   enough time has passed that the answer is not still in mind.
+   ============================================================ */
+
+/* A miss only stored the question and the two answers. Work out from the
+   expected answer whether it wants a number or a word. */
+function missKind(m){
+  if(m.kind) return m.kind;
+  return /^[\d\s./-]+$/.test(String(m.want || "")) ? "num" : "word";
+}
+
+/* Walk back through the record, newest first, gathering what they missed.
+   Each entry remembers which day it came from so the sheet can say so. */
+function pastMisses(fromDaysAgo, toDaysAgo, limit){
+  var all = records(), today = todayKey(), out = [], seen = {};
+  var dates = Object.keys(all).filter(function(d){ return d < today; }).sort().reverse();
+  var now = dateFromKey(today).getTime();
+  for(var i = 0; i < dates.length && out.length < limit; i++){
+    var age = Math.round((now - dateFromKey(dates[i]).getTime()) / 86400000);
+    if(age < fromDaysAgo || age > toDaysAgo) continue;
+    var r = all[dates[i]];
+    ["math","think","eng"].forEach(function(b){
+      (r["miss:" + b] || []).forEach(function(m){
+        if(out.length >= limit) return;
+        if(!m.q || !String(m.want || "").trim()) return;
+        var sig = b + "|" + m.q;
+        if(seen[sig]) return;
+        seen[sig] = 1;
+        out.push({ q:m.q, want:m.want, gave:m.gave, block:b, date:dates[i], age:age, kind:missKind(m) });
+      });
+    });
+  }
+  return out;
+}
+
+function recapParts(){
+  var fresh = pastMisses(1, 2, 6);        // the last day or two they worked
+  var older = pastMisses(3, 10, 4);       // far enough back to have faded
+  return { fresh:fresh, older:older, total:fresh.length + older.length };
+}
+
+function recapRow(m, i){
+  var label = "Recap " + (i+1);
+  var input = m.kind === "word"
+    ? '<input class="ans word" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"' +
+        ' data-a="'+esc(m.want)+'" data-q="'+esc(m.q)+'" aria-label="'+esc(label)+'">'
+    : numInput(m.want, label, m.q);
+  var ago = m.age === 1 ? "yesterday" : m.age + " days ago";
+  return '<div class="prob"><p class="pq"><b>'+(i+1)+'.</b> '+esc(m.q)+'</p>' +
+    '<p class="recall">You wrote <b>'+esc(m.gave || "nothing")+'</b> '+ago+'.</p>' +
+    '<div class="prow">'+input+'</div></div>';
+}
+
+function blockRecap(){
+  var parts = recapParts(), n = 0;
+  var html = "";
+
+  if(!parts.total){
+    html = '<section class="card"><div class="chead"><h2>Nothing to go back over</h2></div>' +
+      '<p class="note">You have not missed anything in the last few days, or this iPad has no history yet. ' +
+      'Go straight to Math &mdash; the Recap will fill itself in as you go.</p></section>';
+    shell("Recap", BLOCKS.recap.mins, html + endBar(), function(){ wireSheet("recap"); }, "recap");
+    return;
+  }
+
+  if(parts.fresh.length){
+    html += '<section class="card" data-sec="k0"><div class="chead"><h2>From last time</h2>' +
+      '<span class="chip work">'+parts.fresh.length+'</span></div>' +
+      '<p class="note">Same questions, one more go. Work them out again rather than trying to remember.</p>' +
+      parts.fresh.map(function(m){ return recapRow(m, n++); }).join("") +
+      clearBar("k0") + '</section>';
+  }
+  if(parts.older.length){
+    html += '<section class="card" data-sec="k1"><div class="chead"><h2>From earlier</h2>' +
+      '<span class="chip work">'+parts.older.length+'</span></div>' +
+      '<p class="note">Long enough ago that it is worth checking it stuck.</p>' +
+      parts.older.map(function(m){ return recapRow(m, n++); }).join("") +
+      clearBar("k1") + '</section>';
+  }
+
+  shell("Recap", BLOCKS.recap.mins, html + endBar(), function(){ wireSheet("recap"); }, "recap");
 }
 
 /* ---------- sheet shell ---------- */
@@ -1089,6 +1187,7 @@ function sectionHTML(sec, idPrefix){
 }
 
 function openBlock(key){
+  if(key === "recap") return blockRecap();
   if(key === "math") return blockMath();
   if(key === "think") return blockThink();
   return blockEnglish();
@@ -1321,7 +1420,8 @@ function gradeSheet(block){
     var right = inp.classList.contains("word") ? norm(have) === norm(want) : sameNum(have, want);
     inp.classList.toggle("ok", right); inp.classList.toggle("no", !right);
     if(right) got++;
-    else misses.push({ q: inp.dataset.q || inp.getAttribute("aria-label") || "", gave: inp.value, want: want });
+    else misses.push({ q: inp.dataset.q || inp.getAttribute("aria-label") || "", gave: inp.value, want: want,
+                       kind: inp.classList.contains("word") ? "word" : "num" });
   });
 
   app.querySelectorAll(".fracbox").forEach(function(box){
@@ -1344,7 +1444,7 @@ function gradeSheet(block){
       var qt = box.parentNode.querySelector(".q");
       misses.push({ q: qt ? qt.textContent : "fraction",
                     gave: (fw ? fw.value+" " : "") + fn.value + "/" + fd.value,
-                    want: (W ? W+" " : "") + (N ? N+"/"+D : "") });
+                    want: (W ? W+" " : "") + (N ? N+"/"+D : ""), kind:"num" });
     }
   });
 
@@ -1362,7 +1462,7 @@ function gradeSheet(block){
     if(sel && sel.value === want) got++;
     else misses.push({ q: opts.dataset.q || "",
                        gave: sel ? labels[+sel.value].textContent.trim() : "(blank)",
-                       want: labels[+want].textContent.trim() });
+                       want: labels[+want].textContent.trim(), kind:"word" });
   });
 
   saveResult(block, got, total, elapsed());
@@ -1408,7 +1508,7 @@ function screenReport(){
   var days = Object.keys(rec).sort().reverse().slice(0,30);
   var tot = { math:[0,0], think:[0,0], eng:[0,0] };
   days.forEach(function(d){
-    ["math","think","eng"].forEach(function(b){
+    ["recap","math","think","eng"].forEach(function(b){
       if(rec[d][b]){ tot[b][0] += rec[d][b].got; tot[b][1] += rec[d][b].total; }
     });
   });
@@ -1446,11 +1546,11 @@ function screenParent(){
     if(!days.length) lines.push("(nothing recorded on this iPad)");
     days.forEach(function(d){
       var r = rec[d], bits = [];
-      ["math","think","eng"].forEach(function(b){
+      ["recap","math","think","eng"].forEach(function(b){
         if(r[b]) bits.push(BLOCKS[b].label+" "+r[b].got+"/"+r[b].total+" ("+Math.round(r[b].secs/60)+"m)");
       });
       lines.push(d + " — " + (bits.join(", ") || "nothing recorded"));
-      ["math","think","eng"].forEach(function(b){
+      ["recap","math","think","eng"].forEach(function(b){
         var m = r["miss:"+b];
         if(m && m.length){
           lines.push("  Got wrong in " + BLOCKS[b].label + ":");
@@ -1471,7 +1571,7 @@ function screenParent(){
   var recent = Object.keys(rec).sort().reverse().slice(0,20);
   var retakeRows = recent.length ? recent.map(function(d){
     var r = rec[d];
-    var bits = ["math","think","eng"].filter(function(b){ return r[b]; })
+    var bits = ["recap","math","think","eng"].filter(function(b){ return r[b]; })
       .map(function(b){ return BLOCKS[b].label+" "+r[b].got+"/"+r[b].total; }).join(", ");
     return '<tr><td>'+d+'</td><td>'+(bits||"—")+'</td>' +
       '<td><button class="ghost sm" data-retake="'+d+'">Clear</button></td></tr>';
