@@ -11,9 +11,13 @@ headers, so the app can tell a child when something did not save and try again.
 
 | Piece | Holds |
 |---|---|
-| **D1** (`drills`) | answers, scores, every wrong answer, progress, retakes |
-| **R2** (`drills-ink`) | their pencil pages, one JSON object per pad |
-| **GitHub** | this code, and later the nightly export of everything above |
+| **D1** (`drills`) | everything — answers, scores, every wrong answer, progress, retakes, and their pencil work |
+| **GitHub** | this code, and later the nightly export of all of the above |
+
+There is deliberately no object storage. A page of working is a few KB and a
+year of it is about 40 MB, against D1's 5 GB — so R2 would be a second service
+solving a problem this does not have. Only `postInk` knows where a pad is kept,
+so moving it later is a few lines.
 
 ## Routes
 
@@ -21,7 +25,7 @@ headers, so the app can tell a child when something did not save and try again.
 |---|---|---|
 | `POST /ping` | app | progress while they work, overwrites one row |
 | `POST /result` | app | a finished block, with every wrong answer |
-| `POST /ink` | app | one pad of working |
+| `POST /ink` | app | one pad of working, stored in D1 |
 | `POST /writing` | app | their writing, when typed |
 | `GET /retake?kid=` | app | has a parent asked for a redo |
 | `GET /live?key=` | parent | everything the dashboard draws |
@@ -39,10 +43,9 @@ Everything that **reads** a child's work needs the parent key.
    `schema.sql` → run.
 2. Copy the **Database ID** from that page into `database_id` in
    `wrangler.jsonc`.
-3. **R2** → Create bucket named `drills-ink`.
-4. **Workers** → Create application → **GitHub** → this repo.
+3. **Workers** → Create application → **GitHub** → this repo.
    Set **Root directory** to `worker`. Name the Worker `drills-api`.
-5. Worker → **Settings → Variables and Secrets** → add `PARENT_KEY`
+4. Worker → **Settings → Variables and Secrets** → add `PARENT_KEY`
    as a **Secret**. This is the passphrase the dashboard asks for.
 
 After that, every push to `main` deploys itself.

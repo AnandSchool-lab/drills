@@ -33,7 +33,8 @@ const ALLOWED_ORIGINS = [
   "http://127.0.0.1:8099"
 ];
 
-const MAX_BODY = 512 * 1024;        // one pad of pencil working is a few KB
+const MAX_BODY = 512 * 1024;        // any request
+const MAX_PAD  = 256 * 1024;        // one pad of working - in practice a few KB
 
 /* ---------- small helpers ---------- */
 
@@ -168,20 +169,20 @@ async function postInk(body, env) {
   const pad = clampText(body.pad, 40);
   if (!pad || !/^[A-Za-z0-9_-]+$/.test(pad)) return "bad pad";
 
+  /* The strokes live in D1 rather than object storage. A page of working
+     is a few KB and a year of it is about 40 MB, against D1's 5 GB - so
+     object storage would be a second service solving a problem we do not
+     have. If the ink ever outgrows this, only these few lines change:
+     nothing else in the app knows where a pad is kept. */
   const payload = JSON.stringify(body.data || {});
-  if (payload.length > MAX_BODY) return "too big";
-
-  const okey = `${body.kid}/${body.date}/${body.block}/${pad}.json`;
-  await env.INK.put(okey, payload, {
-    httpMetadata: { contentType: "application/json" }
-  });
+  if (payload.length > MAX_PAD) return "too big";
 
   await env.DB.prepare(
-    `INSERT INTO ink (kid, date, block, pad, okey, bytes, mode, at)
+    `INSERT INTO ink (kid, date, block, pad, data, bytes, mode, at)
      VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
      ON CONFLICT (kid, date, block, pad) DO UPDATE SET
-       okey = ?5, bytes = ?6, mode = ?7, at = ?8`
-  ).bind(body.kid, body.date, body.block, pad, okey,
+       data = ?5, bytes = ?6, mode = ?7, at = ?8`
+  ).bind(body.kid, body.date, body.block, pad, payload,
          payload.length, (body.data && body.data.mode) === "type" ? "type" : "ink", now()
   ).run();
   return null;

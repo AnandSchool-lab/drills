@@ -21,13 +21,6 @@
     }
   ],
 
-  "r2_buckets": [
-    {
-      "binding": "INK",
-      "bucket_name": "drills-ink"
-    }
-  ],
-
   // PARENT_KEY is a secret, set in the dashboard, never in this file.
   // Settings -> Variables and Secrets -> Add -> type: Secret.
 

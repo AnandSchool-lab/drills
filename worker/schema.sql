@@ -61,14 +61,14 @@ CREATE TABLE IF NOT EXISTS retake (
   PRIMARY KEY (kid, date)
 );
 
--- An index of what pencil work is in R2, so the nightly export and the
--- dashboard can find it without listing the whole bucket.
+-- Their pencil working, one row per pad. Kept here rather than in object
+-- storage: a page is a few KB and a year is about 40 MB, against D1's 5 GB.
 CREATE TABLE IF NOT EXISTS ink (
   kid    TEXT NOT NULL,
   date   TEXT NOT NULL,
   block  TEXT NOT NULL,
   pad    TEXT NOT NULL,          -- which problem on the sheet
-  okey   TEXT NOT NULL,          -- the R2 object key
+  data   TEXT NOT NULL,          -- the strokes, as JSON
   bytes  INTEGER NOT NULL,
   mode   TEXT NOT NULL,          -- ink | type
   at     TEXT NOT NULL,
