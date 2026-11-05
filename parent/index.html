@@ -81,6 +81,7 @@ td.sc.good{color:var(--good)} td.sc.work{color:var(--amber)}
 .pad{border:1px solid var(--line);border-radius:11px;padding:11px;background:var(--surface-2)}
 .pad .lbl{font-size:13px;color:var(--muted);margin-bottom:7px;display:flex;align-items:center;gap:9px}
 .pad canvas{display:block;width:100%;background:var(--surface);border:1px solid var(--line);border-radius:8px}
+.pad img.shot{display:block;width:100%;border:1px solid var(--line);border-radius:8px;margin-bottom:9px;background:#fff}
 .pad .typed{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:9px 11px;
   font-size:14px;white-space:pre-wrap}
 .row{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-top:12px}
@@ -129,7 +130,7 @@ a{color:var(--accent)}
       <button class="sm" id="padLoad">Show</button>
     </div>
     <div class="pads" id="pads" style="margin-top:12px"></div>
-    <p class="note">Press play on a page to watch it drawn back in the order she wrote it.</p>
+    <p class="note">Tap a page to open it full size.</p>
   </div>
 
   <div class="card">
@@ -285,19 +286,27 @@ function loadPads(){
         try{ data = JSON.parse(p.data || "{}"); }catch(e){}
         var wrap = document.createElement("div");
         wrap.className = "pad";
-        if(data.mode === "type"){
+        var shots = data.imgs || [];
+        if(shots.length){
+          wrap.innerHTML = '<div class="lbl">'+esc(p.block)+' · '+esc(p.pad)+' · ' +
+            shots.length + (shots.length===1?' page':' pages') + '</div>' +
+            shots.map(function(src, n){
+              return '<a href="'+src+'" target="_blank" rel="noopener">' +
+                     '<img class="shot" src="'+src+'" alt="page '+(n+1)+'"></a>';
+            }).join("") +
+            (data.text ? '<div class="typed">'+esc(data.text)+'</div>' : "");
+        } else if(data.mode === "type"){
           wrap.innerHTML = '<div class="lbl">'+esc(p.block)+' · '+esc(p.pad)+' · typed</div>' +
             '<div class="typed">'+esc(data.text || "")+'</div>';
-        } else {
+        } else if((data.s || []).length){
+          /* older pads, drawn on screen before this moved to photographs */
           wrap.innerHTML = '<div class="lbl">'+esc(p.block)+' · '+esc(p.pad)+
-            ' · '+((data.s||[]).length)+' strokes ' +
-            '<button class="sm" data-play="'+i+'">▶ Replay</button></div>' +
-            '<canvas id="cv'+i+'"></canvas>';
-        }
+            ' · '+data.s.length+' strokes <button class="sm" data-play="1">▶ Replay</button></div>' +
+            '<canvas></canvas>';
+        } else { return; }
         host.appendChild(wrap);
-        if(data.mode !== "type"){
-          var cv = wrap.querySelector("canvas");
-          /* draw it complete first, so the page is readable before any replay */
+        var cv = wrap.querySelector("canvas");
+        if(cv){
           Ink.replay(cv, data, { speed: 1000 });
           wrap.querySelector("[data-play]").addEventListener("click", function(){
             Ink.replay(cv, data, { speed: 1 });

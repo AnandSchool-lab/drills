@@ -162,283 +162,162 @@ function replay(cv, data, opts){
 
 /* A Pencil on the glass means the hand resting beside it is not a stroke.
    Once we have seen a real pen, touches stop counting as drawing. */
-var penSeen = false;
 var live = [];          // pads currently on screen, so we can flush them all at once
 
-/* ============================================================
-   PALM SHIELD
-
-   Writing with a Pencil means resting a wrist on the glass, and a
-   wrist lands wherever it lands - on Undo, on Clear, on Clear
-   everything. Rejecting palm touches inside the writing box was never
-   enough: the damage happens to the buttons around it.
-
-   So while a Pencil is actually in use, a finger or palm cannot press
-   anything. The Pencil still can - with one in your hand you tap
-   buttons with its tip anyway - and plain scrolling still works,
-   because only interactive targets are blocked, never the page.
-
-   It lifts itself 45 seconds after the last stroke, so putting the
-   Pencil down and using fingers needs no thought and no toggle.
-   ============================================================ */
-var SHIELD_MS = 45000;
-var shieldUntil = 0, swallowClick = false;
-
-function shieldOn(){ return Date.now() < shieldUntil; }
-function touchPen(){
-  var was = shieldOn();
-  shieldUntil = Date.now() + SHIELD_MS;
-  if(!was) paintShield(true);
-  clearTimeout(touchPen._t);
-  touchPen._t = setTimeout(function(){ paintShield(false); }, SHIELD_MS + 50);
-}
-
-function paintShield(on){
-  /* A palm resting on the glass does not only press things - it also
-     starts an iOS text selection, which throws Copy / Look Up / Translate
-     over the page mid-sentence. Turning selection off while the Pencil is
-     in use stops that; the answer boxes stay selectable so typing and
-     editing still work normally. */
-  try{ document.body.classList.toggle("pen-mode", !!on); }catch(e){}
-  var el = document.getElementById("palmShield");
-  if(!el && !on) return;
-  if(!el){
-    el = document.createElement("div");
-    el.id = "palmShield";
-    el.className = "palmshield";
-    el.innerHTML = '<span>&#9998; Pencil in use — taps ignored</span>' +
-                   '<button type="button">Use my finger</button>';
-    el.querySelector("button").addEventListener("click", function(){
-      shieldUntil = 0; paintShield(false);
-    });
-    document.body.appendChild(el);
-  }
-  el.hidden = !on;
-}
-
-var BLOCKABLE = "button,a,input,select,textarea,label,summary,[data-clear],[role=button]";
-
-function guard(e){
-  if(!shieldOn()) return;
-  if(e.pointerType && e.pointerType !== "touch") return;   // the Pencil may press anything
-  var t = e.target;
-  if(!t || !t.closest) return;
-  if(t.closest(".pad-surface")) return;                    // the pad does its own rejecting
-  if(t.closest("#palmShield")) return;                     // never block the way out
-  if(!t.closest(BLOCKABLE)) return;                        // let scrolling and plain taps through
-  e.preventDefault();
-  e.stopPropagation();
-  swallowClick = true;
-}
-
-if(typeof document !== "undefined"){
-  document.addEventListener("pointerdown", guard, true);
-  document.addEventListener("click", function(e){
-    if(!swallowClick) return;
-    swallowClick = false;
-    if(e.target && e.target.closest && e.target.closest(".pad-surface, #palmShield")) return;
-    e.preventDefault();
-    e.stopPropagation();
-  }, true);
-}
-
-function prefersTyping(){
-  try{ return !(navigator.maxTouchPoints > 0); }catch(e){ return true; }
-}
-
 /*  Ink.mount(host, key, opts)
+
+    A place to put their working. Two ways in:
+
+      Photo  - they work it out on paper and photograph it. This is the
+               one that wins. Handwriting on paper is better practice
+               than handwriting on glass, their school work is on paper
+               anyway, and a photo cannot be ruined by a resting wrist,
+               a pinch-zoom or Safari deciding to scroll instead.
+      Type   - a keyboard, for a laptop or a quick line of reasoning.
+
+    Photographs are shrunk and re-encoded in the browser before they go
+    anywhere: a 4MB iPad photo becomes about 150KB, which is the
+    difference between this fitting in the free tier for years and not.
+
       host : element to fill
       key  : storage key, e.g. ink:Alvina:2026-11-05:math:7
-      opts : { height, placeholder, ruled, onChange }
+      opts : { placeholder, textId, label, onChange, maxShots }
 */
+var MAX_EDGE = 1400;      // px on the long side - plenty to read handwriting
+var JPEG_Q   = 0.68;
+var MAX_SHOT = 700 * 1024;
+
+function shrink(file){
+  return new Promise(function(resolve, reject){
+    var url = URL.createObjectURL(file);
+    var img = new Image();
+    img.onload = function(){
+      try{
+        var w = img.naturalWidth, h = img.naturalHeight;
+        var k = Math.min(1, MAX_EDGE / Math.max(w, h));
+        var cv = document.createElement("canvas");
+        cv.width = Math.round(w * k); cv.height = Math.round(h * k);
+        var ctx = cv.getContext("2d");
+        ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, cv.width, cv.height);
+        ctx.drawImage(img, 0, 0, cv.width, cv.height);
+        URL.revokeObjectURL(url);
+        var out = cv.toDataURL("image/jpeg", JPEG_Q);
+        /* one more pass if a very busy page still came out large */
+        if(out.length > MAX_SHOT) out = cv.toDataURL("image/jpeg", 0.5);
+        if(out.length > MAX_SHOT) return reject(new Error("photo too large"));
+        resolve(out);
+      }catch(e){ reject(e); }
+    };
+    img.onerror = function(){ URL.revokeObjectURL(url); reject(new Error("could not read that photo")); };
+    img.src = url;
+  });
+}
+
 function mount(host, key, opts){
   opts = opts || {};
-  var height = opts.height || 120;
-  var ruled  = opts.ruled !== false;
+  var maxShots = opts.maxShots || 4;
 
-  /* Tools sit above the writing surface, not below it. A right hand rests
-     below and to the right of where it is writing, which is exactly where
-     a toolbar underneath would be. */
   host.classList.add("pad");
   host.innerHTML =
     '<div class="pad-tools">' +
-      '<button type="button" class="pad-btn" data-m="ink">&#9998; Pencil</button>' +
-      '<button type="button" class="pad-btn" data-m="type">&#9000; Type</button>' +
-      '<button type="button" class="pad-btn" data-undo>&#9003; Undo</button>' +
-      '<button type="button" class="pad-btn danger" data-clear>Clear</button>' +
+      '<label class="pad-btn shoot">&#128247; Take a photo' +
+        '<input type="file" accept="image/*" capture="environment" hidden></label>' +
+      '<button type="button" class="pad-btn" data-type>&#9000; Type instead</button>' +
       '<span class="pad-state"></span>' +
     '</div>' +
-    '<div class="pad-surface' + (ruled ? " ruled" : "") + '" style="height:' + height + 'px">' +
-      '<span class="pad-ph">' + (opts.placeholder || "show your working") + '</span>' +
-      '<canvas class="pad-canvas" hidden></canvas>' +
+    '<div class="pad-body">' +
+      '<div class="shots"></div>' +
+      '<p class="pad-ph">' + (opts.placeholder || "Work it out on paper, then photograph it.") + '</p>' +
       '<textarea class="pad-text"' + (opts.textId ? ' id="' + opts.textId + '"' : "") +
-        ' hidden spellcheck="false" aria-label="' + (opts.label || "your working") + '"></textarea>' +
+        ' hidden spellcheck="false" placeholder="Type your working here"' +
+        ' aria-label="' + (opts.label || "your working") + '"></textarea>' +
     '</div>';
 
-  var surf = host.querySelector(".pad-surface");
-  var cv   = host.querySelector(".pad-canvas");
-  var ta   = host.querySelector(".pad-text");
-  var ph   = host.querySelector(".pad-ph");
-  var state= host.querySelector(".pad-state");
+  var fileIn = host.querySelector("input[type=file]");
+  var shotsEl = host.querySelector(".shots");
+  var ta = host.querySelector(".pad-text");
+  var ph = host.querySelector(".pad-ph");
+  var state = host.querySelector(".pad-state");
 
-  var data = { v:1, mode: prefersTyping() ? "type" : "ink", w:0, h:height, s:[] };
-  var ctx = null, drawing = false, cur = null, t0 = Date.now(), saveTimer = null, dirty = false;
+  var imgs = [], typing = false, saveTimer = null, dirty = false;
 
-  function width(){ return Math.max(40, Math.round(surf.clientWidth)); }
-
-  function ensureCanvas(){
-    if(ctx) return ctx;
-    cv.hidden = false;
-    data.w = width();
-    ctx = fitCanvas(cv, data.w, height);
-    return ctx;
-  }
-
-  function redraw(){
-    if(!ctx) return;
-    ctx.clearRect(0, 0, data.w, height);
-    paint(ctx, data, 1);
-  }
-
-  function showPlaceholder(){
-    var empty = data.mode === "type" ? !ta.value : !data.s.length;
-    ph.hidden = !empty;
-  }
-
-  function setMode(m, focus){
-    data.mode = m;
-    host.querySelectorAll(".pad-btn[data-m]").forEach(function(b){
-      b.classList.toggle("on", b.dataset.m === m);
-    });
-    if(m === "type"){
-      ta.hidden = false; cv.hidden = true;
-      if(focus) ta.focus();
-    } else {
-      ta.hidden = true;
-      if(data.s.length || focus){ ensureCanvas(); cv.hidden = false; redraw(); }
-    }
-    showPlaceholder();
+  function current(){
+    return typing
+      ? { v:1, mode:"type", text: ta.value }
+      : { v:1, mode:"photo", imgs: imgs, text: ta.value || "" };
   }
 
   function flush(){
     if(!dirty) return;
     dirty = false;
-    var payload = data.mode === "type"
-      ? { v:1, mode:"type", text: ta.value }
-      : { v:1, mode:"ink", w:data.w, h:height, s:data.s };
     state.textContent = "saving";
-    put(key, payload).then(function(){
+    put(key, current()).then(function(){
       state.textContent = "saved";
       setTimeout(function(){ if(state.textContent === "saved") state.textContent = ""; }, 1600);
     });
-    if(opts.onChange) opts.onChange(payload);
+    if(opts.onChange) opts.onChange(current());
   }
-
   function touch(){
     dirty = true;
     if(saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(flush, 500);
   }
 
-  function at(e){
-    var r = surf.getBoundingClientRect();
-    return [ Math.round((e.clientX - r.left) * 10) / 10,
-             Math.round((e.clientY - r.top)  * 10) / 10 ];
+  function paint(){
+    shotsEl.innerHTML = imgs.map(function(src, i){
+      return '<figure class="shot"><img src="' + src + '" alt="page ' + (i+1) + '">' +
+             '<button type="button" class="shotx" data-i="' + i + '" ' +
+             'aria-label="remove page ' + (i+1) + '">&times;</button></figure>';
+    }).join("");
+    shotsEl.querySelectorAll(".shotx").forEach(function(b){
+      b.addEventListener("click", function(){
+        imgs.splice(+b.dataset.i, 1); paint(); touch();
+      });
+    });
+    ph.hidden = typing || imgs.length > 0;
+    host.querySelector(".shoot").hidden = typing || imgs.length >= maxShots;
   }
 
-  function accepts(e){
-    if(e.pointerType === "pen"){ penSeen = true; touchPen(); return true; }
-    if(e.pointerType === "touch") return !penSeen;     // palm, once a Pencil is in use
-    return true;                                        // mouse / trackpad
-  }
-
-  surf.addEventListener("pointerdown", function(e){
-    if(data.mode !== "ink" || !accepts(e)) return;
-    ensureCanvas();
-    if(data.w !== width()){ data.w = width(); ctx = fitCanvas(cv, data.w, height); redraw(); }
-    drawing = true;
-    try{ surf.setPointerCapture(e.pointerId); }catch(err){}
-    var p = at(e);
-    cur = { t: Date.now() - t0, p: [p[0], p[1]] };
-    data.s.push(cur);
-    ph.hidden = true;
-    e.preventDefault();
+  fileIn.addEventListener("change", function(){
+    var f = fileIn.files && fileIn.files[0];
+    fileIn.value = "";
+    if(!f) return;
+    state.textContent = "adding…";
+    shrink(f).then(function(src){
+      imgs.push(src);
+      if(imgs.length > maxShots) imgs = imgs.slice(-maxShots);
+      paint(); touch();
+    }).catch(function(e){
+      state.textContent = e.message || "could not add that";
+      setTimeout(function(){ state.textContent = ""; }, 3000);
+    });
   });
 
-  surf.addEventListener("pointermove", function(e){
-    if(!drawing || !cur) return;
-    /* Coalesced events give the points the browser batched between frames,
-       which is what makes a fast stroke smooth. It can legitimately come
-       back empty - an empty array is truthy, so check the length. */
-    var co = e.getCoalescedEvents ? e.getCoalescedEvents() : null;
-    var evts = (co && co.length) ? co : [e];
-    ctx.strokeStyle = "#1D4ED8"; ctx.lineWidth = 2.4;
-    ctx.beginPath();
-    ctx.moveTo(cur.p[cur.p.length-2], cur.p[cur.p.length-1]);
-    for(var i = 0; i < evts.length; i++){
-      var p = at(evts[i]);
-      cur.p.push(p[0], p[1]);
-      ctx.lineTo(p[0], p[1]);
-    }
-    ctx.stroke();
-    e.preventDefault();
-  });
-
-  function endStroke(e){
-    if(!drawing) return;
-    drawing = false;
-    try{ surf.releasePointerCapture(e.pointerId); }catch(err){}
-    if(cur && cur.p.length < 2) data.s.pop();
-    cur = null;
+  host.querySelector("[data-type]").addEventListener("click", function(){
+    typing = !typing;
+    ta.hidden = !typing;
+    shotsEl.hidden = typing;
+    host.querySelector("[data-type]").classList.toggle("on", typing);
+    host.querySelector("[data-type]").innerHTML = typing
+      ? "&#128247; Photo instead" : "&#9000; Type instead";
+    paint();
+    if(typing) ta.focus();
     touch();
-  }
-  surf.addEventListener("pointerup", endStroke);
-  surf.addEventListener("pointercancel", endStroke);
-  surf.addEventListener("pointerleave", endStroke);
-
-  ta.addEventListener("input", function(){ showPlaceholder(); touch(); });
-
-  host.querySelectorAll(".pad-btn[data-m]").forEach(function(b){
-    b.addEventListener("click", function(){ setMode(b.dataset.m, true); touch(); });
-  });
-  host.querySelector("[data-undo]").addEventListener("click", function(){
-    if(data.mode === "type"){ ta.value = ""; }
-    else { data.s.pop(); redraw(); }
-    showPlaceholder(); touch();
-  });
-  /* Clears straight away - Undo is right beside it, and the palm shield
-     is what keeps a resting wrist off it. */
-  host.querySelector("[data-clear]").addEventListener("click", function(){
-    data.s = []; ta.value = "";
-    if(ctx) ctx.clearRect(0, 0, data.w, height);
-    showPlaceholder(); touch();
   });
 
-  /* Put back whatever was here last time. */
+  ta.addEventListener("input", function(){ touch(); });
+
   var ready = get(key).then(function(saved){
     if(saved && saved.mode === "type"){
+      typing = true; ta.value = saved.text || "";
+      ta.hidden = false; shotsEl.hidden = true;
+      host.querySelector("[data-type]").classList.add("on");
+      host.querySelector("[data-type]").innerHTML = "&#128247; Photo instead";
+    } else if(saved){
+      imgs = saved.imgs || [];
       ta.value = saved.text || "";
-      setMode("type", false);
-    } else if(saved && saved.s && saved.s.length){
-      data.s = saved.s;
-      data.w = saved.w || width();
-      setMode("ink", false);
-      ensureCanvas();
-      /* saved at a different width? scale it to fit rather than crop it */
-      var k = width() / (saved.w || width());
-      if(Math.abs(k - 1) > 0.02){
-        data.s = saved.s.map(function(st){
-          var p = st.p.slice();
-          for(var i = 0; i < p.length; i += 2) p[i] = Math.round(p[i] * k * 10) / 10;
-          return { t: st.t, p: p };
-        });
-        data.w = width();
-      }
-      redraw();
-    } else {
-      setMode(data.mode, false);
     }
-    showPlaceholder();
+    paint();
     return true;
   });
 
@@ -446,12 +325,8 @@ function mount(host, key, opts){
     key: key,
     ready: ready,
     flush: function(){ if(saveTimer) clearTimeout(saveTimer); flush(); },
-    isEmpty: function(){ return data.mode === "type" ? !ta.value.trim() : !data.s.length; },
-    data: function(){
-      return data.mode === "type"
-        ? { v:1, mode:"type", text: ta.value }
-        : { v:1, mode:"ink", w:data.w, h:height, s:data.s };
-    }
+    isEmpty: function(){ return typing ? !ta.value.trim() : !imgs.length; },
+    data: current
   };
   live.push(handle);
   return handle;
@@ -482,6 +357,9 @@ if(typeof document !== "undefined"){
    ============================================================ */
 function openSheet(key, opts){
   opts = opts || {};
+  /* Never two at once. Tapping the button twice used to stack overlays,
+     which is why the prompt and toolbar appeared three times down the page. */
+  if(document.querySelector(".sheetback")) return null;
   var back = document.createElement("div");
   back.className = "sheetback";
   back.innerHTML =
@@ -500,21 +378,39 @@ function openSheet(key, opts){
   var host = document.createElement("div");
   body.appendChild(host);
 
-  /* fill the box, minus the header and the pad's own toolbar */
-  var h = Math.max(240, Math.round(body.clientHeight - 54));
   var pad = mount(host, key, {
-    height: h,
-    ruled: opts.ruled !== false,
-    placeholder: opts.placeholder || "work it out here",
+    placeholder: opts.placeholder,
     textId: opts.textId,
     label: opts.label,
+    maxShots: opts.maxShots,
     onChange: opts.onChange
   });
+
+  /* Safari can be pinch-zoomed, and a fixed element in a zoomed page does
+     not stay where it is told - which is how Done ended up off the left
+     edge of the screen. Pin the box to the visual viewport instead. */
+  function fit(){
+    var vv = window.visualViewport;
+    if(!vv) return;
+    back.style.width  = vv.width + "px";
+    back.style.height = vv.height + "px";
+    back.style.left   = vv.offsetLeft + "px";
+    back.style.top    = vv.offsetTop + "px";
+  }
+  fit();
+  if(window.visualViewport){
+    window.visualViewport.addEventListener("resize", fit);
+    window.visualViewport.addEventListener("scroll", fit);
+  }
 
   function close(){
     try{ pad.flush(); }catch(e){}
     var data = null;
     try{ data = pad.data(); }catch(e){}
+    if(window.visualViewport){
+      window.visualViewport.removeEventListener("resize", fit);
+      window.visualViewport.removeEventListener("scroll", fit);
+    }
     document.body.classList.remove("sheetopen");
     back.remove();
     live = live.filter(function(p){ return p !== pad; });

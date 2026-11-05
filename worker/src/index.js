@@ -33,8 +33,8 @@ const ALLOWED_ORIGINS = [
   "http://127.0.0.1:8099"
 ];
 
-const MAX_BODY = 512 * 1024;        // any request
-const MAX_PAD  = 256 * 1024;        // one pad of working - in practice a few KB
+const MAX_BODY = 4 * 1024 * 1024;   // any request
+const MAX_PAD  = 3 * 1024 * 1024;   // one pad: up to a few shrunk photos of their paper
 
 /* ---------- small helpers ---------- */
 
@@ -183,7 +183,7 @@ async function postInk(body, env) {
      ON CONFLICT (kid, date, block, pad) DO UPDATE SET
        data = ?5, bytes = ?6, mode = ?7, at = ?8`
   ).bind(body.kid, body.date, body.block, pad, payload,
-         payload.length, (body.data && body.data.mode) === "type" ? "type" : "ink", now()
+         payload.length, (body.data && body.data.mode) || "photo", now()
   ).run();
   return null;
 }
