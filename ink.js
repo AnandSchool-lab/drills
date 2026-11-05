@@ -194,6 +194,12 @@ function touchPen(){
 }
 
 function paintShield(on){
+  /* A palm resting on the glass does not only press things - it also
+     starts an iOS text selection, which throws Copy / Look Up / Translate
+     over the page mid-sentence. Turning selection off while the Pencil is
+     in use stops that; the answer boxes stay selectable so typing and
+     editing still work normally. */
+  try{ document.body.classList.toggle("pen-mode", !!on); }catch(e){}
   var el = document.getElementById("palmShield");
   if(!el && !on) return;
   if(!el){

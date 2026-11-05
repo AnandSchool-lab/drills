@@ -287,6 +287,12 @@ th{font-family:var(--display);font-weight:600;color:var(--muted);font-size:.78re
 .armed{border-color:var(--bad)!important;color:var(--bad)!important;
   background:var(--bad-soft)!important;font-weight:700}
 
+/* while a Pencil is in use a resting palm must not start a text selection,
+   which is what throws up Copy / Look Up / Translate mid-sentence */
+body.pen-mode{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+body.pen-mode input,body.pen-mode textarea{-webkit-user-select:auto;user-select:auto;
+  -webkit-touch-callout:default}
+
 /* palm shield: shown while a Pencil is actually in use */
 .palmshield{position:fixed;left:50%;transform:translateX(-50%);
   bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:60;

@@ -1,6 +1,14 @@
 -- Daily Drills - database schema
 -- Paste this whole file into the D1 console and run it once.
 -- Safe to run again: every statement is IF NOT EXISTS.
+--
+-- MIGRATIONS - run these by hand on a database made from an older version.
+-- CREATE TABLE IF NOT EXISTS will not reshape a table that already exists,
+-- which is how a stale NOT NULL column once blocked every pencil save.
+--
+--   2026-11-05  pencil work moved out of R2 and into the ink table:
+--               ALTER TABLE ink ADD COLUMN data TEXT;
+--               ALTER TABLE ink DROP COLUMN okey;
 
 -- One row per child, per day, per block, once they press Check.
 CREATE TABLE IF NOT EXISTS results (

@@ -8,7 +8,7 @@
 
 /* ---------- configuration you may want to change ---------- */
 var START_DATE = "2026-10-27";   // Monday the programme begins. Week 1 starts here.
-var APP_VERSION = "13";          // shown on the home screen; keep in step with CACHE in sw.js
+var APP_VERSION = "14";          // shown on the home screen; keep in step with CACHE in sw.js
 
 /* Google Apps Script web-app URL. Blank = results stay on the iPad only.
    Paste the /exec URL from Deploy → New deployment → Web app. */
@@ -1417,7 +1417,7 @@ function blockEnglish(){
     '<section class="card" data-sec="e4"><div class="chead"><h2>Writing</h2><span class="chip">10 min</span></div>' +
     '<p class="note">'+esc(E.writing.p)+'</p>' +
     '<div class="padhost big" data-pad="write"></div>' +
-    '<p class="count" id="wcount">0 words</p>' + clearBar("e4") + '</section>' + endBar();
+    clearBar("e4") + '</section>' + endBar();
 
   shell("English", BLOCKS.eng.mins, html, function(){
     app.querySelectorAll(".speak").forEach(function(b){
@@ -1439,15 +1439,8 @@ function blockEnglish(){
       host.innerHTML = '<textarea id="writeAns" rows="10" ' +
         'placeholder="Start writing here. Aim for at least six sentences."></textarea>';
     }
-    var wa = $("#writeAns"), wc = $("#wcount");
-    if(wa){
-      if(saved.writeAns && !wa.value) wa.value = saved.writeAns;
-      var count = function(){
-        var n = wa.value.trim() ? wa.value.trim().split(/\s+/).length : 0;
-        wc.textContent = n + " word" + (n===1?"":"s");
-      };
-      wa.addEventListener("input", count); count();
-    }
+    var wa = $("#writeAns");
+    if(wa && saved.writeAns && !wa.value) wa.value = saved.writeAns;
     wireSheet("eng", function(){
       saveDetail("writeAns", wa ? wa.value : "");
       saveDetail("openAns", $("#openAns").value);
