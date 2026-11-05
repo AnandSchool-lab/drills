@@ -15,8 +15,9 @@
     {
       "binding": "DB",
       "database_name": "drills",
-      // Paste the Database ID from the D1 page in the dashboard.
-      "database_id": "PASTE_D1_DATABASE_ID_HERE"
+      // From the D1 page in the dashboard. An identifier, not a
+      // credential - it opens nothing without an authenticated account.
+      "database_id": "d309ff74-c3bc-470a-9a36-0b4fdc975279"
     }
   ],
 
