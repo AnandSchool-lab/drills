@@ -1,0 +1,54 @@
+# Pull yesterday out of Cloudflare and commit it here.
+#
+# Why GitHub does this rather than the Worker: a Worker pushing to GitHub
+# would need a personal access token stored as a secret and rotated
+# forever. A workflow running inside the repository already has
+# permission to write to it, so there is one less credential in the world.
+#
+# What lands in the repo is plain JSON and plain JPEGs, in dated folders.
+# No database, no account, no app needed to read them - which is the point
+# of keeping them here rather than only in Cloudflare.
+
+name: Nightly export
+
+on:
+  schedule:
+    # 06:10 UTC = 22:10 Pacific, after the girls have finished for the day
+    - cron: "10 6 * * *"
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "Day to export (YYYY-MM-DD). Blank means yesterday."
+        required: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nightly-export
+  cancel-in-progress: false
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pull the day from the Worker
+        env:
+          API: https://drills-api.anandm401-amazon.workers.dev
+          PARENT_KEY: ${{ secrets.PARENT_KEY }}
+          WANTED: ${{ github.event.inputs.date }}
+        run: node .github/scripts/export.mjs
+
+      - name: Commit anything new
+        run: |
+          git config user.name  "Daily Drills"
+          git config user.email "noreply@anthropic.com"
+          if [ -z "$(git status --porcelain archive)" ]; then
+            echo "Nothing new to archive."
+            exit 0
+          fi
+          git add archive
+          git commit -m "Archive $(date -u -d yesterday +%F)"
+          git push

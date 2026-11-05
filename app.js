@@ -8,7 +8,7 @@
 
 /* ---------- configuration you may want to change ---------- */
 var START_DATE = "2026-10-27";   // Monday the programme begins. Week 1 starts here.
-var APP_VERSION = "16";          // shown on the home screen; keep in step with CACHE in sw.js
+var APP_VERSION = "17";          // shown on the home screen; keep in step with CACHE in sw.js
 
 /* Google Apps Script web-app URL. Blank = results stay on the iPad only.
    Paste the /exec URL from Deploy → New deployment → Web app. */
@@ -878,6 +878,7 @@ function wireBar(onBack){
 function monthLabel(d){ return d.toLocaleDateString(undefined, { month:"long", year:"numeric" }); }
 
 function screenCalendar(){
+  var ghc = document.getElementById("goHome"); if(ghc) ghc.remove();
   stopTimer();
   if(!calMonth){
     var t = dateFromKey(selectedDate || realTodayKey());
@@ -991,6 +992,7 @@ function blockCard(key){
 function screenDay(){
   stopTimer();
   stopPings();
+  var gh = document.getElementById("goHome"); if(gh) gh.remove();
   var L = levelNow(), day = daysSinceStart()+1, k = todayKey();
   var ahead = k > realTodayKey();
   app.innerHTML =
@@ -1189,10 +1191,35 @@ function shell(title, mins, bodyHTML, onMount, block){
   });
   if(onMount) onMount();
   wireLiveClear();
+  addGoHome();
   if(block && loadDraft(block)) toast("Your answers from before are still here");
   /* Only now, with the sheet built and any saved answers restored, is there
      anything worth telling a parent. Started earlier it counts an empty page. */
   if(block) startPings(block);
+}
+
+/* The bar at the top is sticky, but sticky means the top of the page, not
+   the top of what you can see - so on a pinch-zoomed iPad it can sit off
+   screen and leave no way back from the bottom of a long sheet. This one
+   is always where they can reach it. */
+function addGoHome(){
+  var old = document.getElementById("goHome");
+  if(old) old.remove();
+  var b = document.createElement("button");
+  b.id = "goHome"; b.className = "gohome"; b.type = "button";
+  b.innerHTML = "&#8962; Home";
+  b.hidden = true;
+  b.addEventListener("click", function(){
+    flushPads(); saveDraft(); stopTimer(); stopPings(); activeBlock = null;
+    b.remove(); screenCalendar();
+  });
+  document.body.appendChild(b);
+  function onScroll(){
+    if(!document.body.contains(b)){ window.removeEventListener("scroll", onScroll); return; }
+    b.hidden = window.scrollY < 400;
+  }
+  window.addEventListener("scroll", onScroll, { passive: true });
+  onScroll();
 }
 
 /* typing in a marked box clears its own mark, and saves the draft */

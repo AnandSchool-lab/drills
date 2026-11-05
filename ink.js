@@ -365,7 +365,7 @@ function openSheet(key, opts){
   back.innerHTML =
     '<div class="sheetbox" role="dialog" aria-modal="true" aria-label="Working space">' +
       '<div class="sheethead">' +
-        '<button type="button" class="sheetdone">&#8249; Done</button>' +
+        '<button type="button" class="sheetdone">&#10003; Save &amp; close</button>' +
         '<span class="sheetq"></span>' +
       '</div>' +
       '<div class="sheetbody"></div>' +

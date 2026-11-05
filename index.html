@@ -314,6 +314,13 @@ body.sheetopen{overflow:hidden}
   border:1px solid var(--accent);background:var(--accent);color:#fff;cursor:pointer;flex:none}
 .sheetq{font-family:var(--display);font-size:1.05rem;min-width:0;overflow:hidden;
   text-overflow:ellipsis;white-space:nowrap}
+
+/* always-reachable way out of a long sheet, whatever Safari's zoom is doing */
+.gohome{position:fixed;right:max(14px,env(safe-area-inset-right,0px));
+  bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:40;
+  border-radius:999px;padding:11px 18px;font-size:.92rem;font-weight:700;
+  border:1px solid var(--line);background:var(--ink);color:var(--bg);
+  box-shadow:0 6px 18px rgba(0,0,0,.26);cursor:pointer}
 .sheetbody{flex:1;min-height:0;padding:12px 14px 14px;display:flex;flex-direction:column}
 .sheetbody>div{flex:1;min-height:0;display:flex;flex-direction:column}
 .sheetbody .pad{flex:1;min-height:0}
