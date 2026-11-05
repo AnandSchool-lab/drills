@@ -209,13 +209,19 @@ async function getRetake(url, env) {
   return { ok: true, dates: (rows.results || []).map((r) => r.date) };
 }
 
+/* The app saying "I have cleared that day, you can stop asking". Open,
+   because the app has no key and never can - it is a public web page.
+   Safe to leave open: it only stops a prompt. The destructive half,
+   wiping a day's results, is below and needs the parent key. */
+async function postRetakeDone(body, env) {
+  if (!isKid(body.kid) || !isDate(body.date)) return "bad fields";
+  await env.DB.prepare(`UPDATE retake SET done = 1 WHERE kid = ?1 AND date = ?2`)
+    .bind(body.kid, body.date).run();
+  return null;
+}
+
 async function postRetake(body, env) {
   if (!isKid(body.kid) || !isDate(body.date)) return "bad fields";
-  if (body.clear) {
-    await env.DB.prepare(`UPDATE retake SET done = 1 WHERE kid = ?1 AND date = ?2`)
-      .bind(body.kid, body.date).run();
-    return null;
-  }
   await env.DB.batch([
     env.DB.prepare(
       `INSERT INTO retake (kid, date, asked, done) VALUES (?1, ?2, ?3, 0)
@@ -298,10 +304,11 @@ export default {
       if (request.method === "POST") {
         const body = await readJson(request);
         let err = null;
-        if (path === "/ping")         err = await postPing(body, env);
-        else if (path === "/result")  err = await postResult(body, env);
-        else if (path === "/ink")     err = await postInk(body, env);
-        else if (path === "/writing") err = await postWriting(body, env);
+        if (path === "/ping")              err = await postPing(body, env);
+        else if (path === "/result")       err = await postResult(body, env);
+        else if (path === "/ink")          err = await postInk(body, env);
+        else if (path === "/writing")      err = await postWriting(body, env);
+        else if (path === "/retake-done")  err = await postRetakeDone(body, env);
         else return bad("no such route", origin, 404);
         return err ? bad(err, origin) : json({ ok: true }, 200, origin);
       }

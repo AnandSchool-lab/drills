@@ -8,11 +8,11 @@
 
 /* ---------- configuration you may want to change ---------- */
 var START_DATE = "2026-10-27";   // Monday the programme begins. Week 1 starts here.
-var APP_VERSION = "11";          // shown on the home screen; keep in step with CACHE in sw.js
+var APP_VERSION = "12";          // shown on the home screen; keep in step with CACHE in sw.js
 
 /* Google Apps Script web-app URL. Blank = results stay on the iPad only.
    Paste the /exec URL from Deploy → New deployment → Web app. */
-var SYNC_URL = "https://script.google.com/macros/s/AKfycbycGuMQvp88y6-akTuhlSIgdoSCLU9QRn2qWJ2HyHLzWdm_dPjbtlHvJQNZcZCseno/exec";
+var API_URL = "https://drills-api.anandm401-amazon.workers.dev";
 var BLOCKS = {
   recap:{ label:"Recap", mins:15, icon:"↻" },
   math:  { label:"Math",       mins:30, icon:"×" },
@@ -616,90 +616,188 @@ function pickEnglish(L){
 
 /* ============================================================
    SYNC — send results to the Google Sheet, read back retakes
-   Everything here fails silently; the app works with SYNC_URL blank.
+   Everything here fails quietly; the app works with API_URL blank.
    ============================================================ */
-function syncUrl(){ return store.get("syncUrl", "") || SYNC_URL; }
+function apiUrl(){ return (store.get("apiUrl", "") || API_URL).replace(/\/+$/, ""); }
 
-function queueAdd(payload){
+/* Each queued item carries the route it belongs to, so one queue serves
+   results, pings, pencil work and writing alike.
+
+   A pad writes itself every half second while a child draws, so without
+   the dedupe key below one problem's working would fill the queue with
+   dozens of copies of itself. Only the latest version of a pad matters,
+   so a new one replaces the one waiting rather than queueing behind it. */
+function queueAdd(route, payload, dedupe){
   var q = store.get("queue", []);
-  q.push(payload);
-  store.set("queue", q.slice(-60));
+  if(dedupe){
+    q = q.filter(function(it){ return it.dedupe !== dedupe; });
+  }
+  q.push({ route: route, body: payload, tries: 0, dedupe: dedupe || null });
+  store.set("queue", q.slice(-80));
 }
 
-/* text/plain keeps the browser from sending a CORS preflight Apps Script can't answer */
-function postOne(payload){
-  return fetch(syncUrl(), {
+function postOne(route, body){
+  return fetch(apiUrl() + route, {
     method: "POST",
-    mode: "no-cors",
-    headers: { "Content-Type": "text/plain;charset=utf-8" },
-    body: JSON.stringify(payload)
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
   });
 }
 
 function syncNote(state){
   var el = (typeof document !== "undefined") && document.getElementById("syncState");
   if(!el) return;
-  var txt = { sending:"sending…", sent:"sent to Dad ✓", wait:"saved — will send when online" };
+  var txt = { sending:"sending…", sent:"sent to Dad ✓", wait:"saved — will send when online",
+              failed:"saved here, but could not send" };
   el.textContent = txt[state] || "";
-  el.className = "chip" + (state === "sent" ? " good" : "");
+  el.className = "chip" + (state === "sent" ? " good" : (state === "failed" ? " work" : ""));
   el.hidden = !txt[state];
 }
 
+/* The old bridge was posted to blind, so a failed save looked like a good
+   one. This one answers, so the queue can tell the two apart:
+     2xx  done
+     4xx  the request itself was wrong - it will never work, so drop it
+          rather than let it block everything behind it
+     5xx  our end faltered, or we are offline - keep it and try later  */
+var flushing = false;
 function flushQueue(){
-  if(!syncUrl()) return;
+  if(flushing || !apiUrl()) return;
   var q = store.get("queue", []);
-  if(!q.length){ return; }
+  if(!q.length) return;
+  flushing = true;
   syncNote("sending");
+
   var next = q[0];
-  postOne(next).then(function(){
+  postOne(next.route, next.body).then(function(res){
     var cur = store.get("queue", []);
-    cur.shift();
-    store.set("queue", cur);
-    if(cur.length) setTimeout(flushQueue, 400);
-    else syncNote("sent");
-  }).catch(function(){ syncNote("wait"); });
+    if(res.ok || (res.status >= 400 && res.status < 500)){
+      cur.shift();                       // sent, or never sendable
+      store.set("queue", cur);
+      flushing = false;
+      if(cur.length) setTimeout(flushQueue, 300);
+      else syncNote("sent");
+      return;
+    }
+    throw new Error("server " + res.status);
+  }).catch(function(){
+    var cur = store.get("queue", []);
+    if(cur[0]){
+      cur[0].tries = (cur[0].tries || 0) + 1;
+      /* After a dozen tries this one is poison. Drop it rather than let it
+         sit at the head of the queue blocking every later sheet. */
+      if(cur[0].tries > 12) cur.shift();
+      store.set("queue", cur);
+    }
+    flushing = false;
+    syncNote(navigator.onLine === false ? "wait" : "failed");
+  });
 }
 
 function sendResult(block, got, total, secs, misses){
+  if(!apiUrl() || !who()) return;
   var r = records()[todayKey()] || {};
-  var payload = {
-    kid: who(), day: todayKey(), block: block,
-    got: got, total: total, secs: secs, level: levelNow(),
-    misses: (misses || []).slice(0, 60),
-    writePrompt: r.writePrompt || "", writeAns: r.writeAns || "",
-    openAns: r.openAns || "", vocabUse: r.vocabUse || ""
-  };
-  if(!syncUrl()) return;
-  queueAdd(payload);
+  queueAdd("/result", {
+    kid: who(), date: todayKey(), block: block,
+    got: got, total: total, secs: secs,
+    misses: (misses || []).slice(0, 60)
+  });
+  if(r.writeAns || r.writePrompt){
+    queueAdd("/writing", { kid: who(), date: todayKey(),
+                           prompt: r.writePrompt || "", text: r.writeAns || "" });
+  }
   flushQueue();
 }
 
-/* ask the sheet which days the parent has marked for a retake */
+/* ---------- progress pings ----------
+   A minute apart while a sheet is open, so a parent at work can see
+   movement rather than only a score at the end. Being stuck is not a
+   wrong answer: it is a box left blank while later ones get filled, or
+   one answer rewritten over and over. Both are visible from here. */
+var pingTimer = null, pingSeen = {}, pingStart = 0;
+
+function padSnapshot(){
+  var out = { answered:0, total:0, stuck:[] };
+  if(!app) return out;
+  var items = app.querySelectorAll("input.ans, .fracbox");
+  items.forEach(function(el, i){
+    out.total++;
+    var val = el.classList && el.classList.contains("fracbox")
+      ? Array.prototype.map.call(el.querySelectorAll("input"), function(x){ return x.value; }).join("/")
+      : el.value;
+    var filled = String(val).replace(/\//g, "").trim() !== "";
+    if(filled) out.answered++;
+    var key = "q" + i, prev = pingSeen[key];
+    if(!prev){ pingSeen[key] = { val: val, changes: 0, since: Date.now() }; }
+    else if(prev.val !== val){ prev.val = val; prev.changes++; prev.since = Date.now(); }
+  });
+  /* Only report what a parent could act on. */
+  Object.keys(pingSeen).forEach(function(k){
+    var s = pingSeen[k], idx = +k.slice(1) + 1;
+    var mins = Math.round((Date.now() - s.since) / 60000);
+    if(s.val === "" && mins >= 4) out.stuck.push({ q: idx, why: "blank " + mins + " min" });
+    else if(s.changes >= 4) out.stuck.push({ q: idx, why: "changed " + s.changes + "x" });
+  });
+  out.stuck = out.stuck.slice(0, 6);
+  return out;
+}
+
+function sendPing(block){
+  if(!apiUrl() || !who() || !block) return;
+  var s = padSnapshot();
+  if(!s.total) return;
+  postOne("/ping", {
+    kid: who(), date: todayKey(), block: block,
+    answered: s.answered, total: s.total,
+    mins: Math.round((Date.now() - pingStart) / 60000),
+    stuck: s.stuck
+  }).catch(function(){});   /* a missed ping is not worth queueing - the next one carries the same news */
+}
+
+function startPings(block){
+  stopPings();
+  pingSeen = {}; pingStart = Date.now();
+  sendPing(block);
+  pingTimer = setInterval(function(){ sendPing(block); }, 60000);
+}
+function stopPings(){ if(pingTimer){ clearInterval(pingTimer); pingTimer = null; } }
+
+/* ---------- pencil work ---------- */
+var inkTimer = {};
+function sendInk(block, pad, data){
+  if(!apiUrl() || !who()) return;
+  var tag = "ink:" + block + ":" + pad;
+  /* Wait until the pen has been still for a few seconds. Mid-stroke
+     working is not worth a round trip; the finished thought is. */
+  if(inkTimer[tag]) clearTimeout(inkTimer[tag]);
+  inkTimer[tag] = setTimeout(function(){
+    delete inkTimer[tag];
+    queueAdd("/ink", { kid: who(), date: todayKey(), block: block, pad: pad, data: data }, tag);
+    flushQueue();
+  }, 4000);
+}
+
+/* ask the server which days a parent has cleared for a retake */
 function checkRetakes(done){
-  if(!syncUrl() || !who()){ if(done) done(0); return; }
-  var url = syncUrl() + (syncUrl().indexOf("?") > -1 ? "&" : "?") + "kid=" + encodeURIComponent(who());
-  fetch(url).then(function(r){ return r.json(); }).then(function(d){
-    var list = (d && d.retake) || [], cleared = 0;
-    if(!list.length){ if(done) done(0); return; }
-    var all = records();
-    list.forEach(function(item){
-      if(!all[item.day]) return;
-      if(item.block && item.block !== "ALL"){
-        var b = item.block.toLowerCase();
-        delete all[item.day][b];
-        delete all[item.day]["miss:"+b];
-      } else {
-        delete all[item.day];
-      }
-      cleared++;
-    });
-    if(cleared){
+  if(!apiUrl() || !who()){ if(done) done(0); return; }
+  fetch(apiUrl() + "/retake?kid=" + encodeURIComponent(who()))
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      var list = (d && d.dates) || [], cleared = 0;
+      if(!list.length){ if(done) done(0); return; }
+      var all = records();
+      list.forEach(function(day){
+        if(!all[day]) return;
+        delete all[day];
+        cleared++;
+      });
       store.set("rec:" + who(), all);
-      list.forEach(function(item){ queueAdd({ ack: true, kid: who(), day: item.day }); });
+      list.forEach(function(day){
+        queueAdd("/retake-done", { kid: who(), date: day });
+      });
       flushQueue();
-    }
-    if(done) done(cleared);
-  }).catch(function(){ if(done) done(0); });
+      if(done) done(cleared);
+    }).catch(function(){ if(done) done(0); });
 }
 
 /* ============================================================
@@ -771,9 +869,9 @@ function topBar(title, opts){
 }
 function wireBar(onBack){
   var h = $("#home");
-  if(h) h.addEventListener("click", function(){ flushPads(); saveDraft(); stopTimer(); activeBlock = null; screenCalendar(); });
+  if(h) h.addEventListener("click", function(){ flushPads(); saveDraft(); stopTimer(); stopPings(); activeBlock = null; screenCalendar(); });
   var b = $("#back");
-  if(b) b.addEventListener("click", function(){ flushPads(); saveDraft(); stopTimer(); activeBlock = null; (onBack || screenCalendar)(); });
+  if(b) b.addEventListener("click", function(){ flushPads(); saveDraft(); stopTimer(); stopPings(); activeBlock = null; (onBack || screenCalendar)(); });
 }
 
 /* ---------- calendar (home) ---------- */
@@ -892,6 +990,7 @@ function blockCard(key){
 
 function screenDay(){
   stopTimer();
+  stopPings();
   var L = levelNow(), day = daysSinceStart()+1, k = todayKey();
   var ahead = k > realTodayKey();
   app.innerHTML =
@@ -1091,6 +1190,9 @@ function shell(title, mins, bodyHTML, onMount, block){
   if(onMount) onMount();
   wireLiveClear();
   if(block && loadDraft(block)) toast("Your answers from before are still here");
+  /* Only now, with the sheet built and any saved answers restored, is there
+     anything worth telling a parent. Started earlier it counts an empty page. */
+  if(block) startPings(block);
 }
 
 /* typing in a marked box clears its own mark, and saves the draft */
@@ -1138,7 +1240,9 @@ function mountPads(block){
   app.querySelectorAll(".padhost").forEach(function(h){
     if(h.dataset.mounted) return;
     h.dataset.mounted = "1";
-    Ink.mount(h, base + h.dataset.pad, { height: 116, placeholder: "show your working" });
+    var pad = h.dataset.pad;
+    Ink.mount(h, base + pad, { height: 116, placeholder: "show your working",
+      onChange: function(data){ sendInk(block, pad, data); } });
   });
 }
 
@@ -1328,7 +1432,8 @@ function blockEnglish(){
       host.dataset.mounted = "1";
       Ink.mount(host, "ink:" + who() + ":" + todayKey() + ":eng:write", {
         height: 330, textId: "writeAns", label: "your writing",
-        placeholder: "Start writing here - aim for at least six sentences."
+        placeholder: "Start writing here - aim for at least six sentences.",
+        onChange: function(data){ sendInk("eng", "write", data); }
       });
     } else if(host){
       host.innerHTML = '<textarea id="writeAns" rows="10" ' +
@@ -1591,9 +1696,9 @@ function screenParent(){
     '<tbody>'+retakeRows+'</tbody></table></div></section>' +
 
     '<section class="card"><div class="chead"><h2>Sending results to the Sheet</h2>' +
-    '<span class="chip '+(syncUrl() ? "good" : "")+'">'+(syncUrl() ? "connected" : "not set up")+'</span></div>' +
+    '<span class="chip '+(apiUrl() ? "good" : "")+'">'+(apiUrl() ? "connected" : "not set up")+'</span></div>' +
     '<p class="note">Paste the web-app URL from Google Apps Script. Once set, every finished block is sent to your Drill Results sheet. Leave it blank to keep everything on this iPad.</p>' +
-    '<input id="syncIn" type="url" placeholder="https://script.google.com/macros/s/..../exec" value="'+esc(store.get("syncUrl",""))+'">' +
+    '<input id="syncIn" type="url" placeholder="https://drills-api.....workers.dev" value="'+esc(store.get("apiUrl",""))+'">' +
     '<div class="endbar"><button class="primary" id="saveSync">Save</button>' +
     '<button class="ghost" id="testSync">Send a test</button>' +
     '<button class="ghost" id="pullRetake">Check for retakes</button>' +
@@ -1603,18 +1708,18 @@ function screenParent(){
   wireBar();
   $("#saveSync").addEventListener("click", function(){
     var v = $("#syncIn").value.trim();
-    store.set("syncUrl", v);
+    store.set("apiUrl", v);
     toast(v ? "Saved — results will be sent from now on" : "Sync turned off");
     screenParent();
   });
   $("#testSync").addEventListener("click", function(){
-    if(!syncUrl()){ toast("Paste the URL and press Save first"); return; }
+    if(!apiUrl()){ toast("Paste the URL and press Save first"); return; }
     queueAdd({ kid: who(), day: todayKey(), block: "test", got: 1, total: 1, secs: 0, level: levelNow(), misses: [] });
     flushQueue();
     toast("Test sent — look for a new row in the sheet");
   });
   $("#pullRetake").addEventListener("click", function(){
-    if(!syncUrl()){ toast("Set the URL first"); return; }
+    if(!apiUrl()){ toast("Set the URL first"); return; }
     checkRetakes(function(n){
       toast(n ? n + " day(s) cleared for a retake" : "Nothing marked for a retake");
       if(n) screenParent();
