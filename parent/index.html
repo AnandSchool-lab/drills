@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Daily Drills &mdash; Parent</title>
+<link rel="icon" href="data:,">
+<style>
+:root{
+  --bg:#EDF1F7; --surface:#FFFFFF; --surface-2:#F6F9FD; --ink:#16243C; --muted:#56688A;
+  --line:#D5DEEC; --accent:#2454CE; --accent-soft:#E2EAFF;
+  --good:#1C7C54; --good-soft:#DFF3E8; --bad:#B3261E; --bad-soft:#FBE4E2;
+  --amber:#D9731A; --amber-soft:#FDEEDC;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){
+  --bg:#0E1724; --surface:#17222F; --surface-2:#1D293A; --ink:#E6EDF8; --muted:#9AACC6;
+  --line:#2B3A4F; --accent:#7AA2FF; --accent-soft:#1E2B46;
+  --good:#5FD3A0; --good-soft:#15332A; --bad:#FF9A92; --bad-soft:#3A1F1E;
+  --amber:#F0A458; --amber-soft:#36281A;
+}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.55;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  padding:22px max(16px,env(safe-area-inset-left,0)) 64px max(16px,env(safe-area-inset-right,0))}
+.wrap{max-width:780px;margin:0 auto}
+h1{font-size:25px;margin:0 0 4px;letter-spacing:-.01em}
+.sub{color:var(--muted);font-size:15px;margin:0 0 22px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;margin:14px 0}
+h2{font-size:17px;margin:0 0 4px}
+.note{color:var(--muted);font-size:14px;margin:0 0 14px}
+.state{display:flex;gap:11px;align-items:flex-start;background:var(--amber-soft);
+  border:1px solid var(--amber);border-radius:11px;padding:13px 15px}
+.state .big{font-size:19px;line-height:1.1}
+.state b{display:block;margin-bottom:2px}
+.state span{font-size:14px;color:var(--muted)}
+.rows{margin-top:6px}
+.r{display:flex;align-items:center;gap:11px;padding:11px 0;border-bottom:1px solid var(--line)}
+.r:last-child{border-bottom:0}
+.r .host{flex:1;min-width:0;font-size:15px;font-weight:600}
+.r .why{display:block;font:13px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  color:var(--muted);margin-top:2px}
+.pill{font-size:12px;font-weight:700;border-radius:999px;padding:3px 11px;white-space:nowrap;
+  border:1px solid var(--line);color:var(--muted);background:var(--surface-2)}
+.pill.ok{background:var(--good-soft);color:var(--good);border-color:var(--good)}
+.pill.no{background:var(--bad-soft);color:var(--bad);border-color:var(--bad)}
+.pill.run{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
+button{font:inherit;font-size:15px;border-radius:11px;border:1px solid var(--line);
+  background:var(--surface);color:var(--ink);padding:10px 16px;cursor:pointer}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}
+.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}
+.verdict{margin-top:14px;border-radius:11px;padding:13px 15px;font-size:14.5px;display:none}
+.verdict.show{display:block}
+.verdict.good{background:var(--good-soft);border:1px solid var(--good)}
+.verdict.bad{background:var(--bad-soft);border:1px solid var(--bad)}
+.soon{display:grid;gap:9px}
+.soon div{display:flex;gap:10px;align-items:flex-start;font-size:14.5px;color:var(--muted)}
+.soon b{color:var(--ink);font-weight:600}
+.tick{color:var(--accent);font-weight:800}
+.foot{color:var(--muted);font-size:13px;text-align:center;margin-top:24px}
+a{color:var(--accent)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Parent view</h1>
+  <p class="sub">Daily Drills &mdash; Andrila and Alvina</p>
+
+  <div class="card">
+    <div class="state">
+      <span class="big">&#9888;</span>
+      <span><b>Not connected yet</b>
+      <span>The dashboard needs the Cloudflare Worker, which has not been built. This page exists
+      so the address works &mdash; and so you can run the network check below from this exact machine.</span></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Can this computer reach the pieces?</h2>
+    <p class="note">The dashboard is only useful if it loads from your desk. This checks what your
+      network actually allows, from here, right now.</p>
+
+    <div class="rows" id="rows"></div>
+
+    <div class="actions">
+      <button class="primary" id="run">Run the check</button>
+    </div>
+
+    <div class="verdict" id="verdict"></div>
+  </div>
+
+  <div class="card">
+    <h2>What will be on this page</h2>
+    <div class="soon">
+      <div><span class="tick">&#9679;</span><span><b>Who is working right now</b> &mdash; which block, how far in, last seen.</span></div>
+      <div><span class="tick">&#9679;</span><span><b>Where they are stuck</b> &mdash; a box left blank while later ones get filled, or an answer rewritten five times.</span></div>
+      <div><span class="tick">&#9679;</span><span><b>Their working, replayed</b> &mdash; the pencil strokes in the order she wrote them.</span></div>
+      <div><span class="tick">&#9679;</span><span><b>Topic by topic, month over month</b> &mdash; the flat lines are the ones to look at.</span></div>
+      <div><span class="tick">&#9679;</span><span><b>Overdue tests</b> &mdash; who has not done the weekly or monthly one.</span></div>
+    </div>
+  </div>
+
+  <p class="foot">Kids&#8217; app: <a href="../">anandschool-lab.github.io/drills/</a></p>
+</div>
+
+<script>
+/* A deliberately simple reachability probe.
+
+   We cannot read a cross-origin response, so each host is fetched with
+   mode:"no-cors". The body is opaque, but the promise still tells us
+   whether the connection happened at all - which is the question.
+
+   Honest limitation, stated on screen: a corporate proxy that answers with
+   its own block page looks like a success here. A hard block - refused
+   connection, DNS blackhole, timeout - shows up correctly as blocked. */
+var TESTS = [
+  { host:"https://anandschool-lab.github.io/drills/",
+    label:"The kids' app",
+    why:"Already proven - this page came from here." },
+  { host:"https://cloudflare.com/cdn-cgi/trace",
+    label:"Cloudflare",
+    why:"Where the new server will live." },
+  { host:"https://workers.dev/",
+    label:"workers.dev",
+    why:"The address the dashboard will call for data." },
+  { host:"https://script.google.com/",
+    label:"Google Apps Script",
+    why:"The bridge in use today." }
+];
+
+var rowsEl = document.getElementById("rows");
+var runBtn = document.getElementById("run");
+var verdictEl = document.getElementById("verdict");
+
+function draw(){
+  rowsEl.innerHTML = TESTS.map(function(t, i){
+    return '<div class="r">' +
+      '<span class="host">' + t.label +
+        '<span class="why">' + t.why + '</span></span>' +
+      '<span class="pill" id="p' + i + '">not run</span>' +
+    '</div>';
+  }).join("");
+}
+draw();
+
+function probe(url, ms){
+  return new Promise(function(resolve){
+    var done = false;
+    var timer = setTimeout(function(){ if(!done){ done = true; resolve("blocked"); } }, ms || 7000);
+    fetch(url, { mode:"no-cors", cache:"no-store" })
+      .then(function(){ if(!done){ done = true; clearTimeout(timer); resolve("ok"); } })
+      .catch(function(){ if(!done){ done = true; clearTimeout(timer); resolve("blocked"); } });
+  });
+}
+
+function run(){
+  runBtn.disabled = true; runBtn.textContent = "Checking…";
+  verdictEl.className = "verdict";
+  var results = [];
+  TESTS.forEach(function(t, i){
+    var p = document.getElementById("p" + i);
+    p.className = "pill run"; p.textContent = "checking";
+  });
+  Promise.all(TESTS.map(function(t, i){
+    return probe(t.host).then(function(res){
+      var p = document.getElementById("p" + i);
+      p.className = "pill " + (res === "ok" ? "ok" : "no");
+      p.textContent = res === "ok" ? "reachable" : "blocked";
+      results[i] = res;
+      return res;
+    });
+  })).then(function(){
+    runBtn.disabled = false; runBtn.textContent = "Run the check again";
+    var cf = results[1] === "ok" || results[2] === "ok";
+    verdictEl.className = "verdict show " + (cf ? "good" : "bad");
+    verdictEl.innerHTML = cf
+      ? "<b>Good.</b> Cloudflare is reachable from this machine, so the dashboard will load at your desk. " +
+        "Note that a proxy answering with its own block page can look like success here &mdash; " +
+        "the real proof comes when the Worker is live and returns actual data."
+      : "<b>Cloudflare looks blocked here.</b> The dashboard would not load at your desk. " +
+        "Tell Claude and we will switch to a different route &mdash; your phone on cellular, " +
+        "or a scheduled summary sent to you instead of a live page.";
+  });
+}
+
+runBtn.addEventListener("click", run);
+</script>
+</body>
+</html>
