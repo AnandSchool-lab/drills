@@ -8,7 +8,7 @@
 
 /* ---------- configuration you may want to change ---------- */
 var START_DATE = "2026-10-27";   // Monday the programme begins. Week 1 starts here.
-var APP_VERSION = "8";           // shown on the home screen; keep in step with CACHE in sw.js
+var APP_VERSION = "10";          // shown on the home screen; keep in step with CACHE in sw.js
 
 /* Google Apps Script web-app URL. Blank = results stay on the iPad only.
    Paste the /exec URL from Deploy → New deployment → Web app. */
@@ -770,9 +770,9 @@ function topBar(title, opts){
 }
 function wireBar(onBack){
   var h = $("#home");
-  if(h) h.addEventListener("click", function(){ saveDraft(); stopTimer(); activeBlock = null; screenCalendar(); });
+  if(h) h.addEventListener("click", function(){ flushPads(); saveDraft(); stopTimer(); activeBlock = null; screenCalendar(); });
   var b = $("#back");
-  if(b) b.addEventListener("click", function(){ saveDraft(); stopTimer(); activeBlock = null; (onBack || screenCalendar)(); });
+  if(b) b.addEventListener("click", function(){ flushPads(); saveDraft(); stopTimer(); activeBlock = null; (onBack || screenCalendar)(); });
 }
 
 /* ---------- calendar (home) ---------- */
@@ -971,6 +971,13 @@ function pruneDrafts(){
       }
     }
   }catch(e){}
+  /* their pencil work is kept far longer - the nightly export needs time to
+     pick it up, and it is the thing we least want to lose */
+  try{
+    if(window.Ink && Ink.available()){
+      Ink.pruneBefore(keyOf(new Date(Date.now() - 120*86400000)));
+    }
+  }catch(e){}
 }
 
 /* ---------- sheet shell ---------- */
@@ -1013,31 +1020,71 @@ function numInput(ans, label, qtext){
 function clearBar(target){
   return '<div class="clearrow"><button class="ghost sm" data-clear="'+target+'">Clear this section</button></div>';
 }
+/* Write every pad on screen to disk now, and let go of the old ones so a
+   new sheet does not keep flushing the last sheet's pads. */
+function flushPads(){
+  if(!window.Ink || !Ink.available()) return;
+  try{ Ink.flushAll(); Ink.forget(); }catch(e){}
+}
+
+/* A place to show the working. Mounted lazily by mountPads() - the canvas
+   itself is not created until the pen actually touches it. */
+function padHost(idPrefix, i){
+  return '<div class="padhost" data-pad="' + idPrefix + '-' + i + '"></div>';
+}
+
+/* Turn every .padhost on screen into a real work pad. */
+function mountPads(block){
+  if(!window.Ink || !Ink.available()) return;
+  var base = "ink:" + who() + ":" + todayKey() + ":" + block + ":";
+  app.querySelectorAll(".padhost").forEach(function(h){
+    if(h.dataset.mounted) return;
+    h.dataset.mounted = "1";
+    Ink.mount(h, base + h.dataset.pad, { height: 116, placeholder: "show your working" });
+  });
+}
+
+/* Which problems deserve a working space. A times-table fact does not -
+   giving it one just buries the sheet in empty boxes. Anything with a
+   two-digit number, a fraction or a remainder does. */
+function needsWork(it){
+  if(it.kind === "frac" || it.kind === "divr") return true;
+  return /\d{2}/.test(String(it.q));
+}
+
 function sectionHTML(sec, idPrefix){
+  var pad = !!sec.pad;
+  var anyPad = pad && sec.items.some(needsWork);
   var rows = sec.items.map(function(it, i){
     var q = esc(it.q);
+    var mine = pad && needsWork(it);
+    var work = mine ? padHost(idPrefix, i) : "";
+    var pc = mine ? " haspad" : "";
     if(it.kind === "divr"){
-      return '<div class="tile"><span class="q">'+q+' =</span>' +
+      return '<div class="tile'+pc+'"><span class="q">'+q+' =</span>' +
         '<span class="slot">'+numInput(it.a, it.q)+'</span>' +
         '<span class="rlab">R</span><span class="slot sm">' +
-        '<input class="ans" type="text" inputmode="numeric" data-a="'+it.r+'" data-opt="1" aria-label="remainder"></span></div>';
+        '<input class="ans" type="text" inputmode="numeric" data-a="'+it.r+'" data-opt="1" aria-label="remainder"></span>' +
+        work + '</div>';
     }
     if(it.kind === "frac"){
       var tail = /=|simplest form|mixed number|\(simplify\)/.test(it.q) ? "" : " =";
-      return '<div class="tile col"><span class="q">'+q+tail+'</span>' +
+      return '<div class="tile col'+pc+'"><span class="q">'+q+tail+'</span>' +
         '<span class="fracbox" data-w="'+it.w+'" data-n="'+it.n+'" data-d="'+it.d+'"' +
           (/simplif|simplest/i.test(it.q) ? ' data-simp="1"' : '') +
           (it.exact ? ' data-exact="1"' : '') + '>' +
           ((it.noWhole || (it.exact && !it.w)) ? "" : '<input class="fw" type="text" inputmode="numeric" placeholder="whole" aria-label="whole number">') +
           '<span class="stack"><input class="fn" type="text" inputmode="numeric" aria-label="numerator">' +
           '<span class="bar2"></span><input class="fd" type="text" inputmode="numeric" aria-label="denominator"></span>' +
-        '</span></div>';
+        '</span>' + work + '</div>';
     }
-    return '<div class="tile"><span class="q">'+q+' =</span><span class="slot">'+numInput(it.a, it.q)+'</span></div>';
+    return '<div class="tile'+pc+'"><span class="q">'+q+' =</span>' +
+      '<span class="slot">'+numInput(it.a, it.q)+'</span>' + work + '</div>';
   }).join("");
+  var wide = sec.items.some(function(it){ return it.kind==="divr"||it.kind==="frac"; });
   return '<section class="card" data-sec="'+idPrefix+'"><div class="chead"><h2>'+esc(sec.title)+'</h2></div>' +
     '<p class="note">'+esc(sec.note)+'</p>' +
-    '<div class="grid'+(sec.items.some(function(it){ return it.kind==="divr"||it.kind==="frac"; }) ? " wide" : "")+'">'+rows+'</div>' +
+    '<div class="grid'+(wide ? " wide" : "")+(anyPad ? " padded" : "")+'">'+rows+'</div>' +
     clearBar(idPrefix) + '</section>';
 }
 
@@ -1061,8 +1108,9 @@ function blockMath(){
   seedFor("math");
   var secs = [genMultiply(L), genDivide(L), genFractions(L)];
   if(L >= 2) secs.push(genDecimals(L));
+  secs.forEach(function(s){ s.pad = true; });   // every problem gets room to work
   var html = secs.map(function(s,i){ return sectionHTML(s, "m"+i); }).join("") + endBar();
-  shell("Math", BLOCKS.math.mins, html, function(){ wireSheet("math"); }, "math");
+  shell("Math", BLOCKS.math.mins, html, function(){ wireSheet("math"); mountPads("math"); }, "math");
 }
 
 /* ---------- THINKING ---------- */
@@ -1165,21 +1213,39 @@ function blockEnglish(){
 
     '<section class="card" data-sec="e4"><div class="chead"><h2>Writing</h2><span class="chip">10 min</span></div>' +
     '<p class="note">'+esc(E.writing.p)+'</p>' +
-    '<textarea id="writeAns" rows="10" placeholder="Start writing here. Aim for at least six sentences.">'+esc(saved.writeAns||"")+'</textarea>' +
+    '<div class="padhost big" data-pad="write"></div>' +
     '<p class="count" id="wcount">0 words</p>' + clearBar("e4") + '</section>' + endBar();
 
   shell("English", BLOCKS.eng.mins, html, function(){
     app.querySelectorAll(".speak").forEach(function(b){
       b.addEventListener("click", function(){ say(b.dataset.say); });
     });
-    var wa = $("#writeAns"), wc = $("#wcount");
-    function count(){
-      var n = wa.value.trim() ? wa.value.trim().split(/\s+/).length : 0;
-      wc.textContent = n + " word" + (n===1?"":"s");
+
+    /* The writing page is one big pad: Pencil on the iPad, keyboard anywhere.
+       Its text box keeps the id #writeAns, so drafts, grading and the upload
+       all carry on working exactly as before. */
+    var host = app.querySelector('.padhost[data-pad="write"]');
+    if(host && window.Ink && Ink.available()){
+      host.dataset.mounted = "1";
+      Ink.mount(host, "ink:" + who() + ":" + todayKey() + ":eng:write", {
+        height: 330, textId: "writeAns", label: "your writing",
+        placeholder: "Start writing here - aim for at least six sentences."
+      });
+    } else if(host){
+      host.innerHTML = '<textarea id="writeAns" rows="10" ' +
+        'placeholder="Start writing here. Aim for at least six sentences."></textarea>';
     }
-    wa.addEventListener("input", count); count();
+    var wa = $("#writeAns"), wc = $("#wcount");
+    if(wa){
+      if(saved.writeAns && !wa.value) wa.value = saved.writeAns;
+      var count = function(){
+        var n = wa.value.trim() ? wa.value.trim().split(/\s+/).length : 0;
+        wc.textContent = n + " word" + (n===1?"":"s");
+      };
+      wa.addEventListener("input", count); count();
+    }
     wireSheet("eng", function(){
-      saveDetail("writeAns", wa.value);
+      saveDetail("writeAns", wa ? wa.value : "");
       saveDetail("openAns", $("#openAns").value);
       saveDetail("vocabUse", $("#vocabUse").value);
       saveDetail("writePrompt", E.writing.p);
