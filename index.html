@@ -276,12 +276,26 @@ th{font-family:var(--display);font-weight:600;color:var(--muted);font-size:.78re
 .pad-text{position:absolute;inset:0;width:100%;height:100%;border:0;border-radius:11px;
   background:transparent;padding:8px 11px;resize:none;line-height:28px;font-size:1rem}
 .pad-text:focus{outline:2px solid var(--accent);outline-offset:-2px}
-.pad-tools{display:flex;align-items:center;gap:7px;margin-top:7px;flex-wrap:wrap}
+.pad-tools{display:flex;align-items:center;gap:7px;margin-bottom:7px;flex-wrap:wrap}
 .pad-btn{font-size:.78rem;padding:4px 10px;border-radius:8px;border:1px solid var(--line);
   background:var(--surface);color:var(--muted);cursor:pointer;line-height:1.5}
 .pad-btn.on{border-color:var(--accent);color:var(--accent);background:var(--accent-soft);font-weight:700}
 .pad-state{margin-left:auto;font-size:.74rem;color:var(--muted);min-width:46px;text-align:right}
 .pad.big .pad-surface{border-style:solid}
+
+/* a button that destroys work, part-way through asking twice */
+.armed{border-color:var(--bad)!important;color:var(--bad)!important;
+  background:var(--bad-soft)!important;font-weight:700}
+
+/* palm shield: shown while a Pencil is actually in use */
+.palmshield{position:fixed;left:50%;transform:translateX(-50%);
+  bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:60;
+  display:flex;align-items:center;gap:12px;
+  background:var(--ink);color:var(--bg);border-radius:999px;
+  padding:8px 10px 8px 18px;box-shadow:0 6px 20px rgba(0,0,0,.28);
+  font-size:.86rem;font-weight:600;max-width:calc(100vw - 28px)}
+.palmshield button{background:var(--bg);color:var(--ink);border:0;border-radius:999px;
+  padding:6px 14px;font-size:.84rem;font-weight:700;white-space:nowrap}
 @media print{ .pad-tools{display:none!important} .pad-surface{border-color:#999} }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>

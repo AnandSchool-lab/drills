@@ -165,6 +165,77 @@ function replay(cv, data, opts){
 var penSeen = false;
 var live = [];          // pads currently on screen, so we can flush them all at once
 
+/* ============================================================
+   PALM SHIELD
+
+   Writing with a Pencil means resting a wrist on the glass, and a
+   wrist lands wherever it lands - on Undo, on Clear, on Clear
+   everything. Rejecting palm touches inside the writing box was never
+   enough: the damage happens to the buttons around it.
+
+   So while a Pencil is actually in use, a finger or palm cannot press
+   anything. The Pencil still can - with one in your hand you tap
+   buttons with its tip anyway - and plain scrolling still works,
+   because only interactive targets are blocked, never the page.
+
+   It lifts itself 45 seconds after the last stroke, so putting the
+   Pencil down and using fingers needs no thought and no toggle.
+   ============================================================ */
+var SHIELD_MS = 45000;
+var shieldUntil = 0, swallowClick = false;
+
+function shieldOn(){ return Date.now() < shieldUntil; }
+function touchPen(){
+  var was = shieldOn();
+  shieldUntil = Date.now() + SHIELD_MS;
+  if(!was) paintShield(true);
+  clearTimeout(touchPen._t);
+  touchPen._t = setTimeout(function(){ paintShield(false); }, SHIELD_MS + 50);
+}
+
+function paintShield(on){
+  var el = document.getElementById("palmShield");
+  if(!el && !on) return;
+  if(!el){
+    el = document.createElement("div");
+    el.id = "palmShield";
+    el.className = "palmshield";
+    el.innerHTML = '<span>&#9998; Pencil in use — taps ignored</span>' +
+                   '<button type="button">Use my finger</button>';
+    el.querySelector("button").addEventListener("click", function(){
+      shieldUntil = 0; paintShield(false);
+    });
+    document.body.appendChild(el);
+  }
+  el.hidden = !on;
+}
+
+var BLOCKABLE = "button,a,input,select,textarea,label,summary,[data-clear],[role=button]";
+
+function guard(e){
+  if(!shieldOn()) return;
+  if(e.pointerType && e.pointerType !== "touch") return;   // the Pencil may press anything
+  var t = e.target;
+  if(!t || !t.closest) return;
+  if(t.closest(".pad-surface")) return;                    // the pad does its own rejecting
+  if(t.closest("#palmShield")) return;                     // never block the way out
+  if(!t.closest(BLOCKABLE)) return;                        // let scrolling and plain taps through
+  e.preventDefault();
+  e.stopPropagation();
+  swallowClick = true;
+}
+
+if(typeof document !== "undefined"){
+  document.addEventListener("pointerdown", guard, true);
+  document.addEventListener("click", function(e){
+    if(!swallowClick) return;
+    swallowClick = false;
+    if(e.target && e.target.closest && e.target.closest(".pad-surface, #palmShield")) return;
+    e.preventDefault();
+    e.stopPropagation();
+  }, true);
+}
+
 function prefersTyping(){
   try{ return !(navigator.maxTouchPoints > 0); }catch(e){ return true; }
 }
@@ -179,20 +250,23 @@ function mount(host, key, opts){
   var height = opts.height || 120;
   var ruled  = opts.ruled !== false;
 
+  /* Tools sit above the writing surface, not below it. A right hand rests
+     below and to the right of where it is writing, which is exactly where
+     a toolbar underneath would be. */
   host.classList.add("pad");
   host.innerHTML =
+    '<div class="pad-tools">' +
+      '<button type="button" class="pad-btn" data-m="ink">&#9998; Pencil</button>' +
+      '<button type="button" class="pad-btn" data-m="type">&#9000; Type</button>' +
+      '<button type="button" class="pad-btn" data-undo>&#9003; Undo</button>' +
+      '<button type="button" class="pad-btn danger" data-clear>Clear</button>' +
+      '<span class="pad-state"></span>' +
+    '</div>' +
     '<div class="pad-surface' + (ruled ? " ruled" : "") + '" style="height:' + height + 'px">' +
       '<span class="pad-ph">' + (opts.placeholder || "show your working") + '</span>' +
       '<canvas class="pad-canvas" hidden></canvas>' +
       '<textarea class="pad-text"' + (opts.textId ? ' id="' + opts.textId + '"' : "") +
         ' hidden spellcheck="false" aria-label="' + (opts.label || "your working") + '"></textarea>' +
-    '</div>' +
-    '<div class="pad-tools">' +
-      '<button type="button" class="pad-btn" data-m="ink">&#9998; Pencil</button>' +
-      '<button type="button" class="pad-btn" data-m="type">&#9000; Type</button>' +
-      '<button type="button" class="pad-btn" data-undo>&#9003; Undo</button>' +
-      '<button type="button" class="pad-btn" data-clear>Clear</button>' +
-      '<span class="pad-state"></span>' +
     '</div>';
 
   var surf = host.querySelector(".pad-surface");
@@ -267,7 +341,7 @@ function mount(host, key, opts){
   }
 
   function accepts(e){
-    if(e.pointerType === "pen"){ penSeen = true; return true; }
+    if(e.pointerType === "pen"){ penSeen = true; touchPen(); return true; }
     if(e.pointerType === "touch") return !penSeen;     // palm, once a Pencil is in use
     return true;                                        // mouse / trackpad
   }
@@ -326,7 +400,20 @@ function mount(host, key, opts){
     else { data.s.pop(); redraw(); }
     showPlaceholder(); touch();
   });
-  host.querySelector("[data-clear]").addEventListener("click", function(){
+  /* Clear asks twice. Losing a page of working to one stray press is
+     the kind of thing that makes a child stop trusting the app. */
+  var clearBtn = host.querySelector("[data-clear]"), armed = null;
+  clearBtn.addEventListener("click", function(){
+    if(!armed){
+      clearBtn.textContent = "Really?";
+      clearBtn.classList.add("armed");
+      armed = setTimeout(function(){
+        armed = null; clearBtn.textContent = "Clear"; clearBtn.classList.remove("armed");
+      }, 3000);
+      return;
+    }
+    clearTimeout(armed); armed = null;
+    clearBtn.textContent = "Clear"; clearBtn.classList.remove("armed");
     data.s = []; ta.value = "";
     if(ctx) ctx.clearRect(0, 0, data.w, height);
     showPlaceholder(); touch();

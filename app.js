@@ -8,7 +8,7 @@
 
 /* ---------- configuration you may want to change ---------- */
 var START_DATE = "2026-10-27";   // Monday the programme begins. Week 1 starts here.
-var APP_VERSION = "12";          // shown on the home screen; keep in step with CACHE in sw.js
+var APP_VERSION = "13";          // shown on the home screen; keep in step with CACHE in sw.js
 
 /* Google Apps Script web-app URL. Blank = results stay on the iPad only.
    Paste the /exec URL from Deploy → New deployment → Web app. */
@@ -1480,16 +1480,37 @@ function wireSheet(block, beforeGrade){
     var m = $("#openModel"); if(m) m.hidden = false;
     app.querySelectorAll("[data-sol]").forEach(function(s){ s.hidden = false; });
   });
-  $("#clearAll").addEventListener("click", function(){
+  armClear($("#clearAll"), "Clear everything", function(){
     clearScope(app, true);
     clearDraft(block);
     var el = $("#score"); el.textContent = "—"; el.className = "score";
   });
   app.querySelectorAll("[data-clear]").forEach(function(b){
-    b.addEventListener("click", function(){
+    armClear(b, "Clear this section", function(){
       clearScope(app.querySelector('[data-sec="'+b.dataset.clear+'"]'), false);
       saveDraft();
     });
+  });
+}
+
+/* Anything that destroys work asks twice. One stray press - a resting
+   wrist, a mis-tap - should never be able to wipe a sheet. */
+function armClear(btn, label, action){
+  if(!btn) return;
+  var armed = null;
+  function reset(){
+    if(armed) clearTimeout(armed);
+    armed = null; btn.textContent = label; btn.classList.remove("armed");
+  }
+  btn.addEventListener("click", function(){
+    if(!armed){
+      btn.textContent = "Tap again to clear";
+      btn.classList.add("armed");
+      armed = setTimeout(reset, 3000);
+      return;
+    }
+    reset();
+    action();
   });
 }
 
