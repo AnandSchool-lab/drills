@@ -1,0 +1,34 @@
+{
+  // Daily Drills API.
+  //
+  // Deployed by Cloudflare itself whenever a commit lands on main -
+  // no API token, no CLI, nothing to leak. See worker/README.md.
+  //
+  // The Worker's name here must match the name in the Cloudflare
+  // dashboard exactly, or the build fails.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "drills-api",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-01",
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "drills",
+      // Paste the Database ID from the D1 page in the dashboard.
+      "database_id": "PASTE_D1_DATABASE_ID_HERE"
+    }
+  ],
+
+  "r2_buckets": [
+    {
+      "binding": "INK",
+      "bucket_name": "drills-ink"
+    }
+  ],
+
+  // PARENT_KEY is a secret, set in the dashboard, never in this file.
+  // Settings -> Variables and Secrets -> Add -> type: Secret.
+
+  "observability": { "enabled": true }
+}
