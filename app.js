@@ -8,7 +8,7 @@
 
 /* ---------- configuration you may want to change ---------- */
 var START_DATE = "2026-10-27";   // Monday the programme begins. Week 1 starts here.
-var APP_VERSION = "22";          // shown on the home screen; keep in step with CACHE in sw.js
+var APP_VERSION = "23";          // shown on the home screen; keep in step with CACHE in sw.js
 
 /* Google Apps Script web-app URL. Blank = results stay on the iPad only.
    Paste the /exec URL from Deploy → New deployment → Web app. */
@@ -1409,13 +1409,23 @@ function showSolution(q, text){
       '<span class="sheetq"></span></div>' +
       '<div class="sheetbody soln"></div></div>';
   back.querySelector(".sheetq").textContent = q || "How to do it";
-  back.querySelector(".soln").innerHTML = String(text).split(/\n{2,}/).map(function(p){
-    var t = p.trim();
-    if(!t) return "";
-    if(/^(step\s*\d|\d[.)])/i.test(t)) return '<p class="s">' + esc(t) + '</p>';
-    if(/^(tip|trick|remember|watch out)/i.test(t)) return '<p class="tip">' + esc(t) + '</p>';
-    return '<p>' + esc(t) + '</p>';
-  }).join("");
+  var body = back.querySelector(".soln"), html = "";
+  /* a worked solution arrives as JSON with its pictures; anything else is
+     plain text somebody typed, and is shown as paragraphs */
+  try{
+    var sol = JSON.parse(text);
+    if(sol && sol.steps && window.Solve) html = Solve.render(sol);
+  }catch(e){}
+  if(!html){
+    html = String(text).split(/\n{2,}/).map(function(p){
+      var t = p.trim();
+      if(!t) return "";
+      if(/^(step\s*\d|\d[.)])/i.test(t)) return '<p class="s">' + esc(t) + '</p>';
+      if(/^(tip|trick|remember|watch out)/i.test(t)) return '<p class="tip">' + esc(t) + '</p>';
+      return '<p>' + esc(t) + '</p>';
+    }).join("");
+  }
+  body.innerHTML = html;
   document.body.appendChild(back);
   document.body.classList.add("sheetopen");
   function close(){ document.body.classList.remove("sheetopen"); back.remove(); }
@@ -2044,7 +2054,7 @@ function getLatest(){
   var btn = $("#refresh");
   if(!navigator.onLine){ toast("No internet — connect to Wi-Fi and try again"); return; }
   if(btn){ btn.disabled = true; btn.textContent = "Updating…"; }
-  var files = ["./", "./index.html", "./app.js", "./content.js", "./ink.js", "./sw.js", "./manifest.webmanifest"];
+  var files = ["./", "./index.html", "./app.js", "./content.js", "./ink.js", "./solve.js", "./sw.js", "./manifest.webmanifest"];
   var swUpdate = ("serviceWorker" in navigator)
     ? navigator.serviceWorker.getRegistration().then(function(r){ return r ? r.update() : null; }).catch(function(){})
     : Promise.resolve();

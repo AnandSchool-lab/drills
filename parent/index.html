@@ -65,9 +65,24 @@ input,select{font:inherit;font-size:15px;padding:8px 10px;border-radius:9px;
 .sq:first-of-type{border-top:0}
 .sq .qt{font-weight:600;font-size:14.5px}
 .sq .meta{color:var(--muted);font-size:12.5px;margin-top:1px}
-.sq textarea{width:100%;margin-top:7px;min-height:92px;font:inherit;font-size:14px;
+.sq textarea{width:100%;margin-top:7px;min-height:120px;font:inherit;font-size:13.5px;
   border:1px solid var(--line);border-radius:9px;padding:9px 11px;background:var(--surface);
-  color:var(--ink);resize:vertical}
+  color:var(--ink);resize:vertical;line-height:1.6}
+.sprev{background:var(--surface);border:1px solid var(--line);border-radius:10px;
+  padding:12px 14px;margin-top:8px;max-height:min(78vh,1000px);overflow:auto}
+.sprev .sstep{margin:0 0 12px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.sprev .sstep:last-of-type{border-bottom:0}
+.sprev .sstep p{margin:0 0 5px;font-size:14px;line-height:1.55}
+.sprev .sstep b{color:var(--accent)}
+.sprev svg{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px}
+.sprev .sans{font-size:14.5px;margin:4px 0 8px;padding:8px 11px;border-radius:8px;
+  background:var(--good-soft);border:1px solid var(--good)}
+.sprev .sans b{color:var(--good)}
+.sprev .stip{font-size:13.5px;margin:0;padding:8px 11px;border-radius:8px;
+  background:var(--amber-soft);border:1px solid var(--amber)}
+.sq .edit{font-size:12.5px;color:var(--accent);cursor:pointer;background:none;border:0;
+  padding:4px 0;text-decoration:underline}
+.sq .nosol{font-size:13.5px;color:var(--muted);margin-top:6px}
 .sq .row{display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap}
 .sq .sent{color:var(--good);font-weight:600;font-size:13px}
 
@@ -145,6 +160,7 @@ input,select{font:inherit;font-size:15px;padding:8px 10px;border-radius:9px;
 </div>
 
 <script src="../ink.js"></script>
+<script src="../solve.js"></script>
 <script>
 var API  = "https://drills-api.anandm401-amazon.workers.dev";
 var KIDS = ["Alvina", "Andrila"];
@@ -291,28 +307,62 @@ function paintStuck(d){
         '<div class="qt">' + esc(r.q || (r.block + " " + r.pad)) + '</div>' +
         '<div class="meta">' + esc(LABEL[r.block] || r.block) + ' &middot; ' + esc(r.date) +
           (r.answered ? ' &middot; <b style="color:var(--good)">answered</b>' : '') + '</div>' +
-        (r.answered ? '' :
-          '<textarea placeholder="Write it out step by step, the way a nine-year-old reads it.&#10;&#10;Step 1 ...&#10;&#10;Step 2 ...&#10;&#10;Tip: ..."></textarea>' +
-          '<div class="row"><button class="sm primary" data-send="' + i + '">Send it to her</button>' +
-          '<span class="msg"></span></div>') +
+        (r.answered ? '' : '<div class="solwrap" data-i="' + i + '"></div>') +
       '</div>';
     }).join("") + '</div>';
 
-  host.querySelectorAll("[data-send]").forEach(function(btn){
-    btn.addEventListener("click", function(){
-      var wrap = btn.closest(".sq"), i = +wrap.dataset.i, r = mine[i];
-      var text = wrap.querySelector("textarea").value.trim();
-      var msg = wrap.querySelector(".msg");
-      if(!text){ msg.textContent = "Write something first."; return; }
+  /* The answer is worked out for you, pictures and all. Read it, change
+     the wording if you want, press send. The pictures are kept whatever
+     you do to the words. */
+  host.querySelectorAll(".solwrap").forEach(function(wrap){
+    var r = mine[+wrap.dataset.i];
+    var sol = (window.Solve ? Solve.forQuestion(r.q) : null) || { steps:[] };
+    var hasSteps = sol.steps && sol.steps.length;
+
+    wrap.innerHTML =
+      (hasSteps
+        ? '<div class="sprev">' + Solve.render(sol) + '</div>' +
+          '<button class="edit" type="button">change the wording</button>' +
+          '<textarea hidden></textarea>'
+        : '<p class="nosol">I could not work this one out automatically — it is a word problem or something I do not recognise. Write it in your own words below.</p>' +
+          '<textarea placeholder="Step 1 ...&#10;&#10;Step 2 ...&#10;&#10;Tip: ..."></textarea>') +
+      '<div class="row"><button class="sm primary send">' +
+        (hasSteps ? "Send this to her" : "Send it to her") + '</button>' +
+      '<span class="msg"></span></div>';
+
+    var ta = wrap.querySelector("textarea");
+    if(hasSteps) ta.value = sol.steps.map(function(st){ return st.text; }).join("\n\n");
+
+    var edit = wrap.querySelector(".edit");
+    if(edit) edit.addEventListener("click", function(){
+      ta.hidden = !ta.hidden;
+      edit.textContent = ta.hidden ? "change the wording" : "hide the wording";
+      if(!ta.hidden) ta.focus();
+    });
+
+    wrap.querySelector(".send").addEventListener("click", function(){
+      var btn = this, msg = wrap.querySelector(".msg");
+      var payload;
+      if(hasSteps){
+        /* his words, my pictures */
+        var lines = ta.value.split(/\n{2,}/).map(function(t){ return t.trim(); }).filter(Boolean);
+        payload = JSON.stringify({
+          steps: sol.steps.map(function(st, n){ return { text: lines[n] || st.text, svg: st.svg }; }),
+          answer: sol.answer, tip: sol.tip
+        });
+      } else {
+        if(!ta.value.trim()){ msg.textContent = "Write something first."; return; }
+        payload = ta.value.trim();
+      }
       btn.disabled = true; msg.textContent = "sending…";
       fetch(API + "/solution", { method:"POST", headers:{ "Content-Type":"application/json" },
         body: JSON.stringify({ key:KEY, kid:r.kid, date:r.date, block:r.block,
-                               pad:r.pad, solution:text }) })
+                               pad:r.pad, solution:payload }) })
         .then(function(res){
           btn.disabled = false;
           if(res.ok){
             msg.innerHTML = '<span class="sent">Sent. She sees it when she taps Update.</span>';
-            wrap.querySelector("textarea").disabled = true;
+            btn.disabled = true; if(ta) ta.disabled = true;
           } else msg.textContent = "That did not work (" + res.status + ").";
         }).catch(function(){ btn.disabled = false; msg.textContent = "Could not reach the server."; });
     });

@@ -311,7 +311,7 @@ async function postSolution(body, env) {
     `UPDATE stuck SET solution = ?5, solved = ?6
      WHERE kid=?1 AND date=?2 AND block=?3 AND pad=?4`
   ).bind(body.kid, body.date, body.block, pad,
-         clampText(body.solution, 8000), now()).run();
+         clampText(body.solution, 24000), now()).run();
   return null;
 }
 
