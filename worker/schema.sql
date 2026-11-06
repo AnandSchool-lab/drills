@@ -9,6 +9,14 @@
 --   2026-11-05  pencil work moved out of R2 and into the ink table:
 --               ALTER TABLE ink ADD COLUMN data TEXT;
 --               ALTER TABLE ink DROP COLUMN okey;
+--
+--   2026-11-06  the stuck and review tables, added with the "I don't know
+--               how" work, had never been created on the live database.
+--               /live reads stuck on every load, so the whole parent
+--               dashboard returned 500. Re-running this file creates them.
+--               Rule learned: adding a table here is half the job. Run the
+--               file against the live database in the same sitting, and
+--               never let one query's failure sink a whole response.
 
 -- One row per child, per day, per block, once they press Check.
 CREATE TABLE IF NOT EXISTS results (
