@@ -8,7 +8,7 @@
 
 /* ---------- configuration you may want to change ---------- */
 var START_DATE = "2026-10-27";   // Monday the programme begins. Week 1 starts here.
-var APP_VERSION = "26";          // shown on the home screen; keep in step with CACHE in sw.js
+var APP_VERSION = "27";          // shown on the home screen; keep in step with CACHE in sw.js
 
 /* Google Apps Script web-app URL. Blank = results stay on the iPad only.
    Paste the /exec URL from Deploy → New deployment → Web app. */
@@ -992,6 +992,7 @@ function loadFeedback(){
       var rv = d && d.review;
       if(!rv) return;
       var sp = rv.spelling || [], es = rv.essay || {}, fixes = es.fixes || [];
+      var mt = rv.math || {};
       box.innerHTML =
         '<section class="fb"><div class="fbhead">' +
           '<strong>What I noticed in yesterday&rsquo;s work</strong>' +
@@ -1007,6 +1008,9 @@ function loadFeedback(){
             return '<li><s>' + esc(f.was) + '</s> &rarr; <b>' + esc(f.should) + '</b>' +
                    (f.why ? ' <span class="why">' + esc(f.why) + '</span>' : "") + '</li>';
           }).join("") + '</ul>' : "") + '</div>' : "") +
+        ((mt.approach || mt.note) ? '<div class="fbsec"><h4>Your maths</h4>' +
+          (mt.approach ? '<p>' + esc(mt.approach) + '</p>' : "") +
+          (mt.note ? '<p class="fbmath">' + esc(mt.note) + '</p>' : "") + '</div>' : "") +
         (es.next ? '<p class="fbnext"><b>Try this today:</b> ' + esc(es.next) + '</p>' : "") +
         '</section>';
     }).catch(function(){});
@@ -1077,6 +1081,7 @@ function loadFeedback(){
       var rv = d && d.review;
       if(!rv) return;
       var sp = rv.spelling || [], es = rv.essay || {}, fixes = es.fixes || [];
+      var mt = rv.math || {};
       box.innerHTML =
         '<section class="fb"><div class="fbhead">' +
           '<strong>What I noticed in yesterday&rsquo;s work</strong>' +
@@ -1092,6 +1097,9 @@ function loadFeedback(){
             return '<li><s>' + esc(f.was) + '</s> &rarr; <b>' + esc(f.should) + '</b>' +
                    (f.why ? ' <span class="why">' + esc(f.why) + '</span>' : "") + '</li>';
           }).join("") + '</ul>' : "") + '</div>' : "") +
+        ((mt.approach || mt.note) ? '<div class="fbsec"><h4>Your maths</h4>' +
+          (mt.approach ? '<p>' + esc(mt.approach) + '</p>' : "") +
+          (mt.note ? '<p class="fbmath">' + esc(mt.note) + '</p>' : "") + '</div>' : "") +
         (es.next ? '<p class="fbnext"><b>Try this today:</b> ' + esc(es.next) + '</p>' : "") +
         '</section>';
     }).catch(function(){});

@@ -48,7 +48,7 @@ logged with the question text `remainder`. Fresh-fixture tests passed both.
 
 **Bumping the version is a three-line ritual.** `APP_VERSION` in `app.js`,
 `CACHE` in `sw.js`, and the file list in `app.js` (~line 2116) that the Update
-button fetches. Currently 26 / `drills-v26`. A new file that is not in that list
+button fetches. Currently 27 / `drills-v27`. A new file that is not in that list
 never reaches the iPads — `ink.js` was missing once and the handwriting fixes
 silently did not ship.
 
@@ -95,8 +95,8 @@ this repo, so a stale clone is normal.
 ## Open
 
 - Nightly review: a cloud Claude routine runs `REVIEW.md` at 1:00 am Pacific
-  (first review written for 2026-11-05). The kids' feedback panel does not
-  show the `math` field yet — only the parent page does.
+  (first review written for 2026-11-05). Both the kids' feedback panel and
+  the parent page show every field, including `math`.
 - Deferred by him: worked examples at the start of each section; weekly and
   monthly tests; topic trends on the dashboard; push notifications.
 - Offered, never answered: an instant hint alongside *I don't know how*, to
