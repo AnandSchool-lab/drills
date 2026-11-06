@@ -8,7 +8,7 @@
 
 /* ---------- configuration you may want to change ---------- */
 var START_DATE = "2026-10-27";   // Monday the programme begins. Week 1 starts here.
-var APP_VERSION = "21";          // shown on the home screen; keep in step with CACHE in sw.js
+var APP_VERSION = "22";          // shown on the home screen; keep in step with CACHE in sw.js
 
 /* Google Apps Script web-app URL. Blank = results stay on the iPad only.
    Paste the /exec URL from Deploy → New deployment → Web app. */
@@ -1335,7 +1335,92 @@ function flushPads(){
 function padHost(idPrefix, i, q){
   return '<div class="workrow" data-pad="' + idPrefix + '-' + i + '" data-q="' + esc(q || "") + '">' +
     '<button type="button" class="workbtn">&#9998; Show your working</button>' +
+    '<button type="button" class="stuckbtn">I don&rsquo;t know how</button>' +
     '<div class="workprev" hidden></div></div>';
+}
+
+/* ============================================================
+   "I DON'T KNOW HOW"
+
+   A child saying so out loud is worth more than me guessing it from a
+   box that stayed blank. It reaches the parent's dashboard straight
+   away, a worked solution comes back, and it unlocks here on the next
+   update. Until then the button says who it is waiting on, so nobody
+   sits staring at a problem wondering whether anything happened.
+   ============================================================ */
+var STUCK = {};          /* "block:pad" -> { solution } */
+
+function stuckKey(block, pad){ return block + ":" + pad; }
+
+function loadStuck(block, then){
+  if(!apiUrl() || !who()){ if(then) then(); return; }
+  fetch(apiUrl() + "/stuck?kid=" + encodeURIComponent(who()) + "&date=" + todayKey())
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      (d.stuck || []).forEach(function(row){
+        STUCK[stuckKey(row.block, row.pad)] = { solution: row.solution || "" };
+      });
+      if(then) then();
+    }).catch(function(){ if(then) then(); });
+}
+
+function paintStuck(row, block){
+  var btn = row.querySelector(".stuckbtn");
+  if(!btn) return;
+  var st = STUCK[stuckKey(block, row.dataset.pad)];
+  btn.classList.toggle("asked", !!st);
+  btn.classList.toggle("ready", !!(st && st.solution));
+  btn.innerHTML = !st ? "I don&rsquo;t know how"
+    : st.solution ? "&#9733; See how it&rsquo;s done"
+                  : "Asked Dad &middot; waiting";
+}
+
+function wireStuck(row, block){
+  var btn = row.querySelector(".stuckbtn");
+  if(!btn) return;
+  paintStuck(row, block);
+  btn.addEventListener("click", function(){
+    var k = stuckKey(block, row.dataset.pad), st = STUCK[k];
+
+    if(st && st.solution){ showSolution(row.dataset.q, st.solution); return; }
+
+    if(st){                                   /* asked already - tapping again takes it back */
+      delete STUCK[k]; paintStuck(row, block);
+      postOne("/stuck", { kid:who(), date:todayKey(), block:block,
+                          pad:row.dataset.pad, undo:true }).catch(function(){});
+      return;
+    }
+    STUCK[k] = { solution:"" };
+    paintStuck(row, block);
+    toast("Dad will see this and send you the way through it");
+    postOne("/stuck", { kid:who(), date:todayKey(), block:block,
+                        pad:row.dataset.pad, q:row.dataset.q }).catch(function(){});
+  });
+}
+
+/* A worked solution, read-only. Deliberately not a sheet they can write
+   on - this is the part they read, then go back and try again. */
+function showSolution(q, text){
+  var back = document.createElement("div");
+  back.className = "sheetback";
+  back.innerHTML =
+    '<div class="sheetbox" role="dialog" aria-modal="true" aria-label="How to do it">' +
+      '<div class="sheethead"><button type="button" class="sheetdone">&#8249; Back</button>' +
+      '<span class="sheetq"></span></div>' +
+      '<div class="sheetbody soln"></div></div>';
+  back.querySelector(".sheetq").textContent = q || "How to do it";
+  back.querySelector(".soln").innerHTML = String(text).split(/\n{2,}/).map(function(p){
+    var t = p.trim();
+    if(!t) return "";
+    if(/^(step\s*\d|\d[.)])/i.test(t)) return '<p class="s">' + esc(t) + '</p>';
+    if(/^(tip|trick|remember|watch out)/i.test(t)) return '<p class="tip">' + esc(t) + '</p>';
+    return '<p>' + esc(t) + '</p>';
+  }).join("");
+  document.body.appendChild(back);
+  document.body.classList.add("sheetopen");
+  function close(){ document.body.classList.remove("sheetopen"); back.remove(); }
+  back.querySelector(".sheetdone").addEventListener("click", close);
+  back.addEventListener("click", function(e){ if(e.target === back) close(); });
 }
 
 /* Draw the small reminder of what is already on a pad, so they can see at
@@ -1363,6 +1448,9 @@ function paintPreview(row, data){
 }
 
 function mountPads(block){
+  loadStuck(block, function(){
+    app.querySelectorAll(".workrow").forEach(function(row){ wireStuck(row, block); });
+  });
   if(!window.Ink || !Ink.available()) return;
   var base = "ink:" + who() + ":" + todayKey() + ":" + block + ":";
   app.querySelectorAll(".workrow").forEach(function(row){
@@ -1956,7 +2044,7 @@ function getLatest(){
   var btn = $("#refresh");
   if(!navigator.onLine){ toast("No internet — connect to Wi-Fi and try again"); return; }
   if(btn){ btn.disabled = true; btn.textContent = "Updating…"; }
-  var files = ["./", "./index.html", "./app.js", "./content.js", "./sw.js", "./manifest.webmanifest"];
+  var files = ["./", "./index.html", "./app.js", "./content.js", "./ink.js", "./sw.js", "./manifest.webmanifest"];
   var swUpdate = ("serviceWorker" in navigator)
     ? navigator.serviceWorker.getRegistration().then(function(r){ return r ? r.update() : null; }).catch(function(){})
     : Promise.resolve();

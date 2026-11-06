@@ -98,3 +98,19 @@ CREATE TABLE IF NOT EXISTS review (
   at       TEXT NOT NULL,
   PRIMARY KEY (kid, date)
 );
+
+-- "I do not know how to do this one." A child says so deliberately; it
+-- shows on the parent's dashboard; a worked solution comes back here and
+-- unlocks on their next update.
+CREATE TABLE IF NOT EXISTS stuck (
+  kid      TEXT NOT NULL,
+  date     TEXT NOT NULL,
+  block    TEXT NOT NULL,
+  pad      TEXT NOT NULL,          -- which problem on the sheet
+  q        TEXT,                   -- the question, so it reads properly on the dashboard
+  asked    TEXT NOT NULL,
+  solution TEXT,                   -- the step-by-step, written later
+  solved   TEXT,
+  PRIMARY KEY (kid, date, block, pad)
+);
+CREATE INDEX IF NOT EXISTS stuck_open ON stuck (date, solution);

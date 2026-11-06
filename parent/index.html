@@ -20,447 +20,420 @@
   --amber:#F0A458; --amber-soft:#36281A;
 }}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);line-height:1.55;
+body{margin:0;background:var(--bg);color:var(--ink);line-height:1.5;
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-  padding:20px max(14px,env(safe-area-inset-left,0)) 60px max(14px,env(safe-area-inset-right,0))}
-.wrap{max-width:840px;margin:0 auto}
-header{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:4px}
-h1{font-size:23px;margin:0;letter-spacing:-.01em}
-.when{color:var(--muted);font-size:13px;margin-left:auto}
-.sub{color:var(--muted);font-size:14px;margin:0 0 18px}
-.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;margin:12px 0}
-h2{font-size:15px;margin:0 0 10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
-button{font:inherit;font-size:15px;border-radius:10px;border:1px solid var(--line);
-  background:var(--surface);color:var(--ink);padding:9px 15px;cursor:pointer}
+  padding:16px max(12px,env(safe-area-inset-left,0)) 56px max(12px,env(safe-area-inset-right,0))}
+.wrap{max-width:760px;margin:0 auto}
+button{font:inherit;border-radius:9px;border:1px solid var(--line);background:var(--surface);
+  color:var(--ink);padding:8px 14px;cursor:pointer}
 button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}
-button.sm{font-size:13px;padding:5px 11px;border-radius:8px}
-button:disabled{opacity:.5;cursor:default}
-input{font:inherit;font-size:16px;padding:10px 12px;border-radius:10px;border:1px solid var(--line);
-  background:var(--surface);color:var(--ink);width:100%}
+button.sm{font-size:12.5px;padding:4px 10px;border-radius:7px}
+button:disabled{opacity:.42;cursor:default}
+input,select{font:inherit;font-size:15px;padding:8px 10px;border-radius:9px;
+  border:1px solid var(--line);background:var(--surface);color:var(--ink)}
 
 /* gate */
-#gate{max-width:380px;margin:12vh auto 0}
-#gate p{color:var(--muted);font-size:14px}
-.err{color:var(--bad);font-size:14px;min-height:20px;margin:8px 0 0}
+#gate{max-width:360px;margin:14vh auto 0;background:var(--surface);border:1px solid var(--line);
+  border-radius:14px;padding:20px}
+#gate h1{font-size:21px;margin:0 0 4px}
+#gate p{color:var(--muted);font-size:14px;margin:0 0 12px}
+#pass{width:100%}
+.err{color:var(--bad);font-size:13.5px;min-height:19px;margin:7px 0}
 
-/* live rows */
-.kid{border:1px solid var(--line);border-radius:12px;padding:13px 15px;margin-bottom:10px;background:var(--surface-2)}
-.kid .top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.kid .nm{font-weight:700;font-size:16px}
-.kid .blk{color:var(--muted);font-size:14px}
-.kid .num{margin-left:auto;font-variant-numeric:tabular-nums;font-weight:700}
-.dot{width:9px;height:9px;border-radius:50%;display:inline-block;flex:none}
-.dot.on{background:var(--good)} .dot.idle{background:var(--amber)} .dot.off{background:var(--line)}
-.bar{height:7px;border-radius:999px;background:var(--line);overflow:hidden;margin-top:9px}
-.bar i{display:block;height:100%;background:var(--accent)}
-.stuck{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}
-.stuck span{font-size:12.5px;font-weight:600;color:var(--amber);background:var(--amber-soft);
-  border:1px solid var(--amber);border-radius:7px;padding:2px 9px}
-.seen{color:var(--muted);font-size:12.5px;margin-top:6px}
-.quiet{color:var(--muted);font-size:14.5px;padding:6px 0}
+/* top */
+.tabs{display:flex;gap:6px;margin-bottom:10px}
+.tab{flex:1;font-size:16px;font-weight:700;padding:10px;border-radius:11px;
+  border:1px solid var(--line);background:var(--surface);color:var(--muted)}
+.tab.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.daynav{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.daynav .d{flex:1;text-align:center;font-weight:600;font-size:15px}
+.daynav button{padding:7px 12px}
+.stamp{color:var(--muted);font-size:12px;text-align:center;margin:0 0 12px}
 
-/* results */
-table{width:100%;border-collapse:collapse;font-size:14.5px}
-th,td{text-align:left;padding:8px 9px;border-bottom:1px solid var(--line)}
-th{font-size:11.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600}
-td.sc{font-variant-numeric:tabular-nums;font-weight:700;white-space:nowrap}
-td.sc.good{color:var(--good)} td.sc.work{color:var(--amber)}
+/* live */
+.now{display:flex;align-items:center;gap:9px;flex-wrap:wrap;background:var(--good-soft);
+  border:1px solid var(--good);border-radius:11px;padding:10px 13px;margin-bottom:12px;font-size:14.5px}
+.now b{font-weight:700}
+.now .pill{background:var(--amber-soft);border:1px solid var(--amber);color:var(--amber);
+  border-radius:7px;padding:1px 8px;font-size:12.5px;font-weight:600}
 
-/* misses */
-.miss{padding:9px 0;border-bottom:1px solid var(--line);font-size:14.5px}
-.miss:last-child{border-bottom:0}
-.miss .q{font-weight:600}
-.miss .a{color:var(--muted);font-size:13.5px;margin-top:2px}
-.miss .a b{color:var(--bad);font-weight:600}
-.miss .a i{color:var(--good);font-style:normal;font-weight:600}
-.who{font-size:12px;font-weight:700;color:var(--accent);background:var(--accent-soft);
-  border-radius:6px;padding:1px 7px;margin-right:7px}
+/* stuck */
+.stuckbox{background:var(--amber-soft);border:1px solid var(--amber);border-radius:12px;
+  padding:12px 14px;margin-bottom:12px}
+.stuckbox h3{margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--amber)}
+.sq{border-top:1px solid rgba(0,0,0,.08);padding:9px 0}
+.sq:first-of-type{border-top:0}
+.sq .qt{font-weight:600;font-size:14.5px}
+.sq .meta{color:var(--muted);font-size:12.5px;margin-top:1px}
+.sq textarea{width:100%;margin-top:7px;min-height:92px;font:inherit;font-size:14px;
+  border:1px solid var(--line);border-radius:9px;padding:9px 11px;background:var(--surface);
+  color:var(--ink);resize:vertical}
+.sq .row{display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap}
+.sq .sent{color:var(--good);font-weight:600;font-size:13px}
 
-/* working replay */
-.sheetgrid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));margin:12px 0}
-.kcol{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden}
-.kcol>header{display:flex;align-items:center;gap:9px;padding:10px 14px;
-  background:var(--surface-2);border-bottom:1px solid var(--line)}
-.kcol>header b{font-size:1.05rem}
-.kcol>header .sc{margin-left:auto;font-variant-numeric:tabular-nums;font-weight:700;font-size:.9rem}
-.krow{display:flex;gap:10px;padding:9px 14px;border-bottom:1px solid var(--line);font-size:14px}
-.krow:last-child{border-bottom:0}
-.krow .lab{flex:0 0 78px;font-size:11px;text-transform:uppercase;letter-spacing:.07em;
-  color:var(--muted);font-weight:700;padding-top:2px}
-.krow .val{flex:1;min-width:0}
-.krow .val .sm{color:var(--muted);font-size:13px}
-.praise{color:var(--good);font-weight:600}
-.fixlist{margin:0;padding-left:17px}
-.fixlist li{margin:2px 0}
-.fixlist s{color:var(--bad)} .fixlist b{color:var(--good)}
-.kbtn{display:inline-block;margin-top:7px;font-size:12.5px;padding:5px 11px;border-radius:8px;
-  border:1px solid var(--accent);color:var(--accent);background:var(--accent-soft);
-  font-weight:700;cursor:pointer}
-.none{color:var(--muted);font-size:13.5px}
-.pads{display:grid;gap:12px}
-.pad{border:1px solid var(--line);border-radius:11px;padding:11px;background:var(--surface-2)}
-.pad .lbl{font-size:13px;color:var(--muted);margin-bottom:7px;display:flex;align-items:center;gap:9px}
-.pad canvas{display:block;width:100%;background:var(--surface);border:1px solid var(--line);border-radius:8px}
-.pad img.shot{display:block;width:100%;border:1px solid var(--line);border-radius:8px;margin-bottom:9px;background:#fff}
-.pad .typed{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:9px 11px;
-  font-size:14px;white-space:pre-wrap}
-.row{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-top:12px}
-.row select{font:inherit;padding:8px 10px;border-radius:9px;border:1px solid var(--line);
-  background:var(--surface);color:var(--ink)}
-.note{color:var(--muted);font-size:13px;margin-top:10px}
-a{color:var(--accent)}
-@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+/* blocks */
+.blk{background:var(--surface);border:1px solid var(--line);border-radius:12px;margin-bottom:10px;overflow:hidden}
+.blk>header{display:flex;align-items:center;gap:10px;padding:10px 13px;background:var(--surface-2)}
+.blk>header .nm{font-weight:700;font-size:15px;text-transform:capitalize}
+.blk>header .sc{margin-left:auto;font-variant-numeric:tabular-nums;font-weight:700;font-size:14.5px}
+.blk>header .sc.good{color:var(--good)} .blk>header .sc.work{color:var(--amber)}
+.blk>header .tm{color:var(--muted);font-size:12.5px;white-space:nowrap}
+.wrongs{list-style:none;margin:0;padding:0}
+.wrongs li{display:flex;gap:10px;align-items:baseline;padding:8px 13px;
+  border-top:1px solid var(--line);font-size:14px}
+.wrongs .q{flex:1;min-width:0}
+.wrongs .gave{color:var(--bad);font-weight:600;white-space:nowrap}
+.wrongs .want{color:var(--good);font-weight:600;white-space:nowrap}
+.allright{padding:9px 13px;border-top:1px solid var(--line);color:var(--good);font-size:14px}
+.nowork{padding:9px 13px;color:var(--muted);font-size:14px}
+.notes{padding:10px 13px;border-top:1px solid var(--line);background:var(--surface-2)}
+.notes img{width:100%;display:block;border:1px solid var(--line);border-radius:8px;
+  margin-bottom:8px;background:#fff}
+.notes canvas{width:100%;display:block;border:1px solid var(--line);border-radius:8px;
+  margin-bottom:8px;background:#fff}
+.notes .txt{background:var(--surface);border:1px solid var(--line);border-radius:8px;
+  padding:9px 11px;font-size:14px;white-space:pre-wrap;margin-bottom:8px}
+
+/* last night */
+.rv{background:var(--surface);border:1px solid var(--accent);border-left:4px solid var(--accent);
+  border-radius:12px;padding:13px 15px;margin:14px 0}
+.rv h3{margin:0 0 7px;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.rv .praise{color:var(--good);font-weight:600;font-size:14.5px;margin-bottom:8px}
+.rv .lab{font-size:11.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);
+  font-weight:700;margin-top:9px}
+.rv ul{margin:3px 0 0;padding-left:17px;font-size:14px}
+.rv s{color:var(--bad)} .rv b{color:var(--good)}
+.rv p{margin:2px 0;font-size:14px}
+
+.foot{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:16px;
+  padding-top:12px;border-top:1px solid var(--line);font-size:13px;color:var(--muted)}
+.foot a{color:var(--accent)}
+.msg{font-size:13px;color:var(--muted)}
 </style>
 </head>
 <body>
 
-<!-- ---------- passphrase ---------- -->
-<div id="gate" class="card" hidden>
-  <h1 style="margin-bottom:4px">Parent view</h1>
-  <p>Enter your passphrase to see Andrila and Alvina's work.</p>
-  <input id="pass" type="password" autocomplete="current-password" placeholder="passphrase"
-         aria-label="passphrase">
+<div id="gate" hidden>
+  <h1>Parent view</h1>
+  <p>Enter your passphrase.</p>
+  <input id="pass" type="password" autocomplete="current-password" placeholder="passphrase" aria-label="passphrase">
   <p class="err" id="gateErr"></p>
   <button class="primary" id="go" style="width:100%">Open</button>
 </div>
 
-<!-- ---------- dashboard ---------- -->
 <div class="wrap" id="board" hidden>
-  <header>
-    <h1>Today</h1>
-    <span class="when" id="when">—</span>
-  </header>
-  <p class="sub" id="dateLine">—</p>
-
-  <div class="card">
-    <h2>Working now</h2>
-    <div id="live"></div>
+  <div class="tabs" id="tabs"></div>
+  <div class="daynav">
+    <button id="prev" aria-label="previous day">‹</button>
+    <span class="d" id="dayLabel">—</span>
+    <button id="next" aria-label="next day">›</button>
+    <button id="todayBtn" class="sm">Today</button>
   </div>
+  <p class="stamp" id="stamp"></p>
 
-  <!-- one column per child: the whole day at a glance, side by side -->
-  <div class="sheetgrid" id="grid"></div>
+  <div id="now"></div>
+  <div id="stuck"></div>
+  <div id="blocks"></div>
+  <div id="review"></div>
 
-  <div class="card">
-    <h2>Finished today</h2>
-    <div id="done"></div>
+  <div class="foot">
+    <button class="sm" id="retake">Clear this day so she does it again</button>
+    <span class="msg" id="retakeMsg"></span>
+    <span style="margin-left:auto"><a href="../">kids' app</a> ·
+      <button class="sm" id="forget">forget passphrase</button></span>
   </div>
-
-  <div class="card">
-    <h2>Their working</h2>
-    <div class="row">
-      <select id="padKid"><option>Alvina</option><option>Andrila</option></select>
-      <input id="padDate" type="date" style="width:auto">
-      <button class="sm" id="padLoad">Show</button>
-    </div>
-    <div class="pads" id="pads" style="margin-top:12px"></div>
-    <p class="note">Tap a page to open it full size.</p>
-  </div>
-
-  <div class="card">
-    <h2>Wrong in the last week</h2>
-    <div id="misses"></div>
-  </div>
-
-  <div class="card">
-    <h2>Ask for a day again</h2>
-    <div class="row">
-      <select id="rtKid"><option>Alvina</option><option>Andrila</option></select>
-      <input id="rtDate" type="date" style="width:auto">
-      <button class="sm" id="rtGo">Clear that day</button>
-      <span id="rtMsg" class="note" style="margin:0"></span>
-    </div>
-    <p class="note">Clears their score for that day so the sheets come back blank. Their pencil work is kept.</p>
-  </div>
-
-  <p class="note" style="text-align:center">
-    Kids' app: <a href="../">anandschool-lab.github.io/drills/</a> ·
-    <button class="sm" id="forget" style="margin-left:6px">Forget passphrase</button>
-  </p>
 </div>
 
 <script src="../ink.js"></script>
 <script>
-var API = "https://drills-api.anandm401-amazon.workers.dev";
-var KEY = "";
-var timer = null;
+var API  = "https://drills-api.anandm401-amazon.workers.dev";
+var KIDS = ["Alvina", "Andrila"];
+var BLOCKS = ["recap", "math", "think", "eng"];
+var LABEL  = { recap:"Recap", math:"Math", think:"Thinking", eng:"English" };
+
+var KEY = "", kid = KIDS[0], day = "", timer = null, cache = {};
 
 function $(s){ return document.querySelector(s); }
 function esc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
-/* The family's date, not UTC. toISOString() is UTC, so after 4pm Pacific
-   it rolls to tomorrow and the page goes blank in the evening - which is
-   exactly when it would be read. */
-function today(){
-  var d = new Date();
-  return d.getFullYear() + "-" +
-    String(d.getMonth()+1).padStart(2,"0") + "-" +
-    String(d.getDate()).padStart(2,"0");
-}
+function pad2(n){ return String(n).padStart(2,"0"); }
 
+/* The family's own date. toISOString() is UTC, which after 4pm Pacific is
+   already tomorrow - and the page would go blank exactly when it is read. */
+function todayStr(){
+  var d = new Date();
+  return d.getFullYear() + "-" + pad2(d.getMonth()+1) + "-" + pad2(d.getDate());
+}
+function shift(dstr, n){
+  var p = dstr.split("-");
+  var d = new Date(+p[0], +p[1]-1, +p[2]);
+  d.setDate(d.getDate() + n);
+  return d.getFullYear() + "-" + pad2(d.getMonth()+1) + "-" + pad2(d.getDate());
+}
+function pretty(dstr){
+  var p = dstr.split("-");
+  return new Date(+p[0], +p[1]-1, +p[2]).toLocaleDateString(undefined,
+    { weekday:"long", day:"numeric", month:"long" });
+}
 function ago(iso){
   if(!iso) return "";
   var s = Math.max(0, Math.round((Date.now() - new Date(iso).getTime())/1000));
   if(s < 60) return s + "s ago";
   var m = Math.round(s/60);
-  if(m < 60) return m + " min ago";
-  return Math.round(m/60) + "h ago";
+  return m < 60 ? m + " min ago" : Math.round(m/60) + "h ago";
 }
 
 /* ---------- the gate ---------- */
 function openGate(msg){
-  $("#board").hidden = true;
-  $("#gate").hidden = false;
-  $("#gateErr").textContent = msg || "";
-  $("#pass").focus();
+  $("#board").hidden = true; $("#gate").hidden = false;
+  $("#gateErr").textContent = msg || ""; $("#pass").focus();
 }
-
-function tryKey(k){
-  return fetch(API + "/live?key=" + encodeURIComponent(k) + "&date=" + today())
+function fetchLive(k, d){
+  return fetch(API + "/live?key=" + encodeURIComponent(k) + "&date=" + d)
     .then(function(r){
       if(r.status === 401) return { bad:true };
       if(!r.ok) throw new Error("server " + r.status);
       return r.json();
     });
 }
-
-$("#go").addEventListener("click", submitKey);
-$("#pass").addEventListener("keydown", function(e){ if(e.key === "Enter") submitKey(); });
-
-function submitKey(){
+$("#go").addEventListener("click", submit);
+$("#pass").addEventListener("keydown", function(e){ if(e.key === "Enter") submit(); });
+function submit(){
   var k = $("#pass").value.trim();
   if(!k) return;
   $("#go").disabled = true; $("#gateErr").textContent = "checking…";
-  tryKey(k).then(function(d){
+  fetchLive(k, day).then(function(d){
     $("#go").disabled = false;
     if(d.bad){ $("#gateErr").textContent = "That passphrase was not accepted."; return; }
     KEY = k;
     try{ localStorage.setItem("dd:parentKey", k); }catch(e){}
     $("#gate").hidden = true; $("#board").hidden = false;
-    render(d);
-    start();
+    paint(d); start();
   }).catch(function(e){
     $("#go").disabled = false;
     $("#gateErr").textContent = "Could not reach the server. " + e.message;
   });
 }
-
 $("#forget").addEventListener("click", function(){
   try{ localStorage.removeItem("dd:parentKey"); }catch(e){}
-  KEY = ""; stop(); $("#pass").value = ""; openGate("Passphrase forgotten on this device.");
+  KEY = ""; stop(); $("#pass").value = ""; openGate("Forgotten on this device.");
 });
 
-/* ---------- drawing the board ---------- */
-function render(d){
-  $("#when").textContent = "updated " + ago(d.serverTime).replace(" ago","") + " ago";
-  $("#dateLine").textContent = new Date(d.date + "T12:00:00").toLocaleDateString(undefined,
-    { weekday:"long", day:"numeric", month:"long" });
-
-  /* who is on it right now */
-  var live = d.live || [];
-  $("#live").innerHTML = live.length ? live.map(function(r){
-    var pct = r.total ? Math.round(r.answered / r.total * 100) : 0;
-    var secs = (Date.now() - new Date(r.seen_at).getTime())/1000;
-    var cls = secs < 150 ? "on" : (secs < 900 ? "idle" : "off");
-    var stuck = [];
-    try{ stuck = JSON.parse(r.stuck || "[]"); }catch(e){}
-    return '<div class="kid">' +
-      '<div class="top"><span class="dot '+cls+'"></span>' +
-      '<span class="nm">'+esc(r.kid)+'</span>' +
-      '<span class="blk">'+esc(r.block)+'</span>' +
-      '<span class="num">'+r.answered+' / '+r.total+' · '+r.mins+' min</span></div>' +
-      '<div class="bar"><i style="width:'+pct+'%"></i></div>' +
-      (stuck.length ? '<div class="stuck">' + stuck.map(function(s){
-        return '<span>Q'+esc(s.q)+' — '+esc(s.why)+'</span>'; }).join("") + '</div>' : "") +
-      '<div class="seen">last seen '+ago(r.seen_at)+'</div>' +
-    '</div>';
-  }).join("") : '<p class="quiet">Nobody has a sheet open.</p>';
-
-  /* one column per child - scores, what Claude found, and a way into the pages */
-  renderGrid(d);
-
-  /* finished today */
-  var done = d.today || [];
-  $("#done").innerHTML = done.length ?
-    '<table><tr><th>Who</th><th>Block</th><th>Score</th><th>Took</th></tr>' +
-    done.map(function(r){
-      var pc = r.total ? r.got / r.total : 0;
-      return '<tr><td>'+esc(r.kid)+'</td><td>'+esc(r.block)+'</td>' +
-        '<td class="sc '+(pc >= 0.8 ? "good" : "work")+'">'+r.got+' / '+r.total+'</td>' +
-        '<td>'+Math.round(r.secs/60)+' min</td></tr>';
-    }).join("") + '</table>'
-    : '<p class="quiet">Nothing finished yet today.</p>';
-
-  /* wrong answers, newest first */
-  var ms = d.misses || [];
-  $("#misses").innerHTML = ms.length ? ms.slice(0, 40).map(function(m){
-    return '<div class="miss"><div class="q"><span class="who">'+esc(m.kid)+'</span>'+esc(m.q)+'</div>' +
-      '<div class="a">wrote <b>'+esc(m.gave || "nothing")+'</b> · answer <i>'+esc(m.want)+'</i>' +
-      ' · '+esc(m.date)+'</div></div>';
-  }).join("") : '<p class="quiet">Nothing wrong in the last week.</p>';
+/* ---------- the board ---------- */
+function tabs(){
+  $("#tabs").innerHTML = KIDS.map(function(k){
+    return '<button class="tab' + (k === kid ? " on" : "") + '" data-kid="' + k + '">' + esc(k) + '</button>';
+  }).join("");
+  $("#tabs").querySelectorAll(".tab").forEach(function(b){
+    b.addEventListener("click", function(){ kid = b.dataset.kid; tabs(); refresh(); });
+  });
 }
 
-/* The day on one page: what each child scored, what Claude found in their
-   writing overnight, and a button through to the pages themselves. */
-function renderGrid(d){
-  var KIDS = ["Alvina","Andrila"];
-  var byKid = {};
-  (d.today || []).forEach(function(r){ (byKid[r.kid] = byKid[r.kid] || []).push(r); });
+function paint(d){
+  cache.live = d;
+  $("#dayLabel").textContent = pretty(day);
+  $("#stamp").textContent = "updated " + ago(d.serverTime);
+  $("#next").disabled = day >= todayStr();
 
-  $("#grid").innerHTML = KIDS.map(function(kid){
-    var rows = byKid[kid] || [];
-    var got = rows.reduce(function(a,r){ return a + r.got; }, 0);
-    var tot = rows.reduce(function(a,r){ return a + r.total; }, 0);
-    return '<section class="kcol" data-kid="'+esc(kid)+'">' +
-      '<header><b>'+esc(kid)+'</b>' +
-        '<span class="sc">'+(tot ? got+' / '+tot : '—')+'</span></header>' +
-      '<div class="krow"><span class="lab">Blocks</span><span class="val">' +
-        (rows.length ? rows.map(function(r){
-          var pc = r.total ? Math.round(r.got/r.total*100) : 0;
-          return esc(r.block)+' <b>'+r.got+'/'+r.total+'</b> <span class="sm">'+pc+'%</span>';
-        }).join(' &nbsp;·&nbsp; ') : '<span class="none">nothing finished yet</span>') +
-      '</span></div>' +
-      '<div class="krow rv"><span class="lab">Last night</span>' +
-        '<span class="val"><span class="none">loading…</span></span></div>' +
-    '</section>';
+  /* working right now */
+  var now = (d.live || []).filter(function(r){ return r.kid === kid && r.date === day; });
+  $("#now").innerHTML = now.map(function(r){
+    var stuck = []; try{ stuck = JSON.parse(r.stuck || "[]"); }catch(e){}
+    return '<div class="now"><b>On ' + esc(LABEL[r.block] || r.block) + ' now</b>' +
+      '<span>' + r.answered + ' of ' + r.total + ' · ' + r.mins + ' min</span>' +
+      stuck.map(function(s){ return '<span class="pill">Q' + esc(s.q) + ' ' + esc(s.why) + '</span>'; }).join("") +
+      '<span style="margin-left:auto;color:var(--muted);font-size:12.5px">seen ' + ago(r.seen_at) + '</span></div>';
   }).join("");
 
-  KIDS.forEach(loadReview);
+  /* a block at a time: score, time, what went wrong, and a way into the notes */
+  var results = {}, wrong = {};
+  (d.today || []).forEach(function(r){ if(r.kid === kid && r.date === day) results[r.block] = r; });
+  (d.misses || []).forEach(function(m){
+    if(m.kid !== kid || m.date !== day) return;
+    (wrong[m.block] = wrong[m.block] || []).push(m);
+  });
+
+  $("#blocks").innerHTML = BLOCKS.map(function(b){
+    var r = results[b], ws = wrong[b] || [];
+    var pc = r && r.total ? r.got / r.total : 0;
+    var head = '<header><span class="nm">' + LABEL[b] + '</span>' +
+      (r ? '<span class="tm">' + Math.round(r.secs/60) + ' min</span>' +
+           '<span class="sc ' + (pc >= 0.8 ? "good" : "work") + '">' + r.got + ' / ' + r.total + '</span>'
+         : '<span class="sc" style="color:var(--muted)">not done</span>') +
+      '</header>';
+    var body = !r ? ""
+      : ws.length
+        ? '<ul class="wrongs">' + ws.map(function(m){
+            return '<li><span class="q">' + esc(m.q) + '</span>' +
+              '<span class="gave">' + esc(m.gave || "blank") + '</span>' +
+              '<span class="want">' + esc(m.want) + '</span></li>';
+          }).join("") + '</ul>'
+        : '<div class="allright">All correct.</div>';
+    return '<section class="blk" data-b="' + b + '">' + head + body +
+      '<div class="notehost"></div></section>';
+  }).join("");
+
+  loadNotes();
+  loadReview();
+  paintStuck(d);
 }
 
-function loadReview(kid){
-  var cell = document.querySelector('.kcol[data-kid="'+kid+'"] .rv .val');
-  if(!cell) return;
-  fetch(API + "/review?kid=" + encodeURIComponent(kid))
+/* The ones they said they could not do. This is the part that wants
+   answering today, so it sits above everything else. */
+function paintStuck(d){
+  var mine = (d.stuck || []).filter(function(r){ return r.kid === kid; });
+  var host = $("#stuck");
+  if(!mine.length){ host.innerHTML = ""; return; }
+
+  host.innerHTML = '<div class="stuckbox"><h3>' + esc(kid) +
+    ' asked for help &middot; ' + mine.length + '</h3>' +
+    mine.map(function(r, i){
+      return '<div class="sq" data-i="' + i + '">' +
+        '<div class="qt">' + esc(r.q || (r.block + " " + r.pad)) + '</div>' +
+        '<div class="meta">' + esc(LABEL[r.block] || r.block) + ' &middot; ' + esc(r.date) +
+          (r.answered ? ' &middot; <b style="color:var(--good)">answered</b>' : '') + '</div>' +
+        (r.answered ? '' :
+          '<textarea placeholder="Write it out step by step, the way a nine-year-old reads it.&#10;&#10;Step 1 ...&#10;&#10;Step 2 ...&#10;&#10;Tip: ..."></textarea>' +
+          '<div class="row"><button class="sm primary" data-send="' + i + '">Send it to her</button>' +
+          '<span class="msg"></span></div>') +
+      '</div>';
+    }).join("") + '</div>';
+
+  host.querySelectorAll("[data-send]").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      var wrap = btn.closest(".sq"), i = +wrap.dataset.i, r = mine[i];
+      var text = wrap.querySelector("textarea").value.trim();
+      var msg = wrap.querySelector(".msg");
+      if(!text){ msg.textContent = "Write something first."; return; }
+      btn.disabled = true; msg.textContent = "sending…";
+      fetch(API + "/solution", { method:"POST", headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify({ key:KEY, kid:r.kid, date:r.date, block:r.block,
+                               pad:r.pad, solution:text }) })
+        .then(function(res){
+          btn.disabled = false;
+          if(res.ok){
+            msg.innerHTML = '<span class="sent">Sent. She sees it when she taps Update.</span>';
+            wrap.querySelector("textarea").disabled = true;
+          } else msg.textContent = "That did not work (" + res.status + ").";
+        }).catch(function(){ btn.disabled = false; msg.textContent = "Could not reach the server."; });
+    });
+  });
+}
+
+/* A notes button only where there is something to open. Nothing to press
+   when she wrote nothing - an empty panel is worse than no button. */
+function loadNotes(){
+  if(!KEY) return;
+  fetch(API + "/ink?key=" + encodeURIComponent(KEY) +
+        "&kid=" + encodeURIComponent(kid) + "&date=" + day)
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      var byBlock = {};
+      (d.pads || []).forEach(function(p){ (byBlock[p.block] = byBlock[p.block] || []).push(p); });
+      Object.keys(byBlock).forEach(function(b){
+        var sec = document.querySelector('.blk[data-b="' + b + '"]');
+        if(!sec) return;
+        var pads = byBlock[b], n = pads.length;
+        var head = sec.querySelector("header");
+        var btn = document.createElement("button");
+        btn.className = "sm";
+        btn.textContent = "📝 " + n + (n === 1 ? " note" : " notes");
+        btn.style.marginLeft = "4px";
+        head.insertBefore(btn, head.querySelector(".tm") || head.querySelector(".sc"));
+        var host = sec.querySelector(".notehost"), open = false;
+        btn.addEventListener("click", function(){
+          open = !open;
+          if(!open){ host.innerHTML = ""; return; }
+          host.innerHTML = '<div class="notes">' + pads.map(function(p){
+            var data = {}; try{ data = JSON.parse(p.data || "{}"); }catch(e){}
+            var bits = (data.imgs || []).map(function(src){
+              return '<img src="' + src + '" alt="' + esc(p.pad) + '">'; }).join("");
+            if(!bits && (data.s || []).length) bits = '<canvas data-ink="' + esc(p.pad) + '"></canvas>';
+            if(data.text) bits += '<div class="txt">' + esc(data.text) + '</div>';
+            return bits;
+          }).join("") + '</div>';
+          /* draw any handwriting captured on screen */
+          host.querySelectorAll("canvas[data-ink]").forEach(function(cv, i){
+            var p = pads.filter(function(x){ return (JSON.parse(x.data||"{}").s||[]).length; })[i];
+            if(p && window.Ink) Ink.replay(cv, JSON.parse(p.data), { speed: 1000 });
+          });
+        });
+      });
+    }).catch(function(){});
+}
+
+function loadReview(){
+  var host = $("#review");
+  host.innerHTML = "";
+  fetch(API + "/review?kid=" + encodeURIComponent(kid) + "&date=" + day)
     .then(function(r){ return r.json(); })
     .then(function(d){
       var rv = d && d.review;
-      if(!rv){
-        cell.innerHTML = '<span class="none">No review yet. It runs overnight.</span>';
-        return;
-      }
-      var sp = rv.spelling || [], es = rv.essay || {}, fixes = es.fixes || [];
-      cell.innerHTML =
-        (rv.praise ? '<div class="praise">'+esc(rv.praise)+'</div>' : "") +
-        (sp.length ? '<div class="sm" style="margin-top:5px">Spelling</div><ul class="fixlist">' +
-          sp.slice(0,5).map(function(w){
-            return '<li><s>'+esc(w.wrote)+'</s> &rarr; <b>'+esc(w.right)+'</b></li>'; }).join("") +
-          '</ul>' : "") +
-        (es.summary ? '<div class="sm" style="margin-top:6px">Writing</div><div>'+esc(es.summary)+'</div>' : "") +
-        (fixes.length ? '<ul class="fixlist">' + fixes.slice(0,4).map(function(f){
-            return '<li><s>'+esc(f.was)+'</s> &rarr; <b>'+esc(f.should)+'</b></li>'; }).join("") + '</ul>' : "") +
-        ((rv.math && rv.math.approach) ? '<div class="sm" style="margin-top:6px">Method</div><div>'+esc(rv.math.approach)+'</div>' : "") +
-        '<button class="kbtn" data-see="'+esc(kid)+'" data-d="'+esc(rv.date)+'">See the pages &rarr;</button>';
-      var btn = cell.querySelector("[data-see]");
-      if(btn) btn.addEventListener("click", function(){
-        $("#padKid").value = kid; $("#padDate").value = btn.dataset.d;
-        loadPads();
-        document.querySelector("#pads").scrollIntoView({ behavior:"smooth", block:"center" });
-      });
-    }).catch(function(){ cell.innerHTML = '<span class="none">Could not load it.</span>'; });
+      if(!rv) return;
+      var sp = rv.spelling || [], es = rv.essay || {}, fx = es.fixes || [];
+      host.innerHTML = '<div class="rv"><h3>What I found reading this day</h3>' +
+        (rv.praise ? '<div class="praise">' + esc(rv.praise) + '</div>' : "") +
+        (sp.length ? '<div class="lab">Spelling</div><ul>' + sp.map(function(w){
+            return '<li><s>' + esc(w.wrote) + '</s> &rarr; <b>' + esc(w.right) + '</b></li>'; }).join("") + '</ul>' : "") +
+        (es.summary ? '<div class="lab">Writing</div><p>' + esc(es.summary) + '</p>' : "") +
+        (fx.length ? '<ul>' + fx.map(function(f){
+            return '<li><s>' + esc(f.was) + '</s> &rarr; <b>' + esc(f.should) + '</b></li>'; }).join("") + '</ul>' : "") +
+        ((rv.math && rv.math.approach) ? '<div class="lab">Method</div><p>' + esc(rv.math.approach) + '</p>' : "") +
+        ((rv.math && rv.math.note) ? '<p>' + esc(rv.math.note) + '</p>' : "") +
+        '</div>';
+    }).catch(function(){});
 }
 
-/* ---------- pencil work ---------- */
-$("#padLoad").addEventListener("click", loadPads);
-
-function loadPads(){
-  var kid = $("#padKid").value, date = $("#padDate").value || today();
-  var host = $("#pads");
-  host.innerHTML = '<p class="quiet">Loading…</p>';
-  fetch(API + "/ink?key=" + encodeURIComponent(KEY) +
-        "&kid=" + encodeURIComponent(kid) + "&date=" + encodeURIComponent(date))
-    .then(function(r){ return r.json(); })
-    .then(function(d){
-      var pads = (d && d.pads) || [];
-      if(!pads.length){
-        host.innerHTML = '<p class="quiet">No working saved for ' + esc(kid) + ' on that day.</p>';
-        return;
-      }
-      host.innerHTML = "";
-      pads.forEach(function(p, i){
-        var data = {};
-        try{ data = JSON.parse(p.data || "{}"); }catch(e){}
-        var wrap = document.createElement("div");
-        wrap.className = "pad";
-        var shots = data.imgs || [];
-        if(shots.length){
-          wrap.innerHTML = '<div class="lbl">'+esc(p.block)+' · '+esc(p.pad)+' · ' +
-            shots.length + (shots.length===1?' page':' pages') + '</div>' +
-            shots.map(function(src, n){
-              return '<a href="'+src+'" target="_blank" rel="noopener">' +
-                     '<img class="shot" src="'+src+'" alt="page '+(n+1)+'"></a>';
-            }).join("") +
-            (data.text ? '<div class="typed">'+esc(data.text)+'</div>' : "");
-        } else if(data.mode === "type"){
-          wrap.innerHTML = '<div class="lbl">'+esc(p.block)+' · '+esc(p.pad)+' · typed</div>' +
-            '<div class="typed">'+esc(data.text || "")+'</div>';
-        } else if((data.s || []).length){
-          /* older pads, drawn on screen before this moved to photographs */
-          wrap.innerHTML = '<div class="lbl">'+esc(p.block)+' · '+esc(p.pad)+
-            ' · '+data.s.length+' strokes <button class="sm" data-play="1">▶ Replay</button></div>' +
-            '<canvas></canvas>';
-        } else { return; }
-        host.appendChild(wrap);
-        var cv = wrap.querySelector("canvas");
-        if(cv){
-          Ink.replay(cv, data, { speed: 1000 });
-          wrap.querySelector("[data-play]").addEventListener("click", function(){
-            Ink.replay(cv, data, { speed: 1 });
-          });
-        }
-      });
-    }).catch(function(e){
-      host.innerHTML = '<p class="quiet">Could not load it. ' + esc(e.message) + '</p>';
-    });
-}
+/* ---------- day navigation ---------- */
+$("#prev").addEventListener("click", function(){ day = shift(day, -1); refresh(); });
+$("#next").addEventListener("click", function(){ if(day < todayStr()){ day = shift(day, 1); refresh(); } });
+$("#todayBtn").addEventListener("click", function(){ day = todayStr(); refresh(); });
 
 /* ---------- retake ---------- */
-$("#rtGo").addEventListener("click", function(){
-  var kid = $("#rtKid").value, date = $("#rtDate").value;
-  if(!date){ $("#rtMsg").textContent = "Pick a date first."; return; }
-  $("#rtGo").disabled = true; $("#rtMsg").textContent = "clearing…";
-  fetch(API + "/retake", {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ key: KEY, kid: kid, date: date })
-  }).then(function(r){
-    $("#rtGo").disabled = false;
-    $("#rtMsg").textContent = r.ok
-      ? kid + "'s " + date + " cleared — it resets on her iPad next time she opens the app."
-      : "That did not work (" + r.status + ").";
-    if(r.ok) refresh();
-  }).catch(function(){
-    $("#rtGo").disabled = false; $("#rtMsg").textContent = "Could not reach the server.";
-  });
+$("#retake").addEventListener("click", function(){
+  var b = $("#retake");
+  if(b.dataset.armed !== "1"){
+    b.dataset.armed = "1"; b.textContent = "Yes, clear " + kid + "'s " + day;
+    setTimeout(function(){ b.dataset.armed = ""; b.textContent = "Clear this day so she does it again"; }, 8000);
+    return;
+  }
+  b.dataset.armed = ""; b.textContent = "Clear this day so she does it again";
+  b.disabled = true; $("#retakeMsg").textContent = "clearing…";
+  fetch(API + "/retake", { method:"POST", headers:{ "Content-Type":"application/json" },
+    body: JSON.stringify({ key:KEY, kid:kid, date:day }) })
+    .then(function(r){
+      b.disabled = false;
+      $("#retakeMsg").textContent = r.ok
+        ? "Cleared. It resets on her iPad next time she opens the app."
+        : "That did not work (" + r.status + ").";
+      if(r.ok) refresh();
+    }).catch(function(){ b.disabled = false; $("#retakeMsg").textContent = "Could not reach the server."; });
 });
 
-/* ---------- refresh loop ---------- */
+/* ---------- loop ---------- */
 function refresh(){
   if(!KEY) return;
-  tryKey(KEY).then(function(d){
-    if(d.bad){ stop(); openGate("The passphrase changed. Enter it again."); return; }
-    render(d);
-  }).catch(function(){
-    $("#when").textContent = "could not reach the server";
-  });
+  fetchLive(KEY, day).then(function(d){
+    if(d.bad){ stop(); openGate("The passphrase changed."); return; }
+    paint(d);
+  }).catch(function(){ $("#stamp").textContent = "could not reach the server"; });
 }
 function start(){ stop(); timer = setInterval(refresh, 30000); }
 function stop(){ if(timer){ clearInterval(timer); timer = null; } }
-
 document.addEventListener("visibilitychange", function(){
-  if(document.visibilityState === "visible" && KEY){ refresh(); start(); }
-  else stop();
+  if(document.visibilityState === "visible" && KEY){ refresh(); start(); } else stop();
 });
 
 /* ---------- boot ---------- */
 (function(){
-  $("#padDate").value = today();
-  $("#rtDate").value = today();
+  day = todayStr();
+  tabs();
   var saved = "";
   try{ saved = localStorage.getItem("dd:parentKey") || ""; }catch(e){}
   if(!saved){ openGate(); return; }
-  tryKey(saved).then(function(d){
+  fetchLive(saved, day).then(function(d){
     if(d.bad){ openGate("Saved passphrase no longer works."); return; }
-    KEY = saved;
-    $("#gate").hidden = true; $("#board").hidden = false;
-    render(d); start();
+    KEY = saved; $("#gate").hidden = true; $("#board").hidden = false;
+    paint(d); start();
   }).catch(function(){ openGate("Could not reach the server."); });
 })();
 </script>

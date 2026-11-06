@@ -239,7 +239,7 @@ async function getLive(url, env) {
     ? url.searchParams.get("date")
     : new Date().toISOString().slice(0, 10);
 
-  const [live, today, recentMisses, overdue] = await Promise.all([
+  const [live, today, recentMisses, overdue, stuck] = await Promise.all([
     env.DB.prepare(`SELECT * FROM live ORDER BY kid, block`).all(),
     env.DB.prepare(`SELECT * FROM results WHERE date = ?1 ORDER BY kid, block`).bind(date).all(),
     env.DB.prepare(
@@ -250,6 +250,11 @@ async function getLive(url, env) {
       `SELECT kid, date, block, got, total FROM results
        WHERE block IN ('weekly','monthly') AND date >= date(?1, '-45 day')
        ORDER BY date DESC`
+    ).bind(date).all(),
+    env.DB.prepare(
+      `SELECT kid, date, block, pad, q, asked,
+              CASE WHEN solution IS NULL OR solution = '' THEN 0 ELSE 1 END AS answered
+       FROM stuck WHERE date >= date(?1, '-14 day') ORDER BY asked DESC LIMIT 60`
     ).bind(date).all()
   ]);
 
@@ -260,8 +265,54 @@ async function getLive(url, env) {
     live: live.results || [],
     today: today.results || [],
     misses: recentMisses.results || [],
-    tests: overdue.results || []
+    tests: overdue.results || [],
+    stuck: stuck.results || []
   };
+}
+
+/* A child saying they do not know how to do one. Open, like the other
+   things the app writes: the worst a stranger can do is add noise, and
+   the alternative is a secret inside a public page. */
+async function postStuck(body, env) {
+  if (!isKid(body.kid) || !isBlock(body.block) || !isDate(body.date)) return "bad fields";
+  const pad = clampText(body.pad, 40);
+  if (!pad || !/^[A-Za-z0-9_-]+$/.test(pad)) return "bad pad";
+  if (body.undo) {
+    await env.DB.prepare(`DELETE FROM stuck WHERE kid=?1 AND date=?2 AND block=?3 AND pad=?4`)
+      .bind(body.kid, body.date, body.block, pad).run();
+    return null;
+  }
+  await env.DB.prepare(
+    `INSERT INTO stuck (kid, date, block, pad, q, asked)
+     VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+     ON CONFLICT (kid, date, block, pad) DO UPDATE SET q = ?5, asked = ?6`
+  ).bind(body.kid, body.date, body.block, pad, clampText(body.q, 400), now()).run();
+  return null;
+}
+
+/* What the app asks for on opening a sheet: which ones are flagged, and
+   which of those have a worked solution waiting. */
+async function getStuck(url, env) {
+  const kid = url.searchParams.get("kid"), date = url.searchParams.get("date");
+  if (!isKid(kid) || !isDate(date)) return { ok: false, error: "bad fields" };
+  const rows = await env.DB.prepare(
+    `SELECT block, pad, q, solution FROM stuck WHERE kid = ?1 AND date = ?2`
+  ).bind(kid, date).all();
+  return { ok: true, stuck: rows.results || [] };
+}
+
+/* The worked solution, written by a parent. Needs the key - a child
+   cannot hand themselves the answer. */
+async function postSolution(body, env) {
+  if (!isKid(body.kid) || !isBlock(body.block) || !isDate(body.date)) return "bad fields";
+  const pad = clampText(body.pad, 40);
+  if (!pad) return "bad pad";
+  await env.DB.prepare(
+    `UPDATE stuck SET solution = ?5, solved = ?6
+     WHERE kid=?1 AND date=?2 AND block=?3 AND pad=?4`
+  ).bind(body.kid, body.date, body.block, pad,
+         clampText(body.solution, 8000), now()).run();
+  return null;
 }
 
 /* The overnight review of a day's work. Written by the nightly job with
@@ -348,6 +399,13 @@ export default {
         return err ? bad(err, origin) : json({ ok: true }, 200, origin);
       }
 
+      if (path === "/solution" && request.method === "POST") {
+        const body = await readJson(request);
+        if (!keyOk(body.key, env.PARENT_KEY)) return bad("wrong key", origin, 401);
+        const err = await postSolution(body, env);
+        return err ? bad(err, origin) : json({ ok: true }, 200, origin);
+      }
+
       if (path === "/review" && request.method === "POST") {
         const body = await readJson(request);
         if (!keyOk(body.key, env.PARENT_KEY)) return bad("wrong key", origin, 401);
@@ -364,6 +422,10 @@ export default {
         return json(await getReview(url, env), 200, origin);
       }
 
+      if (path === "/stuck" && request.method === "GET") {
+        return json(await getStuck(url, env), 200, origin);
+      }
+
       if (request.method === "POST") {
         const body = await readJson(request);
         let err = null;
@@ -372,6 +434,7 @@ export default {
         else if (path === "/ink")          err = await postInk(body, env);
         else if (path === "/writing")      err = await postWriting(body, env);
         else if (path === "/retake-done")  err = await postRetakeDone(body, env);
+        else if (path === "/stuck")        err = await postStuck(body, env);
         else return bad("no such route", origin, 404);
         return err ? bad(err, origin) : json({ ok: true }, 200, origin);
       }
