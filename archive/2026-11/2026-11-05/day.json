@@ -1,0 +1,223 @@
+{
+  "date": "2026-11-05",
+  "pulledAt": "2026-11-06T16:16:17.648Z",
+  "kids": {
+    "Andrila": {
+      "pads": 1,
+      "photos": 0
+    },
+    "Alvina": {
+      "pads": 3,
+      "photos": 0
+    }
+  },
+  "results": [
+    {
+      "kid": "Alvina",
+      "date": "2026-11-05",
+      "block": "eng",
+      "got": 24,
+      "total": 24,
+      "secs": 615,
+      "at": "2026-11-06T00:04:28.994Z"
+    },
+    {
+      "kid": "Alvina",
+      "date": "2026-11-05",
+      "block": "math",
+      "got": 37,
+      "total": 42,
+      "secs": 5,
+      "at": "2026-11-06T03:14:29.266Z"
+    },
+    {
+      "kid": "Alvina",
+      "date": "2026-11-05",
+      "block": "think",
+      "got": 7,
+      "total": 10,
+      "secs": 624,
+      "at": "2026-11-06T00:16:46.095Z"
+    },
+    {
+      "kid": "Andrila",
+      "date": "2026-11-05",
+      "block": "math",
+      "got": 37,
+      "total": 42,
+      "secs": 1437,
+      "at": "2026-11-06T03:09:08.185Z"
+    },
+    {
+      "kid": "Andrila",
+      "date": "2026-11-05",
+      "block": "recap",
+      "got": 2,
+      "total": 9,
+      "secs": 6,
+      "at": "2026-11-06T00:01:33.881Z"
+    }
+  ],
+  "misses": [
+    {
+      "kid": "Andrila",
+      "date": "2026-11-05",
+      "block": "recap",
+      "q": "remainder",
+      "gave": "5",
+      "want": "3"
+    },
+    {
+      "kid": "Andrila",
+      "date": "2026-11-05",
+      "block": "recap",
+      "q": "___ ÷ 5 = 36",
+      "gave": "7",
+      "want": "180"
+    },
+    {
+      "kid": "Andrila",
+      "date": "2026-11-05",
+      "block": "recap",
+      "q": "Which is larger: (1) 1/8   or   (2) 1/4 ?   Type 1, 2, or 3 if they are equal.",
+      "gave": "1",
+      "want": "2"
+    },
+    {
+      "kid": "Andrila",
+      "date": "2026-11-05",
+      "block": "recap",
+      "q": "★ 5 friends meet at a party. Each person shakes hands with every other person exactly once. How many handshakes happen?",
+      "gave": "25",
+      "want": "10"
+    },
+    {
+      "kid": "Andrila",
+      "date": "2026-11-05",
+      "block": "recap",
+      "q": "A rectangle is 14 cm long and 7 cm wide. What is its area in square cm?",
+      "gave": "38",
+      "want": "98"
+    },
+    {
+      "kid": "Andrila",
+      "date": "2026-11-05",
+      "block": "recap",
+      "q": "A film starts at 2:15 pm and lasts 3 hours and 45 minutes. What time does it end? Answer in minutes past 2:15.",
+      "gave": "6:00 pm",
+      "want": "225"
+    },
+    {
+      "kid": "Andrila",
+      "date": "2026-11-05",
+      "block": "recap",
+      "q": "Kabir saves $12 every week for 8 weeks, then spends $49 on a gift. How much money is left?",
+      "gave": "$47",
+      "want": "47"
+    },
+    {
+      "kid": "Alvina",
+      "date": "2026-11-05",
+      "block": "think",
+      "q": "What comes next?  3, 9, 27, 81, ___",
+      "gave": "",
+      "want": "243"
+    },
+    {
+      "kid": "Alvina",
+      "date": "2026-11-05",
+      "block": "think",
+      "q": "A is 5 more than B. B is 2 times C. C is 7. What is A?",
+      "gave": "A is 19",
+      "want": "19"
+    },
+    {
+      "kid": "Alvina",
+      "date": "2026-11-05",
+      "block": "think",
+      "q": "What comes next?  2, 6, 18, 54, ___",
+      "gave": "",
+      "want": "162"
+    },
+    {
+      "kid": "Andrila",
+      "date": "2026-11-05",
+      "block": "math",
+      "q": "58 ÷ 4",
+      "gave": "13",
+      "want": "14"
+    },
+    {
+      "kid": "Andrila",
+      "date": "2026-11-05",
+      "block": "math",
+      "q": "1/2  =  ?/4",
+      "gave": "/",
+      "want": "2/4"
+    },
+    {
+      "kid": "Andrila",
+      "date": "2026-11-05",
+      "block": "math",
+      "q": "3 10/12  −  2 2/12  (simplify)",
+      "gave": "1 12/12",
+      "want": "1 2/3"
+    },
+    {
+      "kid": "Andrila",
+      "date": "2026-11-05",
+      "block": "math",
+      "q": "3 + 1/4 =",
+      "gave": "2 3/4",
+      "want": "3 1/4"
+    },
+    {
+      "kid": "Andrila",
+      "date": "2026-11-05",
+      "block": "math",
+      "q": "6 9/12  −  3 1/12  (simplify)",
+      "gave": "3 8/12",
+      "want": "3 2/3"
+    },
+    {
+      "kid": "Alvina",
+      "date": "2026-11-05",
+      "block": "math",
+      "q": "27 ÷ 4",
+      "gave": "24",
+      "want": "6"
+    },
+    {
+      "kid": "Alvina",
+      "date": "2026-11-05",
+      "block": "math",
+      "q": "1/2  =  ?/4",
+      "gave": "4/4;",
+      "want": "2/4"
+    },
+    {
+      "kid": "Alvina",
+      "date": "2026-11-05",
+      "block": "math",
+      "q": "3 10/12  −  2 2/12  (simplify)",
+      "gave": " 24/12",
+      "want": "1 2/3"
+    },
+    {
+      "kid": "Alvina",
+      "date": "2026-11-05",
+      "block": "math",
+      "q": "6 9/12  −  3 1/12  (simplify)",
+      "gave": " 38/12",
+      "want": "3 2/3"
+    },
+    {
+      "kid": "Alvina",
+      "date": "2026-11-05",
+      "block": "math",
+      "q": "1 5/8  +  3 6/8 =",
+      "gave": " 51/8",
+      "want": "5 3/8"
+    }
+  ]
+}

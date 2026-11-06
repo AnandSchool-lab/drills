@@ -9,3 +9,4 @@ folder would still open.
 
 | Day | Finished | Photos | |
 |---|---|---|---|
+| 2026-11-05 | 5 blocks | Andrila 0p, Alvina 0p | [open](./2026-11/2026-11-05/) |
