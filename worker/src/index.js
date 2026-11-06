@@ -139,8 +139,25 @@ async function postResult(body, env) {
            clampInt(body.secs, 0, 86400), now()),
     /* a resubmission replaces the old misses rather than piling up */
     env.DB.prepare(`DELETE FROM misses WHERE kid = ?1 AND date = ?2 AND block = ?3`)
+      .bind(body.kid, body.date, body.block),
+    env.DB.prepare(`DELETE FROM answers WHERE kid = ?1 AND date = ?2 AND block = ?3`)
       .bind(body.kid, body.date, body.block)
   ];
+
+  /* The whole sheet, right and wrong. Capped well above a day's work. */
+  const answers = Array.isArray(body.answers) ? body.answers.slice(0, 120) : [];
+  for (const a of answers) {
+    if (!a || !a.q) continue;
+    statements.push(
+      env.DB.prepare(
+        `INSERT INTO answers (kid, date, block, n, q, gave, want, ok, pad)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)`
+      ).bind(body.kid, body.date, body.block,
+             clampInt(a.n, 0, 500), clampText(a.q, 400),
+             clampText(a.gave, 200), clampText(a.want, 200),
+             a.ok ? 1 : 0, clampText(a.pad, 40))
+    );
+  }
 
   const misses = Array.isArray(body.misses) ? body.misses.slice(0, 60) : [];
   for (const m of misses) {
@@ -274,6 +291,13 @@ async function getLive(url, env) {
     ).bind(date), "stuck", notes)
   ]);
 
+  /* The whole sheet for this one day. This is what the parent page is
+     actually for: every question, her answer beside the right one. */
+  const answers = await safeAll(env.DB.prepare(
+    `SELECT kid, block, n, q, gave, want, ok, pad FROM answers
+     WHERE date = ?1 ORDER BY kid, block, n`
+  ).bind(date), "answers", notes);
+
   return {
     ok: true,
     date,
@@ -283,6 +307,7 @@ async function getLive(url, env) {
     misses: recentMisses,
     tests: overdue,
     stuck: stuck,
+    answers: answers,
     notes: notes
   };
 }

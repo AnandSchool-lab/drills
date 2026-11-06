@@ -23,7 +23,7 @@
 body{margin:0;background:var(--bg);color:var(--ink);line-height:1.5;
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   padding:16px max(12px,env(safe-area-inset-left,0)) 56px max(12px,env(safe-area-inset-right,0))}
-.wrap{max-width:760px;margin:0 auto}
+.wrap{max-width:1280px;margin:0 auto}
 button{font:inherit;border-radius:9px;border:1px solid var(--line);background:var(--surface);
   color:var(--ink);padding:8px 14px;cursor:pointer}
 button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}
@@ -95,21 +95,55 @@ input,select{font:inherit;font-size:15px;padding:8px 10px;border-radius:9px;
 .blk>header .sc{margin-left:auto;font-variant-numeric:tabular-nums;font-weight:700;font-size:14.5px}
 .blk>header .sc.good{color:var(--good)} .blk>header .sc.work{color:var(--amber)}
 .blk>header .tm{color:var(--muted);font-size:12.5px;white-space:nowrap}
-.wrongs{list-style:none;margin:0;padding:0}
-.wrongs li{display:flex;gap:10px;align-items:baseline;padding:8px 13px;
-  border-top:1px solid var(--line);font-size:14px}
-.wrongs .q{flex:1;min-width:0}
-.wrongs .gave{color:var(--bad);font-weight:600;white-space:nowrap}
-.wrongs .want{color:var(--good);font-weight:600;white-space:nowrap}
+/* The whole sheet. Two columns of problems once there is room for them,
+   because one column down the middle of a wide screen wasted the page
+   and made forty questions feel like scrolling forever. */
+.qgrid{display:grid;grid-template-columns:1fr;border-top:1px solid var(--line)}
+@media (min-width:900px){ .qgrid{grid-template-columns:1fr 1fr} }
+.qrow{display:grid;grid-template-columns:28px 1fr auto 14px minmax(0,auto) 26px;gap:9px;
+  align-items:baseline;padding:7px 13px;font-size:14px;
+  border-bottom:1px solid var(--line);min-width:0}
+@media (min-width:900px){ .qrow:nth-child(4n+1),.qrow:nth-child(4n+2){background:var(--surface)} }
+.qrow.bad{background:var(--bad-soft)}
+.qrow .n{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums;text-align:right}
+.qrow .qq{min-width:0;overflow-wrap:anywhere}
+.qrow .ga{font-weight:700;color:var(--bad);font-variant-numeric:tabular-nums;
+  white-space:nowrap;text-align:right}
+.qrow .ga.ok{color:var(--ink);font-weight:600}
+.qrow .ga.blank{font-weight:500;font-style:italic;color:var(--muted)}
+.qrow .arr{color:var(--muted);text-align:center}
+.qrow.bad .arr{color:var(--bad)}
+.qrow:not(.bad) .arr{color:var(--good);font-weight:700}
+.qrow .wa{font-weight:700;color:var(--good);font-variant-numeric:tabular-nums;white-space:nowrap}
+.blk>header .key{color:var(--muted);font-size:11.5px;white-space:nowrap}
+@media (max-width:620px){ .blk>header .key{display:none} }
+.qrow .pen{text-align:right}
+.inkbtn{border:1px solid var(--line);background:var(--surface);border-radius:7px;
+  padding:1px 6px;font-size:13px;cursor:pointer;line-height:1.4}
+.inkbtn.on{border-color:var(--accent);color:var(--accent);background:var(--accent-soft,#EAF0FF)}
+/* her working opens under its own problem and spans both columns */
+.qink{grid-column:1/-1;padding:0 13px 10px;background:var(--surface-2);
+  border-bottom:1px solid var(--line)}
+.qink[hidden]{display:none}
+.qink img.work{display:block;width:100%;max-height:420px;object-fit:contain;object-position:left top;
+  background:#fff;border:1px solid var(--line);border-radius:8px;margin-top:9px;cursor:zoom-in}
+.qink .txt{background:#fff;border:1px solid var(--line);border-radius:8px;
+  padding:9px 11px;font-size:14px;white-space:pre-wrap;margin-top:9px}
+.blk.onlybad .qrow:not(.bad){display:none}
+.blk.onlybad .qrow:not(.bad)+.qink{display:none}
+.filt{font-size:12px;padding:3px 9px}
+.legacy{padding:8px 13px;color:var(--muted);font-size:13px;border-top:1px solid var(--line)}
 .allright{padding:9px 13px;border-top:1px solid var(--line);color:var(--good);font-size:14px}
 .nowork{padding:9px 13px;color:var(--muted);font-size:14px}
-.notes{padding:10px 13px;border-top:1px solid var(--line);background:var(--surface-2)}
-.notes img{width:100%;display:block;border:1px solid var(--line);border-radius:8px;
-  margin-bottom:8px;background:#fff}
-.notes canvas{width:100%;display:block;border:1px solid var(--line);border-radius:8px;
-  margin-bottom:8px;background:#fff}
-.notes .txt{background:var(--surface);border:1px solid var(--line);border-radius:8px;
-  padding:9px 11px;font-size:14px;white-space:pre-wrap;margin-bottom:8px}
+.notehost .lab{padding:10px 13px 0;font-size:12px;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--muted)}
+/* An essay is a tall page. Letting it fill the width and run to its own
+   height beats shrinking it into a corner of a wide box. */
+.notehost .qink img.work{max-height:none;object-fit:fill;width:100%;height:auto}
+/* full size, because a thumbnail of a page of writing tells you nothing */
+.lightbox{position:fixed;inset:0;z-index:200;background:rgba(10,18,30,.82);overflow:auto;
+  padding:18px;cursor:zoom-out}
+.lightbox img{display:block;margin:0 auto;max-width:100%;background:#fff;border-radius:10px}
 
 /* last night */
 .rv{background:var(--surface);border:1px solid var(--accent);border-left:4px solid var(--accent);
@@ -288,33 +322,80 @@ function paint(d){
       '<span style="margin-left:auto;color:var(--muted);font-size:12.5px">seen ' + ago(r.seen_at) + '</span></div>';
   }).join("");
 
-  /* a block at a time: score, time, what went wrong, and a way into the notes */
-  var results = {}, wrong = {};
+  /* A block at a time, and inside it the whole sheet: every question in
+     the order she met it, what she wrote, what the answer was, and her
+     working beside the problem it belongs to. The old version listed
+     only the mistakes, as two unlabelled numbers. */
+  var results = {}, rows = {}, wrong = {};
   (d.today || []).forEach(function(r){ if(r.kid === kid && r.date === day) results[r.block] = r; });
+  (d.answers || []).forEach(function(a){
+    if(a.kid !== kid) return;
+    (rows[a.block] = rows[a.block] || []).push(a);
+  });
+  /* Days before the answers table existed have misses only. Show those
+     rather than an empty block pretending nothing happened. */
   (d.misses || []).forEach(function(m){
     if(m.kid !== kid || m.date !== day) return;
     (wrong[m.block] = wrong[m.block] || []).push(m);
   });
 
   $("#blocks").innerHTML = BLOCKS.map(function(b){
-    var r = results[b], ws = wrong[b] || [];
+    var r = results[b], all = rows[b] || [], ws = wrong[b] || [];
     var pc = r && r.total ? r.got / r.total : 0;
+    var missed = all.filter(function(a){ return !a.ok; }).length;
+
     var head = '<header><span class="nm">' + LABEL[b] + '</span>' +
       (r ? '<span class="tm">' + Math.round(r.secs/60) + ' min</span>' +
+           (all.length ? '<span class="key">she wrote → right answer</span>' +
+                         '<button class="sm filt" data-b="' + b + '">show only the ' +
+                          missed + ' wrong</button>' : '') +
            '<span class="sc ' + (pc >= 0.8 ? "good" : "work") + '">' + r.got + ' / ' + r.total + '</span>'
          : '<span class="sc" style="color:var(--muted)">not done</span>') +
       '</header>';
-    var body = !r ? ""
-      : ws.length
-        ? '<ul class="wrongs">' + ws.map(function(m){
-            return '<li><span class="q">' + esc(m.q) + '</span>' +
-              '<span class="gave">' + esc(m.gave || "blank") + '</span>' +
-              '<span class="want">' + esc(m.want) + '</span></li>';
-          }).join("") + '</ul>'
-        : '<div class="allright">All correct.</div>';
+
+    var body;
+    if(!r){
+      body = "";
+    } else if(all.length){
+      body = '<div class="qgrid">' + all.map(function(a){
+        var gave = a.gave || "blank", blank = /^\(?blank\)?$/i.test(gave);
+        return '<div class="qrow' + (a.ok ? "" : " bad") + '" data-pad="' + esc(a.pad || "") + '">' +
+          '<span class="n">' + a.n + '</span>' +
+          '<span class="qq">' + esc(a.q) + '</span>' +
+          '<span class="ga' + (a.ok ? " ok" : "") + (blank ? " blank" : "") + '">' +
+            esc(blank ? "nothing" : gave) + '</span>' +
+          (a.ok ? '<span class="arr">✓</span><span class="wa"></span>'
+                : '<span class="arr">→</span><span class="wa">' + esc(a.want) + '</span>') +
+          '<span class="pen"></span>' +
+        '</div><div class="qink" hidden></div>';
+      }).join("") + '</div>';
+    } else if(ws.length){
+      body = '<div class="legacy">Only the mistakes were recorded on this day.</div>' +
+        '<div class="qgrid">' + ws.map(function(m, i){
+          return '<div class="qrow bad"><span class="n">' + (i+1) + '</span>' +
+            '<span class="qq">' + esc(m.q) + '</span>' +
+            '<span class="ga">' + esc(m.gave || "nothing") + '</span>' +
+            '<span class="arr">→</span>' +
+            '<span class="wa">' + esc(m.want) + '</span><span class="pen"></span></div>';
+        }).join("") + '</div>';
+    } else {
+      body = '<div class="allright">All correct.</div>';
+    }
+
     return '<section class="blk" data-b="' + b + '">' + head + body +
       '<div class="notehost"></div></section>';
   }).join("");
+
+  /* one button per block: hide everything she got right */
+  $("#blocks").querySelectorAll(".filt").forEach(function(btn){
+    var sec = btn.closest(".blk"), only = false;
+    var n = btn.textContent;
+    btn.addEventListener("click", function(){
+      only = !only;
+      sec.classList.toggle("onlybad", only);
+      btn.textContent = only ? "show all" : n;
+    });
+  });
 
   loadNotes();
   loadReview();
@@ -397,46 +478,90 @@ function paintStuck(d){
   });
 }
 
-/* A notes button only where there is something to open. Nothing to press
-   when she wrote nothing - an empty panel is worse than no button. */
+/* Does this pad actually hold anything? An empty pad used to be counted
+   as a note, which is why the header said "2 notes" and only one thing
+   ever appeared. */
+function padHas(data){
+  return !!((data.s && data.s.length) || (data.imgs && data.imgs.length) ||
+            (data.text && data.text.trim()));
+}
+
+/* Her working, beside the problem it belongs to. Each one is drawn once
+   as a still image - a dashboard wants to be read, not watched - and
+   clicking it opens the page full size. Anything that does not match a
+   problem (the essay, mainly) goes under the block it came from. */
 function loadNotes(){
   if(!KEY) return;
   fetch(API + "/ink?key=" + encodeURIComponent(KEY) +
-        "&kid=" + encodeURIComponent(kid) + "&date=" + day)
+        "&kid=" + encodeURIComponent(kid) + "&date=" + day, { cache:"no-store" })
     .then(function(r){ return r.json(); })
     .then(function(d){
-      var byBlock = {};
-      (d.pads || []).forEach(function(p){ (byBlock[p.block] = byBlock[p.block] || []).push(p); });
-      Object.keys(byBlock).forEach(function(b){
+      var loose = {};
+      (d.pads || []).forEach(function(p){
+        var data = {}; try{ data = JSON.parse(p.data || "{}"); }catch(e){}
+        if(!padHas(data)) return;                       // nothing was written here
+
+        var sec = document.querySelector('.blk[data-b="' + p.block + '"]');
+        if(!sec) return;
+        var row = sec.querySelector('.qrow[data-pad="' + cssq(p.pad) + '"]');
+        if(row) attachInk(row.nextElementSibling, data, row);
+        else (loose[p.block] = loose[p.block] || []).push(data);
+      });
+
+      Object.keys(loose).forEach(function(b){
         var sec = document.querySelector('.blk[data-b="' + b + '"]');
         if(!sec) return;
-        var pads = byBlock[b], n = pads.length;
-        var head = sec.querySelector("header");
-        var btn = document.createElement("button");
-        btn.className = "sm";
-        btn.textContent = "📝 " + n + (n === 1 ? " note" : " notes");
-        btn.style.marginLeft = "4px";
-        head.insertBefore(btn, head.querySelector(".tm") || head.querySelector(".sc"));
-        var host = sec.querySelector(".notehost"), open = false;
-        btn.addEventListener("click", function(){
-          open = !open;
-          if(!open){ host.innerHTML = ""; return; }
-          host.innerHTML = '<div class="notes">' + pads.map(function(p){
-            var data = {}; try{ data = JSON.parse(p.data || "{}"); }catch(e){}
-            var bits = (data.imgs || []).map(function(src){
-              return '<img src="' + src + '" alt="' + esc(p.pad) + '">'; }).join("");
-            if(!bits && (data.s || []).length) bits = '<canvas data-ink="' + esc(p.pad) + '"></canvas>';
-            if(data.text) bits += '<div class="txt">' + esc(data.text) + '</div>';
-            return bits;
-          }).join("") + '</div>';
-          /* draw any handwriting captured on screen */
-          host.querySelectorAll("canvas[data-ink]").forEach(function(cv, i){
-            var p = pads.filter(function(x){ return (JSON.parse(x.data||"{}").s||[]).length; })[i];
-            if(p && window.Ink) Ink.replay(cv, JSON.parse(p.data), { speed: 1000 });
-          });
+        var host = sec.querySelector(".notehost");
+        host.innerHTML = '<div class="lab">Her writing</div>';
+        loose[b].forEach(function(data){
+          var slot = document.createElement("div");
+          slot.className = "qink";
+          host.appendChild(slot);
+          attachInk(slot, data, null);
         });
       });
     }).catch(function(){});
+}
+
+function cssq(s){ return String(s).replace(/"/g, '\\"'); }
+
+/* Put one pad's contents into a slot. With a row, the slot starts closed
+   and the row gets a pencil to open it; without one it is always open. */
+function attachInk(slot, data, row){
+  if(!slot) return;
+  var html = "";
+  if(data.s && data.s.length && window.Ink){
+    try{ html += '<img class="work" alt="her working" src="' + Ink.toImage(data, 2) + '">'; }
+    catch(e){}
+  }
+  (data.imgs || []).forEach(function(src){
+    html += '<img class="work" alt="her working" src="' + src + '">';
+  });
+  if(data.text && data.text.trim()) html += '<div class="txt">' + esc(data.text) + '</div>';
+  if(!html) return;
+  slot.innerHTML = html;
+
+  slot.querySelectorAll("img.work").forEach(function(img){
+    img.addEventListener("click", function(){ bigPicture(img.src); });
+  });
+
+  if(!row){ slot.hidden = false; return; }
+  var pen = row.querySelector(".pen");
+  if(!pen) return;
+  pen.innerHTML = '<button class="inkbtn" type="button" title="her working">✎</button>';
+  pen.querySelector("button").addEventListener("click", function(){
+    slot.hidden = !slot.hidden;
+    this.classList.toggle("on", !slot.hidden);
+  });
+}
+
+/* Full size, because a thumbnail of a page of writing is useless. */
+function bigPicture(src){
+  var back = document.createElement("div");
+  back.className = "lightbox";
+  back.innerHTML = '<img src="' + src + '" alt="her working">';
+  back.addEventListener("click", function(){ back.remove(); });
+  document.body.appendChild(back);
 }
 
 function loadReview(){

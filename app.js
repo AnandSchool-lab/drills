@@ -8,7 +8,7 @@
 
 /* ---------- configuration you may want to change ---------- */
 var START_DATE = "2026-10-27";   // Monday the programme begins. Week 1 starts here.
-var APP_VERSION = "25";          // shown on the home screen; keep in step with CACHE in sw.js
+var APP_VERSION = "26";          // shown on the home screen; keep in step with CACHE in sw.js
 
 /* Google Apps Script web-app URL. Blank = results stay on the iPad only.
    Paste the /exec URL from Deploy → New deployment → Web app. */
@@ -703,13 +703,14 @@ function flushQueue(){
   });
 }
 
-function sendResult(block, got, total, secs, misses){
+function sendResult(block, got, total, secs, misses, answers){
   if(!apiUrl() || !who()) return;
   var r = records()[todayKey()] || {};
   queueAdd("/result", {
     kid: who(), date: todayKey(), block: block,
     got: got, total: total, secs: secs,
-    misses: (misses || []).slice(0, 60)
+    misses: (misses || []).slice(0, 60),
+    answers: (answers || []).slice(0, 120)
   });
   if(r.writeAns || r.writePrompt){
     queueAdd("/writing", { kid: who(), date: todayKey(),
@@ -1843,66 +1844,84 @@ function sameClock(have, want){
   if(!a || !b) return norm(have) === norm(want);
   return a.hasAmPm ? a.mins === b.mins : a.mins % 720 === b.mins % 720;
 }
+/* Which working pad belongs to this problem, so the parent page can put
+   her handwriting next to the question it belongs to. */
+function padOf(el){
+  var host = el.closest ? el.closest(".tile, .prob") : null;
+  var w = host && host.querySelector(".workrow[data-pad]");
+  return w ? w.dataset.pad : "";
+}
+
+/* Grade the sheet and record EVERY answer, not only the wrong ones.
+   For a long time only mistakes were kept, which meant the parent page
+   could show that something went wrong but never what was asked, what
+   she wrote, or what she got right. One pass in document order, so the
+   numbering on the dashboard matches the numbering on her screen. */
 function gradeSheet(block){
-  var got = 0, total = 0, misses = [];
+  var got = 0, total = 0, misses = [], answers = [];
 
-  app.querySelectorAll("input.ans").forEach(function(inp){
-    var want = inp.dataset.a, have = inp.value;
-    if(inp.dataset.opt === "1" && want === "0" && norm(have) === "") have = "0";
+  function record(q, gave, want, right, kind, pad){
     total++;
-    var right = inp.classList.contains("clock") ? sameClock(have, want)
-              : inp.classList.contains("word")  ? norm(have) === norm(want)
+    if(right) got++;
+    answers.push({ n: total, q: q || "", gave: gave, want: want,
+                   ok: right ? 1 : 0, kind: kind, pad: pad || "" });
+    if(!right) misses.push({ q: q || "", gave: gave, want: want, kind: kind });
+  }
+
+  app.querySelectorAll("input.ans, .fracbox, .opts").forEach(function(el){
+
+    if(el.classList.contains("fracbox")){
+      var W = +el.dataset.w, N = +el.dataset.n, D = +el.dataset.d;
+      var fw = el.querySelector(".fw"), fn = el.querySelector(".fn"), fd = el.querySelector(".fd");
+      var vw = fw ? (parseInt(fw.value,10) || 0) : 0;
+      var vn = parseInt(fn.value,10) || 0, vd = parseInt(fd.value,10) || 0;
+      var fwant = W + (D ? N/D : 0);
+      var fhave = vw + (vd ? vn/vd : 0);
+      var touched = (fw && fw.value.trim()) || fn.value.trim() || fd.value.trim();
+      var fright = !!touched && Math.abs(fhave - fwant) < 1e-9 && (N === 0 || vd > 0);
+      if(fright && el.dataset.simp === "1" && vn > 0 && gcd(vn, vd) !== 1) fright = false;
+      if(el.dataset.exact === "1") fright = !!touched && vn === N && vd === D && vw === W;
+      [fw, fn, fd].forEach(function(x){ if(x){ x.classList.toggle("ok", fright); x.classList.toggle("no", !fright); } });
+      var qt = el.parentNode.querySelector(".q");
+      record(qt ? qt.textContent : "fraction",
+             touched ? ((fw && fw.value.trim() ? fw.value.trim()+" " : "") +
+                        (fn.value || fd.value ? fn.value+"/"+fd.value : "")).trim() : "(blank)",
+             (W ? W+" " : "") + (N ? N+"/"+D : ""),
+             fright, "num", padOf(el));
+      return;
+    }
+
+    if(el.classList.contains("opts")){
+      var owant = el.dataset.ans;
+      var labels = el.querySelectorAll(".opt");
+      labels.forEach(function(lab, i){
+        var picked = lab.querySelector("input").checked;
+        lab.classList.remove("ok","no");
+        if(String(i) === owant && picked) lab.classList.add("ok");
+        if(picked && String(i) !== owant) lab.classList.add("no");
+      });
+      var sel = el.querySelector("input:checked");
+      record(el.dataset.q || "",
+             sel ? labels[+sel.value].textContent.trim() : "(blank)",
+             labels[+owant].textContent.trim(),
+             !!sel && sel.value === owant, "word", padOf(el));
+      return;
+    }
+
+    var want = el.dataset.a, have = el.value;
+    if(el.dataset.opt === "1" && want === "0" && norm(have) === "") have = "0";
+    var right = el.classList.contains("clock") ? sameClock(have, want)
+              : el.classList.contains("word")  ? norm(have) === norm(want)
               : sameNum(have, want);
-    inp.classList.toggle("ok", right); inp.classList.toggle("no", !right);
-    if(right) got++;
-    else misses.push({ q: inp.dataset.q || inp.getAttribute("aria-label") || "", gave: inp.value, want: want,
-                       kind: inp.classList.contains("word") ? "word" : "num" });
-  });
-
-  app.querySelectorAll(".fracbox").forEach(function(box){
-    total++;
-    var W = +box.dataset.w, N = +box.dataset.n, D = +box.dataset.d;
-    var fw = box.querySelector(".fw"), fn = box.querySelector(".fn"), fd = box.querySelector(".fd");
-    var vw = fw ? (parseInt(fw.value,10) || 0) : 0;
-    var vn = parseInt(fn.value,10) || 0, vd = parseInt(fd.value,10) || 0;
-    var want = W + (D ? N/D : 0);
-    var have = vw + (vd ? vn/vd : 0);
-    var touched = (fw && fw.value.trim()) || fn.value.trim() || fd.value.trim();
-    var right = !!touched && Math.abs(have - want) < 1e-9 && (N === 0 || vd > 0);
-    if(right && box.dataset.simp === "1" && vn > 0 && gcd(vn, vd) !== 1) right = false;
-    if(box.dataset.exact === "1"){
-      right = !!touched && vn === N && vd === D && vw === W;
-    }
-    [fw, fn, fd].forEach(function(el){ if(el){ el.classList.toggle("ok", right); el.classList.toggle("no", !right); } });
-    if(right) got++;
-    else {
-      var qt = box.parentNode.querySelector(".q");
-      misses.push({ q: qt ? qt.textContent : "fraction",
-                    gave: (fw ? fw.value+" " : "") + fn.value + "/" + fd.value,
-                    want: (W ? W+" " : "") + (N ? N+"/"+D : ""), kind:"num" });
-    }
-  });
-
-  app.querySelectorAll(".opts").forEach(function(opts){
-    total++;
-    var want = opts.dataset.ans;
-    var labels = opts.querySelectorAll(".opt");
-    labels.forEach(function(lab, i){
-      var picked = lab.querySelector("input").checked;
-      lab.classList.remove("ok","no");
-      if(String(i) === want && picked) lab.classList.add("ok");
-      if(picked && String(i) !== want) lab.classList.add("no");
-    });
-    var sel = opts.querySelector("input:checked");
-    if(sel && sel.value === want) got++;
-    else misses.push({ q: opts.dataset.q || "",
-                       gave: sel ? labels[+sel.value].textContent.trim() : "(blank)",
-                       want: labels[+want].textContent.trim(), kind:"word" });
+    el.classList.toggle("ok", right); el.classList.toggle("no", !right);
+    record(el.dataset.q || el.getAttribute("aria-label") || "",
+           el.value.trim() || "(blank)", want, right,
+           el.classList.contains("word") ? "word" : "num", padOf(el));
   });
 
   saveResult(block, got, total, elapsed());
   saveDetail("miss:"+block, misses.slice(0, 40));
-  sendResult(block, got, total, elapsed(), misses);
+  sendResult(block, got, total, elapsed(), misses, answers);
 
   var el = $("#score");
   if(el){

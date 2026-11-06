@@ -1,5 +1,5 @@
 /* Offline cache. Bump CACHE whenever you change index.html, app.js or content.js. */
-var CACHE = "drills-v25";
+var CACHE = "drills-v26";
 var FILES = [
   "./", "./index.html", "./app.js", "./content.js", "./ink.js", "./solve.js",
   "./manifest.webmanifest", "./icon-192.png", "./icon-512.png", "./icon-180.png"

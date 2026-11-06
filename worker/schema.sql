@@ -30,6 +30,25 @@ CREATE TABLE IF NOT EXISTS results (
   PRIMARY KEY (kid, date, block)
 );
 
+-- Every question they were asked, right or wrong, in the order it
+-- appeared on their screen. The misses table below is still what the
+-- Recap and the monthly test are built from; this one exists so the
+-- parent page can show the whole sheet - what was asked, what she
+-- wrote, what the answer was - rather than only the mistakes.
+CREATE TABLE IF NOT EXISTS answers (
+  kid   TEXT NOT NULL,
+  date  TEXT NOT NULL,
+  block TEXT NOT NULL,
+  n     INTEGER NOT NULL,       -- position on the sheet, from 1
+  q     TEXT NOT NULL,
+  gave  TEXT,
+  want  TEXT,
+  ok    INTEGER NOT NULL,       -- 1 right, 0 wrong
+  pad   TEXT,                   -- the working pad for this problem, if any
+  PRIMARY KEY (kid, date, block, n)
+);
+CREATE INDEX IF NOT EXISTS answers_kid_date ON answers (kid, date);
+
 -- Every question they got wrong. This is what the Recap and the
 -- monthly test are built from, so it is kept in full.
 CREATE TABLE IF NOT EXISTS misses (
