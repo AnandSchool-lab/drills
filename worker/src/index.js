@@ -234,39 +234,56 @@ async function postRetake(body, env) {
 }
 
 /* Everything the dashboard draws, in one request. */
+/* One query that cannot answer must not take the whole dashboard down.
+   A table added in a later version and never created returns "no such
+   table", and before this the parent page got a bare 500 with nothing
+   to go on. Now that part comes back empty and says so in `notes`. */
+async function safeAll(stmt, label, notes) {
+  try {
+    const r = await stmt.all();
+    return r.results || [];
+  } catch (e) {
+    notes.push(label + ": " + ((e && e.message) || "query failed"));
+    return [];
+  }
+}
+
 async function getLive(url, env) {
   const date = isDate(url.searchParams.get("date") || "")
     ? url.searchParams.get("date")
     : new Date().toISOString().slice(0, 10);
+  const notes = [];
 
   const [live, today, recentMisses, overdue, stuck] = await Promise.all([
-    env.DB.prepare(`SELECT * FROM live ORDER BY kid, block`).all(),
-    env.DB.prepare(`SELECT * FROM results WHERE date = ?1 ORDER BY kid, block`).bind(date).all(),
-    env.DB.prepare(
+    safeAll(env.DB.prepare(`SELECT * FROM live ORDER BY kid, block`), "live", notes),
+    safeAll(env.DB.prepare(`SELECT * FROM results WHERE date = ?1 ORDER BY kid, block`)
+      .bind(date), "results", notes),
+    safeAll(env.DB.prepare(
       `SELECT kid, date, block, q, gave, want FROM misses
        WHERE date >= date(?1, '-7 day') ORDER BY date DESC LIMIT 120`
-    ).bind(date).all(),
-    env.DB.prepare(
+    ).bind(date), "misses", notes),
+    safeAll(env.DB.prepare(
       `SELECT kid, date, block, got, total FROM results
        WHERE block IN ('weekly','monthly') AND date >= date(?1, '-45 day')
        ORDER BY date DESC`
-    ).bind(date).all(),
-    env.DB.prepare(
+    ).bind(date), "tests", notes),
+    safeAll(env.DB.prepare(
       `SELECT kid, date, block, pad, q, asked,
               CASE WHEN solution IS NULL OR solution = '' THEN 0 ELSE 1 END AS answered
        FROM stuck WHERE date >= date(?1, '-14 day') ORDER BY asked DESC LIMIT 60`
-    ).bind(date).all()
+    ).bind(date), "stuck", notes)
   ]);
 
   return {
     ok: true,
     date,
     serverTime: now(),
-    live: live.results || [],
-    today: today.results || [],
-    misses: recentMisses.results || [],
-    tests: overdue.results || [],
-    stuck: stuck.results || []
+    live: live,
+    today: today,
+    misses: recentMisses,
+    tests: overdue,
+    stuck: stuck,
+    notes: notes
   };
 }
 
@@ -295,10 +312,11 @@ async function postStuck(body, env) {
 async function getStuck(url, env) {
   const kid = url.searchParams.get("kid"), date = url.searchParams.get("date");
   if (!isKid(kid) || !isDate(date)) return { ok: false, error: "bad fields" };
-  const rows = await env.DB.prepare(
+  const notes = [];
+  const rows = await safeAll(env.DB.prepare(
     `SELECT block, pad, q, solution FROM stuck WHERE kid = ?1 AND date = ?2`
-  ).bind(kid, date).all();
-  return { ok: true, stuck: rows.results || [] };
+  ).bind(kid, date), "stuck", notes);
+  return { ok: true, stuck: rows, notes: notes };
 }
 
 /* The worked solution, written by a parent. Needs the key - a child
@@ -336,9 +354,14 @@ async function getReview(url, env) {
   const kid = url.searchParams.get("kid");
   if (!isKid(kid)) return { ok: false, error: "bad kid" };
   const date = url.searchParams.get("date");
-  const row = isDate(date)
-    ? await env.DB.prepare(`SELECT * FROM review WHERE kid = ?1 AND date = ?2`).bind(kid, date).first()
-    : await env.DB.prepare(`SELECT * FROM review WHERE kid = ?1 ORDER BY date DESC LIMIT 1`).bind(kid).first();
+  let row = null;
+  try {
+    row = isDate(date)
+      ? await env.DB.prepare(`SELECT * FROM review WHERE kid = ?1 AND date = ?2`).bind(kid, date).first()
+      : await env.DB.prepare(`SELECT * FROM review WHERE kid = ?1 ORDER BY date DESC LIMIT 1`).bind(kid).first();
+  } catch (e) {
+    return { ok: true, review: null, notes: ["review: " + ((e && e.message) || "query failed")] };
+  }
   if (!row) return { ok: true, review: null };
   const p = (v) => { try { return v ? JSON.parse(v) : null; } catch { return null; } };
   return { ok: true, review: {

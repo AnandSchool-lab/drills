@@ -51,6 +51,8 @@ input,select{font:inherit;font-size:15px;padding:8px 10px;border-radius:9px;
 .stamp{color:var(--muted);font-size:12px;text-align:center;margin:0 0 12px}
 
 /* live */
+.notes{background:var(--amber-soft);border:1px solid var(--amber);border-radius:10px;
+  padding:9px 12px;margin-bottom:10px;font-size:13px;line-height:1.5}
 .now{display:flex;align-items:center;gap:9px;flex-wrap:wrap;background:var(--good-soft);
   border:1px solid var(--good);border-radius:11px;padding:10px 13px;margin-bottom:12px;font-size:14.5px}
 .now b{font-weight:700}
@@ -146,6 +148,7 @@ input,select{font:inherit;font-size:15px;padding:8px 10px;border-radius:9px;
   </div>
   <p class="stamp" id="stamp"></p>
 
+  <div id="notes"></div>
   <div id="now"></div>
   <div id="stuck"></div>
   <div id="blocks"></div>
@@ -267,6 +270,13 @@ function paint(d){
   $("#dayLabel").textContent = pretty(day);
   $("#stamp").textContent = "updated " + ago(d.serverTime);
   $("#next").disabled = day >= todayStr();
+
+  /* Anything the server could not read. Empty on a healthy day; when a
+     table is missing it says so here instead of failing silently. */
+  var notes = d.notes || [];
+  $("#notes").innerHTML = notes.length
+    ? '<div class="notes">Part of this page could not load — ' + esc(notes.join("; ")) + '</div>'
+    : "";
 
   /* working right now */
   var now = (d.live || []).filter(function(r){ return r.kid === kid && r.date === day; });
