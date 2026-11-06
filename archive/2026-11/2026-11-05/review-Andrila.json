@@ -1,0 +1,8 @@
+{
+  "praise": "You stayed with your maths for 24 minutes and got 37 out of 42. In 6 9/12 − 3 1/12 your answer 3 8/12 was right; it only needed one more step.",
+  "math": {
+    "approach": "With mixed numbers you work on the whole numbers and the fractions separately, which is a good plan. Twice the sign got mixed up: in 3 10/12 − 2 2/12 you added the twelfths (10 + 2) instead of taking away, and in 3 + 1/4 you took a quarter away instead of adding it.",
+    "note": "Before you start, put a finger on the sign and say it out loud: plus or minus. When a question says \"simplify\", look for a number that divides top and bottom: 8/12 → divide both by 4 → 2/3."
+  },
+  "focus": ["adding and subtracting mixed numbers", "simplifying fractions", "comparing fractions like 1/8 and 1/4"]
+}

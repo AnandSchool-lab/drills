@@ -1,0 +1,17 @@
+{
+  "praise": "In your writing you gave a reason with \"because\", and you told me why home is special: it has everything you need and it is cozy. That is what a good paragraph does.",
+  "essay": {
+    "summary": "You picked a clear favourite place and explained why. Your first sentence appears twice, so the paragraph starts by repeating itself, and the second sentence joins three ideas with \"and\".",
+    "fixes": [
+      { "was": "wear I live", "should": "where I live", "why": "\"wear\" is for clothes; \"where\" is for places." },
+      { "was": "every thing", "should": "everything", "why": "It is one word." },
+      { "was": "My favorite place is home. My favorite place is home because", "should": "My favorite place is home because", "why": "Say it once, then give the reason." }
+    ],
+    "next": "Add one detail only you would know, like the room you like best or what it smells like, and split a long \"and… and…\" sentence into two."
+  },
+  "math": {
+    "approach": "You turned both mixed numbers into twelfths and set the subtraction out neatly in a column. But you wrote 6 9/12 as 69/12, which is putting the 6 and the 9 side by side. You did the same in 1 5/8 + 3 6/8, writing 15/8 and 36/8.",
+    "note": "To turn 6 9/12 into twelfths, multiply first: 6 × 12 = 72, then add the 9, so 81/12. In 27 ÷ 4 you found 24 (4 × 6), which was the right step. The answer is the 6 you multiplied by, with 3 left over."
+  },
+  "focus": ["mixed numbers to improper fractions", "division with remainders", "patterns that multiply"]
+}

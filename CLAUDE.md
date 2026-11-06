@@ -94,8 +94,9 @@ this repo, so a stale clone is normal.
 
 ## Open
 
-- Nightly review (`review` table) has not yet had a successful run; the feedback
-  panel is empty until it does.
+- Nightly review: a cloud Claude routine runs `REVIEW.md` at 11:00 pm Pacific
+  (first review written for 2026-11-05). The kids' feedback panel does not
+  show the `math` field yet — only the parent page does.
 - Deferred by him: worked examples at the start of each section; weekly and
   monthly tests; topic trends on the dashboard; push notifications.
 - Offered, never answered: an instant hint alongside *I don't know how*, to
