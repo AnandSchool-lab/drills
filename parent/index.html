@@ -98,12 +98,20 @@ input,select{font:inherit;font-size:15px;padding:8px 10px;border-radius:9px;
 /* The whole sheet. Two columns of problems once there is room for them,
    because one column down the middle of a wide screen wasted the page
    and made forty questions feel like scrolling forever. */
-.qgrid{display:grid;grid-template-columns:1fr;border-top:1px solid var(--line)}
-@media (min-width:900px){ .qgrid{grid-template-columns:1fr 1fr} }
-.qrow{display:grid;grid-template-columns:28px 1fr auto 14px minmax(0,auto) 26px;gap:9px;
-  align-items:baseline;padding:7px 13px;font-size:14px;
-  border-bottom:1px solid var(--line);min-width:0}
-@media (min-width:900px){ .qrow:nth-child(4n+1),.qrow:nth-child(4n+2){background:var(--surface)} }
+.qcols{display:grid;grid-template-columns:1fr;border-top:1px solid var(--line)}
+@media (min-width:900px){
+  .qcols{grid-template-columns:1fr 1fr}
+  .qcol+.qcol{border-left:1px solid var(--line)}
+}
+.qcol.empty{display:none}
+@media (min-width:900px){ .qcol.empty{display:block} }
+.qhead,.qrow{display:grid;grid-template-columns:30px 1fr auto 16px minmax(0,auto) 26px;gap:9px;
+  align-items:baseline;padding:7px 13px;min-width:0}
+.qhead{font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);
+  background:var(--surface-2);border-bottom:1px solid var(--line);padding-top:5px;padding-bottom:5px}
+.qhead span:nth-child(3),.qhead span:nth-child(5){text-align:right}
+.qrow{font-size:14px;border-bottom:1px solid var(--line)}
+.qrow:nth-child(even){background:var(--surface)}
 .qrow.bad{background:var(--bad-soft)}
 .qrow .n{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums;text-align:right}
 .qrow .qq{min-width:0;overflow-wrap:anywhere}
@@ -111,10 +119,11 @@ input,select{font:inherit;font-size:15px;padding:8px 10px;border-radius:9px;
   white-space:nowrap;text-align:right}
 .qrow .ga.ok{color:var(--ink);font-weight:600}
 .qrow .ga.blank{font-weight:500;font-style:italic;color:var(--muted)}
-.qrow .arr{color:var(--muted);text-align:center}
-.qrow.bad .arr{color:var(--bad)}
-.qrow:not(.bad) .arr{color:var(--good);font-weight:700}
-.qrow .wa{font-weight:700;color:var(--good);font-variant-numeric:tabular-nums;white-space:nowrap}
+.qrow .mk{text-align:center;font-weight:700}
+.qrow.bad .mk{color:var(--bad)}
+.qrow:not(.bad) .mk{color:var(--good)}
+.qrow .wa{font-weight:700;color:var(--good);font-variant-numeric:tabular-nums;
+  white-space:nowrap;text-align:right}
 .blk>header .key{color:var(--muted);font-size:11.5px;white-space:nowrap}
 @media (max-width:620px){ .blk>header .key{display:none} }
 .qrow .pen{text-align:right}
@@ -122,8 +131,7 @@ input,select{font:inherit;font-size:15px;padding:8px 10px;border-radius:9px;
   padding:1px 6px;font-size:13px;cursor:pointer;line-height:1.4}
 .inkbtn.on{border-color:var(--accent);color:var(--accent);background:var(--accent-soft,#EAF0FF)}
 /* her working opens under its own problem and spans both columns */
-.qink{grid-column:1/-1;padding:0 13px 10px;background:var(--surface-2);
-  border-bottom:1px solid var(--line)}
+.qink{padding:0 13px 10px;background:var(--surface-2);border-bottom:1px solid var(--line)}
 .qink[hidden]{display:none}
 .qink img.work{display:block;width:100%;max-height:420px;object-fit:contain;object-position:left top;
   background:#fff;border:1px solid var(--line);border-radius:8px;margin-top:9px;cursor:zoom-in}
@@ -132,7 +140,9 @@ input,select{font:inherit;font-size:15px;padding:8px 10px;border-radius:9px;
 .blk.onlybad .qrow:not(.bad){display:none}
 .blk.onlybad .qrow:not(.bad)+.qink{display:none}
 .filt{font-size:12px;padding:3px 9px}
-.legacy{padding:8px 13px;color:var(--muted);font-size:13px;border-top:1px solid var(--line)}
+.legacy{padding:10px 13px;color:var(--ink);font-size:13px;line-height:1.5;
+  border-top:1px solid var(--line);background:var(--amber-soft)}
+.legacy b{color:var(--amber)}
 .allright{padding:9px 13px;border-top:1px solid var(--line);color:var(--good);font-size:14px}
 .nowork{padding:9px 13px;color:var(--muted);font-size:14px}
 .notehost .lab{padding:10px 13px 0;font-size:12px;letter-spacing:.06em;
@@ -322,6 +332,36 @@ function paint(d){
       '<span style="margin-left:auto;color:var(--muted);font-size:12.5px">seen ' + ago(r.seen_at) + '</span></div>';
   }).join("");
 
+/* One problem, one line: what was asked, what she wrote, the right
+   answer when she missed it, and a pencil if she showed her working. */
+function rowHTML(a){
+  var gave = a.gave || "", blank = !gave || /^\(?blank\)?$/i.test(gave);
+  return '<div class="qrow' + (a.ok ? "" : " bad") + '" data-pad="' + esc(a.pad || "") + '">' +
+    '<span class="n">' + a.n + '</span>' +
+    '<span class="qq">' + esc(a.q) + '</span>' +
+    '<span class="ga' + (a.ok ? " ok" : "") + (blank ? " blank" : "") + '">' +
+      esc(blank ? "nothing" : gave) + '</span>' +
+    '<span class="mk">' + (a.ok ? "✓" : "✗") + '</span>' +
+    '<span class="wa">' + (a.ok ? "" : esc(a.want)) + '</span>' +
+    '<span class="pen"></span>' +
+  '</div><div class="qink" hidden></div>';
+}
+
+/* Two columns side by side on a real screen, each with its own heading
+   row so no number on the page is ever unlabelled. Straight down the
+   left column, then the right. One column on a phone. */
+function columns(rows){
+  var head = '<div class="qhead"><span></span><span>Question</span>' +
+    '<span>She wrote</span><span></span><span>Answer</span><span></span></div>';
+  var half = Math.ceil(rows.length / 2);
+  return '<div class="qcols">' +
+    '<div class="qcol">' + head + rows.slice(0, half).join("") + '</div>' +
+    (rows.length > half
+      ? '<div class="qcol">' + head + rows.slice(half).join("") + '</div>'
+      : '<div class="qcol empty"></div>') +
+  '</div>';
+}
+
   /* A block at a time, and inside it the whole sheet: every question in
      the order she met it, what she wrote, what the answer was, and her
      working beside the problem it belongs to. The old version listed
@@ -346,8 +386,7 @@ function paint(d){
 
     var head = '<header><span class="nm">' + LABEL[b] + '</span>' +
       (r ? '<span class="tm">' + Math.round(r.secs/60) + ' min</span>' +
-           (all.length ? '<span class="key">she wrote → right answer</span>' +
-                         '<button class="sm filt" data-b="' + b + '">show only the ' +
+           (all.length ? '<button class="sm filt" data-b="' + b + '">show only the ' +
                           missed + ' wrong</button>' : '') +
            '<span class="sc ' + (pc >= 0.8 ? "good" : "work") + '">' + r.got + ' / ' + r.total + '</span>'
          : '<span class="sc" style="color:var(--muted)">not done</span>') +
@@ -357,27 +396,14 @@ function paint(d){
     if(!r){
       body = "";
     } else if(all.length){
-      body = '<div class="qgrid">' + all.map(function(a){
-        var gave = a.gave || "blank", blank = /^\(?blank\)?$/i.test(gave);
-        return '<div class="qrow' + (a.ok ? "" : " bad") + '" data-pad="' + esc(a.pad || "") + '">' +
-          '<span class="n">' + a.n + '</span>' +
-          '<span class="qq">' + esc(a.q) + '</span>' +
-          '<span class="ga' + (a.ok ? " ok" : "") + (blank ? " blank" : "") + '">' +
-            esc(blank ? "nothing" : gave) + '</span>' +
-          (a.ok ? '<span class="arr">✓</span><span class="wa"></span>'
-                : '<span class="arr">→</span><span class="wa">' + esc(a.want) + '</span>') +
-          '<span class="pen"></span>' +
-        '</div><div class="qink" hidden></div>';
-      }).join("") + '</div>';
+      body = columns(all.map(rowHTML));
     } else if(ws.length){
-      body = '<div class="legacy">Only the mistakes were recorded on this day.</div>' +
-        '<div class="qgrid">' + ws.map(function(m, i){
-          return '<div class="qrow bad"><span class="n">' + (i+1) + '</span>' +
-            '<span class="qq">' + esc(m.q) + '</span>' +
-            '<span class="ga">' + esc(m.gave || "nothing") + '</span>' +
-            '<span class="arr">→</span>' +
-            '<span class="wa">' + esc(m.want) + '</span><span class="pen"></span></div>';
-        }).join("") + '</div>';
+      body = '<div class="legacy"><b>This day is from before the whole sheet was kept.</b> ' +
+        'Only her mistakes were recorded, so the ones she got right are not listed. ' +
+        'Every day from 6 November shows all of it.</div>' +
+        columns(ws.map(function(m, i){
+          return rowHTML({ n:i+1, q:m.q, gave:m.gave, want:m.want, ok:0, pad:"" });
+        }));
     } else {
       body = '<div class="allright">All correct.</div>';
     }
