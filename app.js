@@ -8,7 +8,7 @@
 
 /* ---------- configuration you may want to change ---------- */
 var START_DATE = "2026-10-27";   // Monday the programme begins. Week 1 starts here.
-var APP_VERSION = "24";          // shown on the home screen; keep in step with CACHE in sw.js
+var APP_VERSION = "25";          // shown on the home screen; keep in step with CACHE in sw.js
 
 /* Google Apps Script web-app URL. Blank = results stay on the iPad only.
    Paste the /exec URL from Deploy → New deployment → Web app. */
@@ -384,8 +384,17 @@ function measureProblem(L){
     return { q:"A rectangle is "+l+" cm long and "+w+" cm wide. What is its perimeter in cm?", a:2*(l+w), hint:"All four sides added together." }; }
   if(kind === 2){ l = ri(4,16); w = ri(3,14);
     return { q:"A rectangle is "+l+" cm long and "+w+" cm wide. What is its area in square cm?", a:l*w, hint:"Length times width." }; }
+  /* Ask for the end time, and take it as a time. The old wording asked
+     "What time does it end?" and then demanded the answer in minutes
+     past 2:15, so a child who worked it out properly and wrote 6:00 pm
+     was marked wrong for understanding the question. */
   if(kind === 3){ h = ri(1,4); m = ri(1,11)*5;
-    return { q:"A film starts at 2:15 pm and lasts "+h+" hours and "+m+" minutes. What time does it end? Answer in minutes past 2:15.", a:h*60+m, hint:"Turn the hours into minutes and add." }; }
+    var end = 14*60 + 15 + h*60 + m;          // the film starts at 2:15 pm
+    var eh = Math.floor(end/60) % 24, em = end % 60;
+    var ampm = eh >= 12 ? "pm" : "am", e12 = eh % 12 === 0 ? 12 : eh % 12;
+    return { q:"A film starts at 2:15 pm and lasts "+h+" hours and "+m+" minutes. What time does it end?",
+             a: e12 + ":" + String(em).padStart(2,"0") + " " + ampm, kind:"clock",
+             hint:"Add the hours first, then the minutes. Write it like 6:00 pm." }; }
   if(kind === 4){ qty = ri(3,9); cost = ri(125,495);
     return { q:"One notebook costs $"+(cost/100).toFixed(2)+". What do "+qty+" notebooks cost, in cents?", a:qty*cost, hint:"Work in cents to avoid the decimal point." }; }
   l = ri(2,9); w = ri(3,12);
@@ -1315,8 +1324,11 @@ function wireLiveClear(){
 }
 
 /* ---------- renderers ---------- */
-function numInput(ans, label, qtext){
-  return '<input class="ans" type="text" inputmode="numeric" autocomplete="off" data-a="'+esc(ans)+'"' +
+function numInput(ans, label, qtext, kind){
+  var clock = kind === "clock";
+  return '<input class="ans' + (clock ? " clock" : "") + '" type="text" ' +
+    'inputmode="' + (clock ? "text" : "numeric") + '" autocomplete="off" data-a="'+esc(ans)+'"' +
+    (clock ? ' placeholder="6:00 pm"' : "") +
     (qtext ? ' data-q="'+esc(qtext)+'"' : "") + ' aria-label="'+esc(label)+'">';
 }
 function clearBar(target){
@@ -1500,7 +1512,8 @@ function sectionHTML(sec, idPrefix){
       return '<div class="tile'+pc+'"><span class="q">'+q+' =</span>' +
         '<span class="slot">'+numInput(it.a, it.q)+'</span>' +
         '<span class="rlab">R</span><span class="slot sm">' +
-        '<input class="ans" type="text" inputmode="numeric" data-a="'+it.r+'" data-opt="1" aria-label="remainder"></span>' +
+        '<input class="ans" type="text" inputmode="numeric" data-a="'+it.r+'" data-opt="1"'+
+          ' data-q="'+q+' (remainder)" aria-label="remainder"></span>' +
         work + '</div>';
     }
     if(it.kind === "frac"){
@@ -1559,7 +1572,7 @@ function blockThink(){
   var chal = genChallenge(L);
   var chalRows = chal.map(function(it,i){
     return '<div class="prob"><p class="pq"><b>★'+(i+1)+'.</b> '+esc(it.q)+'</p>' +
-      '<div class="prow">'+numInput(it.a, "Challenge "+(i+1), "★ "+it.q)+
+      '<div class="prow">'+numInput(it.a, "Challenge "+(i+1), "★ "+it.q, it.kind)+
       '<button class="ghost sm" data-hint="c'+i+'">Hint</button></div>' +
       padHost("c0", i, it.q) +
       '<p class="hint" id="hc'+i+'" hidden>'+esc(it.hint)+'</p>' +
@@ -1570,7 +1583,7 @@ function blockThink(){
     chalRows + clearBar("c0") + '</section>';
   var rows = items.map(function(it,i){
     return '<div class="prob"><p class="pq"><b>'+(i+1)+'.</b> '+esc(it.q)+'</p>' +
-      '<div class="prow">'+numInput(it.a, "Answer "+(i+1), it.q)+
+      '<div class="prow">'+numInput(it.a, "Answer "+(i+1), it.q, it.kind)+
       '<button class="ghost sm" data-hint="'+i+'">Hint</button></div>' +
       padHost("t0", i, it.q) +
       '<p class="hint" id="h'+i+'" hidden>'+esc(it.hint)+(it.aNote ? " " + esc(it.aNote) : "")+'</p></div>';
@@ -1805,6 +1818,31 @@ function sameNum(a,b){
   if(isNaN(x) || isNaN(y)) return norm(a) === norm(b);
   return Math.abs(x-y) < 1e-6;
 }
+
+/* A time written any of the ways a nine-year-old writes one:
+   "6:00 pm", "6:00pm", "6 pm", "6:00", "18:00". Minutes after midnight,
+   or null if it is not a time at all. */
+function clockMins(s){
+  var t = String(s == null ? "" : s).toLowerCase().replace(/[\s.]/g, "");
+  var m = t.match(/^(\d{1,2})(?::(\d{2}))?(am|pm)?$/);
+  if(!m) return null;
+  var h = +m[1], mi = m[2] ? +m[2] : 0, ap = m[3];
+  if(mi > 59) return null;
+  if(ap){
+    if(h < 1 || h > 12) return null;
+    h = (h % 12) + (ap === "pm" ? 12 : 0);
+  } else if(h > 23) return null;
+  return { mins: h * 60 + mi, hasAmPm: !!ap };
+}
+
+/* Right if it is the same time. With no am or pm written, half past six
+   is accepted either way round - the child did the arithmetic, which is
+   what the question was about. */
+function sameClock(have, want){
+  var a = clockMins(have), b = clockMins(want);
+  if(!a || !b) return norm(have) === norm(want);
+  return a.hasAmPm ? a.mins === b.mins : a.mins % 720 === b.mins % 720;
+}
 function gradeSheet(block){
   var got = 0, total = 0, misses = [];
 
@@ -1812,7 +1850,9 @@ function gradeSheet(block){
     var want = inp.dataset.a, have = inp.value;
     if(inp.dataset.opt === "1" && want === "0" && norm(have) === "") have = "0";
     total++;
-    var right = inp.classList.contains("word") ? norm(have) === norm(want) : sameNum(have, want);
+    var right = inp.classList.contains("clock") ? sameClock(have, want)
+              : inp.classList.contains("word")  ? norm(have) === norm(want)
+              : sameNum(have, want);
     inp.classList.toggle("ok", right); inp.classList.toggle("no", !right);
     if(right) got++;
     else misses.push({ q: inp.dataset.q || inp.getAttribute("aria-label") || "", gave: inp.value, want: want,
