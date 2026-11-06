@@ -144,7 +144,8 @@ input,select{font:inherit;font-size:15px;padding:8px 10px;border-radius:9px;
   border-top:1px solid var(--line);background:var(--amber-soft)}
 .legacy b{color:var(--amber)}
 .allright{padding:9px 13px;border-top:1px solid var(--line);color:var(--good);font-size:14px}
-.nowork{padding:9px 13px;color:var(--muted);font-size:14px}
+.nowork{padding:11px 13px;color:var(--muted);font-size:13.5px;
+  border-top:1px solid var(--line)}
 .notehost .lab{padding:10px 13px 0;font-size:12px;letter-spacing:.06em;
   text-transform:uppercase;color:var(--muted)}
 /* An essay is a tall page. Letting it fill the width and run to its own
@@ -394,7 +395,11 @@ function columns(rows){
 
     var body;
     if(!r){
-      body = "";
+      /* Say so. A bare empty card at nine in the morning looks like a
+         page that is not working, rather than a day not started. */
+      body = '<div class="nowork">' + esc(kid) + ' has not finished ' + LABEL[b] +
+        (day === todayStr() ? " today yet." : " on this day.") +
+        ' Every question will be listed here once she presses Check.</div>';
     } else if(all.length){
       body = columns(all.map(rowHTML));
     } else if(ws.length){
