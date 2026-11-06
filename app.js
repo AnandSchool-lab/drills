@@ -8,7 +8,7 @@
 
 /* ---------- configuration you may want to change ---------- */
 var START_DATE = "2026-10-27";   // Monday the programme begins. Week 1 starts here.
-var APP_VERSION = "23";          // shown on the home screen; keep in step with CACHE in sw.js
+var APP_VERSION = "24";          // shown on the home screen; keep in step with CACHE in sw.js
 
 /* Google Apps Script web-app URL. Blank = results stay on the iPad only.
    Paste the /exec URL from Deploy → New deployment → Web app. */
@@ -1483,20 +1483,17 @@ function mountPads(block){
   });
 }
 
-/* Which problems deserve a working space. A times-table fact does not -
-   giving it one just buries the sheet in empty boxes. Anything with a
-   two-digit number, a fraction or a remainder does. */
-function needsWork(it){
-  if(it.kind === "frac" || it.kind === "divr") return true;
-  return /\d{2}/.test(String(it.q));
-}
-
 function sectionHTML(sec, idPrefix){
   var pad = !!sec.pad;
-  var anyPad = pad && sec.items.some(needsWork);
+  /* Every problem gets the same two buttons. An earlier version gave them
+     only to the ones I judged hard enough, which left the sheet looking
+     broken: 7 x 4 had nothing, 45 x 4 had both, and a child stuck on a
+     times-table fact had no way to say so. Two problems to a row keeps it
+     short instead. */
+  var anyPad = pad;
   var rows = sec.items.map(function(it, i){
     var q = esc(it.q);
-    var mine = pad && needsWork(it);
+    var mine = pad;
     var work = mine ? padHost(idPrefix, i, it.q) : "";
     var pc = mine ? " haspad" : "";
     if(it.kind === "divr"){
@@ -1564,6 +1561,7 @@ function blockThink(){
     return '<div class="prob"><p class="pq"><b>★'+(i+1)+'.</b> '+esc(it.q)+'</p>' +
       '<div class="prow">'+numInput(it.a, "Challenge "+(i+1), "★ "+it.q)+
       '<button class="ghost sm" data-hint="c'+i+'">Hint</button></div>' +
+      padHost("c0", i, it.q) +
       '<p class="hint" id="hc'+i+'" hidden>'+esc(it.hint)+'</p>' +
       '<div class="model" data-sol hidden><strong>How to solve it:</strong> '+esc(it.sol)+'</div></div>';
   }).join("");
@@ -1574,6 +1572,7 @@ function blockThink(){
     return '<div class="prob"><p class="pq"><b>'+(i+1)+'.</b> '+esc(it.q)+'</p>' +
       '<div class="prow">'+numInput(it.a, "Answer "+(i+1), it.q)+
       '<button class="ghost sm" data-hint="'+i+'">Hint</button></div>' +
+      padHost("t0", i, it.q) +
       '<p class="hint" id="h'+i+'" hidden>'+esc(it.hint)+(it.aNote ? " " + esc(it.aNote) : "")+'</p></div>';
   }).join("");
   var html = chalHTML + '<section class="card" data-sec="t0"><div class="chead"><h2>Thinking problems</h2></div>' +
@@ -1589,6 +1588,7 @@ function blockThink(){
     wireSheet("think", function(){
       app.querySelectorAll("[data-sol]").forEach(function(s){ s.hidden = false; });
     });
+    mountPads("think");
   }, "think");
 }
 

@@ -149,9 +149,12 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 /* ---- problem tiles ---- */
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px}
 .grid.wide{grid-template-columns:repeat(auto-fill,minmax(258px,1fr))}
-/* a sheet can mix compact facts with full-width problems that need working */
-.grid.padded{gap:12px}
-.tile.haspad{grid-column:1/-1;display:block}
+/* Two problems to a row once every tile carries its working buttons.
+   One per row wasted most of an iPad's width and made a ten-question
+   section feel endless. Below 760px there is only room for one. */
+.grid.padded{gap:12px;grid-template-columns:repeat(2,1fr)}
+@media (max-width:760px){ .grid.padded{grid-template-columns:1fr} }
+.tile.haspad{display:block}
 .tile.haspad .q{display:block;white-space:normal;margin-bottom:9px}
 .tile.haspad .slot{display:inline-block;width:112px;margin-left:0;vertical-align:middle}
 .tile.haspad .slot.sm{width:68px}
