@@ -94,7 +94,7 @@ this repo, so a stale clone is normal.
 
 ## Open
 
-- Nightly review: a cloud Claude routine runs `REVIEW.md` at 11:00 pm Pacific
+- Nightly review: a cloud Claude routine runs `REVIEW.md` at 1:00 am Pacific
   (first review written for 2026-11-05). The kids' feedback panel does not
   show the `math` field yet — only the parent page does.
 - Deferred by him: worked examples at the start of each section; weekly and

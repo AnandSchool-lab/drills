@@ -1,6 +1,7 @@
 # Overnight review — instructions for Claude
 
-Run every night at 11:00 pm Pacific, after the 10:10 pm export has committed
+Run every night at 1:00 am Pacific, well after the 10:10 pm export (which GitHub
+often starts an hour late) has committed
 the day into `archive/`. You read each girl's work and write a short note
 that she sees on her home screen the next morning and that her father,
 Anand, sees on the parent page. Read `CLAUDE.md` first for what this app is for.

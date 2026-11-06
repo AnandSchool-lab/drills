@@ -58,6 +58,12 @@ REVIEW_ALVINA = {
     "focus": ["simplifying fractions", "hear / here"],
 }
 
+def real_review(kid, fallback):
+    """The newest real overnight review for this child, else the invented one,
+    so the preview shows what the girls will actually read."""
+    found = sorted((SRC / "archive").glob(f"*/*/review-{kid}.json"))
+    return {"kid": kid, "date": TODAY, **json.load(open(found[-1]))} if found else fallback
+
 kids = inline_scripts((SRC / "index.html").read_text(), SRC)
 kids = kids.replace("</head>", """
 <script>
@@ -125,7 +131,7 @@ kids = kids.replace("</head>", """
   box-shadow:0 -2px 12px rgba(0,0,0,.2);max-width:96vw;text-align:center}
 .previewbar b{letter-spacing:.06em;text-transform:uppercase;font-size:.72rem}
 </style>
-</head>""" % json.dumps(REVIEW_ALVINA))
+</head>""" % json.dumps(REVIEW_ALVINA := real_review("Alvina", REVIEW_ALVINA)))
 (OUT / "Preview-kids-app.html").write_text(kids)
 print("kids preview:", len(kids)//1024, "KB")
 
@@ -234,6 +240,8 @@ REVIEW_ANDRILA = {
             "note":"Worth asking her to show one line, so a slip is findable."},
     "focus":["showing working"],
 }
+
+REVIEW_ANDRILA = real_review("Andrila", REVIEW_ANDRILA)
 
 INK = {
     "Alvina": {"ok":True,"kid":"Alvina","date":TODAY,"pads":[
