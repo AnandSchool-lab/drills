@@ -204,12 +204,29 @@ function openGate(msg){
   $("#gateErr").textContent = msg || ""; $("#pass").focus();
 }
 function fetchLive(k, d){
-  return fetch(API + "/live?key=" + encodeURIComponent(k) + "&date=" + d)
+  return fetch(API + "/live?key=" + encodeURIComponent(k) + "&date=" + d, { cache:"no-store" })
     .then(function(r){
       if(r.status === 401) return { bad:true };
       if(!r.ok) throw new Error("server " + r.status);
       return r.json();
     });
+}
+
+/* When the gate cannot get through, say which of the three things went
+   wrong rather than "could not reach the server". /health needs no key
+   and no database, so if that answers, the Worker is up and the problem
+   is this page or the key; if it does not, the network in front of you
+   is blocking the address, or the Worker is not deployed. */
+function diagnose(err){
+  var host = API.replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+  return fetch(API + "/health", { cache:"no-store" }).then(function(r){
+    return r.ok
+      ? "The server is up, but it refused that request (" + err.message + "). Try again in a moment."
+      : "The server answered " + r.status + " on /health. It is deployed but unwell.";
+  }).catch(function(){
+    return "Nothing on this network can reach " + host + ". If you are on the office " +
+           "wi-fi it is probably blocked there — try your phone on cellular to check.";
+  });
 }
 $("#go").addEventListener("click", submit);
 $("#pass").addEventListener("keydown", function(e){ if(e.key === "Enter") submit(); });
@@ -226,7 +243,8 @@ function submit(){
     paint(d); start();
   }).catch(function(e){
     $("#go").disabled = false;
-    $("#gateErr").textContent = "Could not reach the server. " + e.message;
+    $("#gateErr").textContent = "Checking why…";
+    diagnose(e).then(function(msg){ $("#gateErr").textContent = msg; });
   });
 }
 $("#forget").addEventListener("click", function(){
