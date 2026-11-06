@@ -243,14 +243,18 @@ REVIEW_ANDRILA = {
 
 REVIEW_ANDRILA = real_review("Andrila", REVIEW_ANDRILA)
 
+# Alvina's real working for 6 9/12 - 3 1/12, so the pencil opens real handwriting
+_real = SRC / "archive/2026-11/2026-11-05/Alvina/math-m2-3-strokes.json"
+REAL_INK = _real.read_text() if _real.exists() else json.dumps({"v":1,"mode":"ink","imgs":[],"text":"","s":[]})
+
 INK = {
     "Alvina": {"ok":True,"kid":"Alvina","date":TODAY,"pads":[
         {"block":"math","pad":"m2-1","mode":"photo","bytes":0,"at":"",
          "data": json.dumps({"v":1,"mode":"photo","imgs":[SHOTS["math"]],"text":""})},
         {"block":"math","pad":"m0-2","mode":"type","bytes":0,"at":"",
          "data": json.dumps({"v":1,"mode":"type","imgs":[],"text":"40x4=160\n5x4=20\n160+20=170"})},
-        {"block":"math","pad":"m2-5","mode":"ink","bytes":0,"at":"",
-         "data": json.dumps({"v":1,"mode":"ink","imgs":[],"text":"","s":[]})},
+        {"block":"math","pad":"m2-2","mode":"ink","bytes":0,"at":"",
+         "data": REAL_INK},
         {"block":"eng","pad":"write","mode":"photo","bytes":0,"at":"",
          "data": json.dumps({"v":1,"mode":"photo","imgs":[SHOTS["essay"]],"text":""})},
     ]},

@@ -171,6 +171,75 @@ input,select{font:inherit;font-size:15px;padding:8px 10px;border-radius:9px;
   padding-top:12px;border-top:1px solid var(--line);font-size:13px;color:var(--muted)}
 .foot a{color:var(--accent)}
 .msg{font-size:13px;color:var(--muted)}
+
+/* ===== Look v2: one clean window, coloured section tags, short text,
+   small buttons. Only styling and order change - every feature and her
+   handwriting are exactly as before. ===== */
+:root{ --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --t-recap:#7A4FD0; --t-math:#2454CE; --t-think:#C8661A; --t-eng:#1C7C54; }
+@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){
+  --t-recap:#B79BFF; --t-math:#8FB0FF; --t-think:#F0A458; --t-eng:#5FD3A0; }}
+body{background:var(--bg)}
+.wrap{max-width:1180px}
+.win{background:var(--surface);border:1px solid var(--line);border-radius:14px;
+  overflow:hidden;margin-bottom:12px}
+.winbar{display:flex;align-items:center;gap:10px;padding:9px 14px;
+  border-bottom:1px solid var(--line);background:var(--surface-2)}
+.dots{display:flex;gap:6px}
+.dots i{width:11px;height:11px;border-radius:50%;display:block}
+.dots i:nth-child(1){background:#FF5F57} .dots i:nth-child(2){background:#FEBC2E}
+.dots i:nth-child(3){background:#28C840}
+.wtitle{font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+.winbody{padding:12px 14px 4px}
+.tabs{gap:4px;margin-bottom:10px;background:var(--surface-2);border:1px solid var(--line);
+  border-radius:10px;padding:3px;width:max-content}
+.tab{flex:0 0 auto;font-size:13.5px;padding:5px 16px;border:0;border-radius:8px;background:none}
+.tab.on{background:var(--surface);color:var(--ink);box-shadow:0 0 0 1px var(--line)}
+.daynav{margin-bottom:6px}
+.daynav .d{text-align:left;font-size:17px;font-weight:700;order:-1}
+.daynav button{padding:4px 10px;font-size:13px;border-radius:7px}
+.stamp{text-align:left;font-family:var(--mono);font-size:11.5px;margin-bottom:10px}
+
+/* tag-style labels: <math> ... */
+.tag{font-family:var(--mono);font-weight:700;font-size:13px;letter-spacing:0;text-transform:none}
+.tag::before{content:"<";opacity:.55} .tag::after{content:">";opacity:.55}
+.blk{border-radius:14px}
+.blk>header{background:var(--surface);border-bottom:0;padding:11px 14px}
+.blk>header .nm{font-family:var(--mono);font-size:13.5px;text-transform:lowercase}
+.blk>header .nm::before{content:"<";opacity:.5} .blk>header .nm::after{content:">";opacity:.5}
+.blk[data-b="recap"]>header .nm{color:var(--t-recap)}
+.blk[data-b="math"]>header .nm{color:var(--t-math)}
+.blk[data-b="think"]>header .nm{color:var(--t-think)}
+.blk[data-b="eng"]>header .nm{color:var(--t-eng)}
+.blk[data-b="recap"]{border-top:3px solid var(--t-recap)}
+.blk[data-b="math"]{border-top:3px solid var(--t-math)}
+.blk[data-b="think"]{border-top:3px solid var(--t-think)}
+.blk[data-b="eng"]{border-top:3px solid var(--t-eng)}
+.blk>header .sc{font-family:var(--mono);font-size:13.5px}
+.blk>header .tm{font-family:var(--mono);font-size:11.5px}
+.filt{font-size:11.5px;padding:2px 9px;border-radius:999px}
+.qhead{font-family:var(--mono);font-size:10.5px;background:var(--surface-2)}
+.qrow{font-size:13.5px;padding-top:6px;padding-bottom:6px}
+.qhead,.qrow{grid-template-columns:28px 1fr auto 14px minmax(0,auto) auto}
+/* the pencil: a small pill that opens her own handwriting, as she drew it */
+.inkbtn{border-radius:999px;font-size:11.5px;padding:1px 8px;white-space:nowrap;
+  color:var(--t-math);border-color:currentColor;background:var(--surface)}
+.inkbtn::after{content:" working"}
+.inkbtn.on{background:var(--t-math);color:#fff;border-color:var(--t-math)}
+.qink img.work{border-radius:10px}
+
+/* last night's review is the summary, so it sits first */
+.rv{border:1px solid var(--line);border-left:0;border-top:3px solid var(--accent);
+  border-radius:14px;margin:0 0 12px;padding:12px 14px}
+.rv h3{font-family:var(--mono);font-size:13px;letter-spacing:0;text-transform:none;color:var(--accent)}
+.rv h3::before{content:"<";opacity:.5} .rv h3::after{content:">";opacity:.5}
+.rv .lab{font-family:var(--mono);font-size:11px;letter-spacing:0;text-transform:none;font-weight:700}
+.rv .lab::before{content:"# ";opacity:.5}
+.now{border-radius:12px;font-size:13.5px}
+.stuckbox{border-radius:14px}
+.stuckbox h3{font-family:var(--mono);letter-spacing:0;text-transform:none;font-size:13px}
+.foot{font-family:var(--mono);font-size:12px}
+.foot button{font-family:inherit}
 </style>
 </head>
 <body>
@@ -184,20 +253,26 @@ input,select{font:inherit;font-size:15px;padding:8px 10px;border-radius:9px;
 </div>
 
 <div class="wrap" id="board" hidden>
-  <div class="tabs" id="tabs"></div>
-  <div class="daynav">
-    <button id="prev" aria-label="previous day">‹</button>
-    <span class="d" id="dayLabel">—</span>
-    <button id="next" aria-label="next day">›</button>
-    <button id="todayBtn" class="sm">Today</button>
+  <div class="win">
+    <div class="winbar"><span class="dots"><i></i><i></i><i></i></span>
+      <span class="wtitle">daily-drills · parent</span></div>
+    <div class="winbody">
+      <div class="tabs" id="tabs"></div>
+      <div class="daynav">
+        <button id="prev" aria-label="previous day">‹</button>
+        <span class="d" id="dayLabel">—</span>
+        <button id="next" aria-label="next day">›</button>
+        <button id="todayBtn" class="sm">Today</button>
+      </div>
+      <p class="stamp" id="stamp"></p>
+    </div>
   </div>
-  <p class="stamp" id="stamp"></p>
 
   <div id="notes"></div>
+  <div id="review"></div>
   <div id="now"></div>
   <div id="stuck"></div>
   <div id="blocks"></div>
-  <div id="review"></div>
 
   <div class="foot">
     <button class="sm" id="retake">Clear this day so she does it again</button>
@@ -604,7 +679,7 @@ function loadReview(){
       var rv = d && d.review;
       if(!rv) return;
       var sp = rv.spelling || [], es = rv.essay || {}, fx = es.fixes || [];
-      host.innerHTML = '<div class="rv"><h3>What I found reading this day</h3>' +
+      host.innerHTML = '<div class="rv"><h3>overnight-review</h3>' +
         (rv.praise ? '<div class="praise">' + esc(rv.praise) + '</div>' : "") +
         (sp.length ? '<div class="lab">Spelling</div><ul>' + sp.map(function(w){
             return '<li><s>' + esc(w.wrote) + '</s> &rarr; <b>' + esc(w.right) + '</b></li>'; }).join("") + '</ul>' : "") +
