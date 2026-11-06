@@ -1,0 +1,31 @@
+# Push any overnight review that has landed in the archive up to the Worker,
+# so the children see it on their home screen and it shows on the parent page.
+#
+# The review itself is written into this repository by Claude overnight.
+# This workflow only carries it the last step, because the parent key lives
+# here as a repository secret and never needs to exist anywhere else.
+
+name: Publish review
+
+on:
+  push:
+    paths:
+      - "archive/**/review-*.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Send each new review to the Worker
+        env:
+          API: https://drills-api.anandm401-amazon.workers.dev
+          PARENT_KEY: ${{ secrets.PARENT_KEY }}
+        run: node .github/scripts/publish-review.mjs

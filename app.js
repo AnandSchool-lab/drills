@@ -8,7 +8,7 @@
 
 /* ---------- configuration you may want to change ---------- */
 var START_DATE = "2026-10-27";   // Monday the programme begins. Week 1 starts here.
-var APP_VERSION = "20";          // shown on the home screen; keep in step with CACHE in sw.js
+var APP_VERSION = "21";          // shown on the home screen; keep in step with CACHE in sw.js
 
 /* Google Apps Script web-app URL. Blank = results stay on the iPad only.
    Paste the /exec URL from Deploy → New deployment → Web app. */
@@ -963,6 +963,43 @@ function screenCalendar(){
   $("#refresh").addEventListener("click", getLatest);
   $("#report").addEventListener("click", screenReport);
   $("#parent").addEventListener("click", screenParent);
+  loadFeedback();
+}
+
+/* ============================================================
+   WHAT CLAUDE SAW LAST NIGHT
+
+   Their own work, read overnight and handed back the next morning.
+   Praise first, and only where it is true - a child can tell the
+   difference between "good job" and someone who actually looked.
+   ============================================================ */
+function loadFeedback(){
+  var box = document.getElementById("feedback");
+  if(!box || !apiUrl() || !who()) return;
+  fetch(apiUrl() + "/review?kid=" + encodeURIComponent(who()))
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      var rv = d && d.review;
+      if(!rv) return;
+      var sp = rv.spelling || [], es = rv.essay || {}, fixes = es.fixes || [];
+      box.innerHTML =
+        '<section class="fb"><div class="fbhead">' +
+          '<strong>What I noticed in yesterday&rsquo;s work</strong>' +
+          '<span class="fbdate">' + esc(prettyDate(rv.date)) + '</span></div>' +
+        (rv.praise ? '<p class="fbpraise">' + esc(rv.praise) + '</p>' : "") +
+        (sp.length ?
+          '<div class="fbsec"><h4>Spelling</h4><ul class="fbsp">' +
+          sp.slice(0, 8).map(function(w){
+            return '<li><s>' + esc(w.wrote) + '</s> &rarr; <b>' + esc(w.right) + '</b></li>';
+          }).join("") + '</ul></div>' : "") +
+        (es.summary ? '<div class="fbsec"><h4>Your writing</h4><p>' + esc(es.summary) + '</p>' +
+          (fixes.length ? '<ul class="fbfix">' + fixes.slice(0, 5).map(function(f){
+            return '<li><s>' + esc(f.was) + '</s> &rarr; <b>' + esc(f.should) + '</b>' +
+                   (f.why ? ' <span class="why">' + esc(f.why) + '</span>' : "") + '</li>';
+          }).join("") + '</ul>' : "") + '</div>' : "") +
+        (es.next ? '<p class="fbnext"><b>Try this today:</b> ' + esc(es.next) + '</p>' : "") +
+        '</section>';
+    }).catch(function(){});
 }
 
 /* ---------- the three blocks for one day ---------- */
@@ -1000,6 +1037,7 @@ function screenDay(){
     '<div class="sheet">' +
       '<p class="dayline">Day '+(day>0?day:1)+' · Level '+L +
         (ahead ? ' · <span class="aheadtag">this day is still ahead</span>' : '') + '</p>' +
+      '<div id="feedback"></div>' +
       '<div class="blocks">' + blockCard("recap") + blockCard("math") + blockCard("think") + blockCard("eng") + '</div>' +
       '<div class="foot"><button class="ghost" id="report">Progress report</button>' +
       '<button class="ghost" id="parent">For parents</button></div>' +
@@ -1010,6 +1048,43 @@ function screenDay(){
   });
   $("#report").addEventListener("click", screenReport);
   $("#parent").addEventListener("click", screenParent);
+  loadFeedback();
+}
+
+/* ============================================================
+   WHAT CLAUDE SAW LAST NIGHT
+
+   Their own work, read overnight and handed back the next morning.
+   Praise first, and only where it is true - a child can tell the
+   difference between "good job" and someone who actually looked.
+   ============================================================ */
+function loadFeedback(){
+  var box = document.getElementById("feedback");
+  if(!box || !apiUrl() || !who()) return;
+  fetch(apiUrl() + "/review?kid=" + encodeURIComponent(who()))
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      var rv = d && d.review;
+      if(!rv) return;
+      var sp = rv.spelling || [], es = rv.essay || {}, fixes = es.fixes || [];
+      box.innerHTML =
+        '<section class="fb"><div class="fbhead">' +
+          '<strong>What I noticed in yesterday&rsquo;s work</strong>' +
+          '<span class="fbdate">' + esc(prettyDate(rv.date)) + '</span></div>' +
+        (rv.praise ? '<p class="fbpraise">' + esc(rv.praise) + '</p>' : "") +
+        (sp.length ?
+          '<div class="fbsec"><h4>Spelling</h4><ul class="fbsp">' +
+          sp.slice(0, 8).map(function(w){
+            return '<li><s>' + esc(w.wrote) + '</s> &rarr; <b>' + esc(w.right) + '</b></li>';
+          }).join("") + '</ul></div>' : "") +
+        (es.summary ? '<div class="fbsec"><h4>Your writing</h4><p>' + esc(es.summary) + '</p>' +
+          (fixes.length ? '<ul class="fbfix">' + fixes.slice(0, 5).map(function(f){
+            return '<li><s>' + esc(f.was) + '</s> &rarr; <b>' + esc(f.should) + '</b>' +
+                   (f.why ? ' <span class="why">' + esc(f.why) + '</span>' : "") + '</li>';
+          }).join("") + '</ul>' : "") + '</div>' : "") +
+        (es.next ? '<p class="fbnext"><b>Try this today:</b> ' + esc(es.next) + '</p>' : "") +
+        '</section>';
+    }).catch(function(){});
 }
 
 /* ============================================================

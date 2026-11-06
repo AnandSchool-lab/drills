@@ -264,6 +264,38 @@ async function getLive(url, env) {
   };
 }
 
+/* The overnight review of a day's work. Written by the nightly job with
+   the parent key; read openly, because the child's own feedback card has
+   to fetch it and a public web page cannot keep a secret. What it holds
+   is a first name and remarks on their own schoolwork. */
+async function postReview(body, env) {
+  if (!isKid(body.kid) || !isDate(body.date)) return "bad fields";
+  const j = (v) => (v == null ? null : clampText(JSON.stringify(v), 20000));
+  await env.DB.prepare(
+    `INSERT INTO review (kid, date, praise, spelling, essay, math, focus, at)
+     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+     ON CONFLICT (kid, date) DO UPDATE SET
+       praise = ?3, spelling = ?4, essay = ?5, math = ?6, focus = ?7, at = ?8`
+  ).bind(body.kid, body.date, clampText(body.praise, 600),
+         j(body.spelling), j(body.essay), j(body.math), j(body.focus), now()).run();
+  return null;
+}
+
+async function getReview(url, env) {
+  const kid = url.searchParams.get("kid");
+  if (!isKid(kid)) return { ok: false, error: "bad kid" };
+  const date = url.searchParams.get("date");
+  const row = isDate(date)
+    ? await env.DB.prepare(`SELECT * FROM review WHERE kid = ?1 AND date = ?2`).bind(kid, date).first()
+    : await env.DB.prepare(`SELECT * FROM review WHERE kid = ?1 ORDER BY date DESC LIMIT 1`).bind(kid).first();
+  if (!row) return { ok: true, review: null };
+  const p = (v) => { try { return v ? JSON.parse(v) : null; } catch { return null; } };
+  return { ok: true, review: {
+    kid: row.kid, date: row.date, praise: row.praise,
+    spelling: p(row.spelling), essay: p(row.essay), math: p(row.math), focus: p(row.focus)
+  } };
+}
+
 /* One day's pencil work, so the dashboard can replay it stroke by stroke.
    Behind the parent key: this is the child's actual work. */
 async function getInk(url, env) {
@@ -316,9 +348,20 @@ export default {
         return err ? bad(err, origin) : json({ ok: true }, 200, origin);
       }
 
+      if (path === "/review" && request.method === "POST") {
+        const body = await readJson(request);
+        if (!keyOk(body.key, env.PARENT_KEY)) return bad("wrong key", origin, 401);
+        const err = await postReview(body, env);
+        return err ? bad(err, origin) : json({ ok: true }, 200, origin);
+      }
+
       /* --- the app's own calls --- */
       if (path === "/retake" && request.method === "GET") {
         return json(await getRetake(url, env), 200, origin);
+      }
+
+      if (path === "/review" && request.method === "GET") {
+        return json(await getReview(url, env), 200, origin);
       }
 
       if (request.method === "POST") {

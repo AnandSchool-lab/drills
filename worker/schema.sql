@@ -83,3 +83,18 @@ CREATE TABLE IF NOT EXISTS ink (
   PRIMARY KEY (kid, date, block, pad)
 );
 CREATE INDEX IF NOT EXISTS ink_kid_date ON ink (kid, date);
+
+-- What Claude found when reading their work overnight. One row per child
+-- per day. Written by the nightly review, read by both the parent page
+-- and the child's own feedback card the next morning.
+CREATE TABLE IF NOT EXISTS review (
+  kid      TEXT NOT NULL,
+  date     TEXT NOT NULL,
+  praise   TEXT,                 -- one honest line about what went well
+  spelling TEXT,                 -- JSON [{word, wrote, right}]
+  essay    TEXT,                 -- JSON {summary, fixes:[{was,should,why}], next}
+  math     TEXT,                 -- JSON {approach, note}
+  focus    TEXT,                 -- JSON [topic] - feeds tomorrow's Recap
+  at       TEXT NOT NULL,
+  PRIMARY KEY (kid, date)
+);

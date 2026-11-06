@@ -77,6 +77,26 @@ td.sc.good{color:var(--good)} td.sc.work{color:var(--amber)}
   border-radius:6px;padding:1px 7px;margin-right:7px}
 
 /* working replay */
+.sheetgrid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));margin:12px 0}
+.kcol{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.kcol>header{display:flex;align-items:center;gap:9px;padding:10px 14px;
+  background:var(--surface-2);border-bottom:1px solid var(--line)}
+.kcol>header b{font-size:1.05rem}
+.kcol>header .sc{margin-left:auto;font-variant-numeric:tabular-nums;font-weight:700;font-size:.9rem}
+.krow{display:flex;gap:10px;padding:9px 14px;border-bottom:1px solid var(--line);font-size:14px}
+.krow:last-child{border-bottom:0}
+.krow .lab{flex:0 0 78px;font-size:11px;text-transform:uppercase;letter-spacing:.07em;
+  color:var(--muted);font-weight:700;padding-top:2px}
+.krow .val{flex:1;min-width:0}
+.krow .val .sm{color:var(--muted);font-size:13px}
+.praise{color:var(--good);font-weight:600}
+.fixlist{margin:0;padding-left:17px}
+.fixlist li{margin:2px 0}
+.fixlist s{color:var(--bad)} .fixlist b{color:var(--good)}
+.kbtn{display:inline-block;margin-top:7px;font-size:12.5px;padding:5px 11px;border-radius:8px;
+  border:1px solid var(--accent);color:var(--accent);background:var(--accent-soft);
+  font-weight:700;cursor:pointer}
+.none{color:var(--muted);font-size:13.5px}
 .pads{display:grid;gap:12px}
 .pad{border:1px solid var(--line);border-radius:11px;padding:11px;background:var(--surface-2)}
 .pad .lbl{font-size:13px;color:var(--muted);margin-bottom:7px;display:flex;align-items:center;gap:9px}
@@ -116,6 +136,9 @@ a{color:var(--accent)}
     <h2>Working now</h2>
     <div id="live"></div>
   </div>
+
+  <!-- one column per child: the whole day at a glance, side by side -->
+  <div class="sheetgrid" id="grid"></div>
 
   <div class="card">
     <h2>Finished today</h2>
@@ -163,7 +186,15 @@ var timer = null;
 
 function $(s){ return document.querySelector(s); }
 function esc(s){ return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
-function today(){ return new Date().toISOString().slice(0,10); }
+/* The family's date, not UTC. toISOString() is UTC, so after 4pm Pacific
+   it rolls to tomorrow and the page goes blank in the evening - which is
+   exactly when it would be read. */
+function today(){
+  var d = new Date();
+  return d.getFullYear() + "-" +
+    String(d.getMonth()+1).padStart(2,"0") + "-" +
+    String(d.getDate()).padStart(2,"0");
+}
 
 function ago(iso){
   if(!iso) return "";
@@ -183,7 +214,7 @@ function openGate(msg){
 }
 
 function tryKey(k){
-  return fetch(API + "/live?key=" + encodeURIComponent(k))
+  return fetch(API + "/live?key=" + encodeURIComponent(k) + "&date=" + today())
     .then(function(r){
       if(r.status === 401) return { bad:true };
       if(!r.ok) throw new Error("server " + r.status);
@@ -243,6 +274,9 @@ function render(d){
     '</div>';
   }).join("") : '<p class="quiet">Nobody has a sheet open.</p>';
 
+  /* one column per child - scores, what Claude found, and a way into the pages */
+  renderGrid(d);
+
   /* finished today */
   var done = d.today || [];
   $("#done").innerHTML = done.length ?
@@ -262,6 +296,66 @@ function render(d){
       '<div class="a">wrote <b>'+esc(m.gave || "nothing")+'</b> · answer <i>'+esc(m.want)+'</i>' +
       ' · '+esc(m.date)+'</div></div>';
   }).join("") : '<p class="quiet">Nothing wrong in the last week.</p>';
+}
+
+/* The day on one page: what each child scored, what Claude found in their
+   writing overnight, and a button through to the pages themselves. */
+function renderGrid(d){
+  var KIDS = ["Alvina","Andrila"];
+  var byKid = {};
+  (d.today || []).forEach(function(r){ (byKid[r.kid] = byKid[r.kid] || []).push(r); });
+
+  $("#grid").innerHTML = KIDS.map(function(kid){
+    var rows = byKid[kid] || [];
+    var got = rows.reduce(function(a,r){ return a + r.got; }, 0);
+    var tot = rows.reduce(function(a,r){ return a + r.total; }, 0);
+    return '<section class="kcol" data-kid="'+esc(kid)+'">' +
+      '<header><b>'+esc(kid)+'</b>' +
+        '<span class="sc">'+(tot ? got+' / '+tot : '—')+'</span></header>' +
+      '<div class="krow"><span class="lab">Blocks</span><span class="val">' +
+        (rows.length ? rows.map(function(r){
+          var pc = r.total ? Math.round(r.got/r.total*100) : 0;
+          return esc(r.block)+' <b>'+r.got+'/'+r.total+'</b> <span class="sm">'+pc+'%</span>';
+        }).join(' &nbsp;·&nbsp; ') : '<span class="none">nothing finished yet</span>') +
+      '</span></div>' +
+      '<div class="krow rv"><span class="lab">Last night</span>' +
+        '<span class="val"><span class="none">loading…</span></span></div>' +
+    '</section>';
+  }).join("");
+
+  KIDS.forEach(loadReview);
+}
+
+function loadReview(kid){
+  var cell = document.querySelector('.kcol[data-kid="'+kid+'"] .rv .val');
+  if(!cell) return;
+  fetch(API + "/review?kid=" + encodeURIComponent(kid))
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      var rv = d && d.review;
+      if(!rv){
+        cell.innerHTML = '<span class="none">No review yet. It runs overnight.</span>';
+        return;
+      }
+      var sp = rv.spelling || [], es = rv.essay || {}, fixes = es.fixes || [];
+      cell.innerHTML =
+        (rv.praise ? '<div class="praise">'+esc(rv.praise)+'</div>' : "") +
+        (sp.length ? '<div class="sm" style="margin-top:5px">Spelling</div><ul class="fixlist">' +
+          sp.slice(0,5).map(function(w){
+            return '<li><s>'+esc(w.wrote)+'</s> &rarr; <b>'+esc(w.right)+'</b></li>'; }).join("") +
+          '</ul>' : "") +
+        (es.summary ? '<div class="sm" style="margin-top:6px">Writing</div><div>'+esc(es.summary)+'</div>' : "") +
+        (fixes.length ? '<ul class="fixlist">' + fixes.slice(0,4).map(function(f){
+            return '<li><s>'+esc(f.was)+'</s> &rarr; <b>'+esc(f.should)+'</b></li>'; }).join("") + '</ul>' : "") +
+        ((rv.math && rv.math.approach) ? '<div class="sm" style="margin-top:6px">Method</div><div>'+esc(rv.math.approach)+'</div>' : "") +
+        '<button class="kbtn" data-see="'+esc(kid)+'" data-d="'+esc(rv.date)+'">See the pages &rarr;</button>';
+      var btn = cell.querySelector("[data-see]");
+      if(btn) btn.addEventListener("click", function(){
+        $("#padKid").value = kid; $("#padDate").value = btn.dataset.d;
+        loadPads();
+        document.querySelector("#pads").scrollIntoView({ behavior:"smooth", block:"center" });
+      });
+    }).catch(function(){ cell.innerHTML = '<span class="none">Could not load it.</span>'; });
 }
 
 /* ---------- pencil work ---------- */
