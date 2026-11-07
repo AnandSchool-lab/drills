@@ -46,9 +46,23 @@ answered `6:00 pm`, was correct, and was marked wrong), and a missed remainder
 logged with the question text `remainder`. Fresh-fixture tests passed both.
 `archive/<month>/<day>/` holds real days — read them.
 
+**Their work is never lost - his top rule.** Three copies: the iPad
+(localStorage drafts, IndexedDB pads), D1, and `archive/`. Since v28:
+every local draft save is also queued to `POST /draft` (append-only
+`drafts` table, blank sheets skipped); opening a sheet with *no local
+record* refills it from `GET /mywork` (newest draft, else checked
+`answers`, plus pads), filling only empty boxes. An untouched sheet is
+never saved locally, and "Clear everything" leaves a `cleared` marker, so
+"no copy here" and "she cleared it" stay different. A pad is sent only if
+she changed it (`onClose(data, touched)`), and the Worker never lets a
+blank pad replace real ink. `Ink.load` resolves `undefined` for a missing
+pad - it used to return the IDBRequest, which looked like a copy. Before
+touching saving, loading, clearing or retakes, prove old work survives
+(the kids preview has a pretend server in sessionStorage for this).
+
 **Bumping the version is a three-line ritual.** `APP_VERSION` in `app.js`,
 `CACHE` in `sw.js`, and the file list in `app.js` (~line 2116) that the Update
-button fetches. Currently 27 / `drills-v27`. A new file that is not in that list
+button fetches. Currently 28 / `drills-v28`. A new file that is not in that list
 never reaches the iPads — `ink.js` was missing once and the handwriting fixes
 silently did not ship.
 

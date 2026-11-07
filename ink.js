@@ -50,7 +50,14 @@ function tx(mode, fn){
 /* Storage never throws at the caller. A failed save must not stop a child
    from carrying on with the next problem - it retries on the next stroke. */
 function put(key, val){ return tx("readwrite", function(s){ return s.put(val, key); }).catch(function(){ return null; }); }
-function get(key){      return tx("readonly",  function(s){ return s.get(key); }).catch(function(){ return null; }); }
+/* A missing key resolves to undefined. (tx hands back the request itself
+   when its result is undefined, which made "no copy here" look like a
+   copy and stopped her work being brought back from the server.) */
+function get(key){
+  return tx("readonly", function(s){ return s.get(key); })
+    .then(function(v){ return (typeof IDBRequest !== "undefined" && v instanceof IDBRequest) ? undefined : v; })
+    .catch(function(){ return null; });
+}
 function del(key){      return tx("readwrite", function(s){ return s.delete(key); }).catch(function(){ return null; }); }
 
 function allKeys(){
@@ -340,6 +347,9 @@ function mount(host, key, opts){
   var data = { v:1, mode: prefersTyping() ? "type" : "ink", w:0, h:height, s:[], imgs:[], text:"" };
   var ctx = null, drawing = false, cur = null, orig = null;
   var t0 = Date.now(), saveTimer = null, dirty = false;
+  /* true once she has drawn, typed, erased or added a photo in this pad
+     since it opened - so closing an untouched pad sends nothing anywhere */
+  var changed = false;
 
   function sizeCanvas(){
     var w = Math.max(40, Math.round(surf.clientWidth));
@@ -509,7 +519,7 @@ function mount(host, key, opts){
     if(opts.onChange) opts.onChange(current());
   }
   function touch(){
-    dirty = true;
+    dirty = true; changed = true;
     if(saveTimer) clearTimeout(saveTimer);
     saveTimer = setTimeout(flush, 500);
   }
@@ -532,6 +542,7 @@ function mount(host, key, opts){
     ready: ready,
     flush: function(){ if(saveTimer) clearTimeout(saveTimer); flush(); },
     isEmpty: function(){ return !data.s.length && !data.imgs.length && !ta.value.trim(); },
+    changed: function(){ return changed; },
     data: current
   };
   live.push(handle);
@@ -602,10 +613,12 @@ function openSheet(key, opts){
     try{ pad.flush(); }catch(e){}
     var data = null;
     try{ data = pad.data(); }catch(e){}
+    var touched = false;
+    try{ touched = pad.changed(); }catch(e){}
     document.body.classList.remove("sheetopen");
     back.remove();
     live = live.filter(function(p){ return p !== pad; });
-    if(opts.onClose) opts.onClose(data);
+    if(opts.onClose) opts.onClose(data, touched);
   }
 
   back.querySelector(".sheetdone").addEventListener("click", close);

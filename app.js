@@ -8,7 +8,7 @@
 
 /* ---------- configuration you may want to change ---------- */
 var START_DATE = "2026-10-27";   // Monday the programme begins. Week 1 starts here.
-var APP_VERSION = "27";          // shown on the home screen; keep in step with CACHE in sw.js
+var APP_VERSION = "28";          // shown on the home screen; keep in step with CACHE in sw.js
 
 /* Google Apps Script web-app URL. Blank = results stay on the iPad only.
    Paste the /exec URL from Deploy → New deployment → Web app. */
@@ -1126,8 +1126,37 @@ function saveDraft(){
       d.opts.push(sel ? sel.value : "");
     });
     app.querySelectorAll("textarea").forEach(function(t){ if(t.id) d.text[t.id] = t.value; });
-    store.set(draftKey(activeBlock), d);
+    var key = draftKey(activeBlock), filled = draftCount(d);
+    /* An untouched sheet is not saved at all, so "this iPad has no copy"
+       stays true and the server's copy can be brought back. Once there
+       is a record, an emptied sheet is saved too - that was her choice. */
+    if(!filled && store.get(key, null) === null) return;
+    store.set(key, d);
+    if(filled) backupDraft(activeBlock, d);
   }catch(e){}
+}
+
+function draftCount(d){
+  var n = 0;
+  function has(v){ return v !== null && v !== undefined && String(v).trim() !== ""; }
+  (d.ans || []).forEach(function(v){ if(has(v)) n++; });
+  (d.frac || []).forEach(function(f){ (f || []).forEach(function(v){ if(has(v)) n++; }); });
+  (d.opts || []).forEach(function(v){ if(has(v)) n++; });
+  Object.keys(d.text || {}).forEach(function(k){ if(has(d.text[k])) n++; });
+  return n;
+}
+
+/* The same copy goes to the server, checked or not. Queued first - the
+   queue lives in storage, so it survives a reload or no Wi-Fi - and sent
+   a few seconds after she stops typing. The server only ever adds rows. */
+var backupTimer = null;
+function backupDraft(block, d){
+  if(!apiUrl() || !who()) return;
+  var day = todayKey();
+  queueAdd("/draft", { kid: who(), date: day, block: block, data: d },
+           "draft:" + who() + ":" + day + ":" + block);
+  if(backupTimer) clearTimeout(backupTimer);
+  backupTimer = setTimeout(function(){ backupTimer = null; flushQueue(); }, 3000);
 }
 
 function saveDraftSoon(){
@@ -1163,7 +1192,139 @@ function loadDraft(block){
 }
 
 function clearDraft(block){
-  try{ localStorage.removeItem("dd:" + draftKey(block)); }catch(e){}
+  /* kept as an empty record rather than removed: "she cleared this" must
+     not look like "this iPad never had it", or it would come straight back */
+  store.set(draftKey(block), { ans:[], frac:[], opts:[], text:{}, cleared:1 });
+}
+
+/* ============================================================
+   BRING HER WORK BACK
+   When this iPad has no copy of a sheet - a Safari tab, a new iPad, a
+   cleared browser - fill it in from the server. Two rules:
+     - only empty boxes and pads with no copy here are filled; anything
+       already on this iPad always wins
+     - nothing is ever deleted, here or on the server
+   ============================================================ */
+function restoreSheet(block){
+  if(!apiUrl() || !who() || !navigator.onLine) return;
+  var kid = who(), day = todayKey();
+  var noLocalSheet = store.get(draftKey(block), null) === null;
+  fetch(apiUrl() + "/mywork?kid=" + encodeURIComponent(kid) +
+        "&date=" + day + "&block=" + encodeURIComponent(block), { cache:"no-store" })
+    .then(function(r){ return r.json(); })
+    .then(function(w){
+      if(!w || !w.ok) return;
+      /* she may have moved on while we waited */
+      if(activeBlock !== block || who() !== kid || todayKey() !== day) return;
+      var n = 0;
+      if(noLocalSheet){
+        n = w.draft ? fillEmpty(w.draft) : fillFromAnswers(w.answers || []);
+        if(n) saveDraft();
+      }
+      restorePads(block, kid, day, w.pads || [], function(p){
+        if(n + p) toast("Brought back your work from before");
+      });
+    }).catch(function(){});
+}
+
+function isBlank(v){ return v === null || v === undefined || String(v).trim() === ""; }
+
+/* the same shape saveDraft writes, filled in only where the box is empty */
+function fillEmpty(d){
+  var filled = 0;
+  var a = app.querySelectorAll("input.ans");
+  (d.ans || []).forEach(function(v, i){
+    if(a[i] && !isBlank(v) && isBlank(a[i].value)){ a[i].value = v; filled++; }
+  });
+  var f = app.querySelectorAll(".fracbox");
+  (d.frac || []).forEach(function(v, i){
+    var b = f[i]; if(!b || !v) return;
+    [".fw", ".fn", ".fd"].forEach(function(sel, j){
+      var x = b.querySelector(sel);
+      if(x && !isBlank(v[j]) && isBlank(x.value)){ x.value = v[j]; filled++; }
+    });
+  });
+  var o = app.querySelectorAll(".opts");
+  (d.opts || []).forEach(function(v, i){
+    if(!o[i] || isBlank(v) || o[i].querySelector("input:checked")) return;
+    var inp = o[i].querySelectorAll(".opt input")[+v];
+    if(inp){ inp.checked = true; filled++; }
+  });
+  Object.keys(d.text || {}).forEach(function(id){
+    var t = document.getElementById(id);
+    if(t && !isBlank(d.text[id]) && isBlank(t.value)){
+      t.value = d.text[id]; t.dispatchEvent(new Event("input")); filled++;
+    }
+  });
+  return filled;
+}
+
+/* Days from before the backups existed: a checked sheet's answers are on
+   the server one per question, in sheet order. Each goes back only into
+   the box for the same question - anything that does not match is left. */
+function fillFromAnswers(list){
+  var els = app.querySelectorAll("input.ans, .fracbox, .opts"), filled = 0;
+  function same(a, b){ return String(a || "").replace(/\s+/g, " ").trim() ===
+                              String(b || "").replace(/\s+/g, " ").trim(); }
+  list.forEach(function(r){
+    var el = els[(+r.n) - 1], gave = String(r.gave || "").trim();
+    if(!el || !gave || gave === "(blank)") return;
+    if(el.classList.contains("fracbox")){
+      var qt = el.parentNode.querySelector(".q");
+      if(!same(qt ? qt.textContent : "fraction", r.q)) return;
+      var m = gave.match(/^(?:(\d+)\s+)?(\d*)\/(\d*)$/) || gave.match(/^(\d+)()()$/);
+      if(!m) return;
+      var fw = el.querySelector(".fw"), fn = el.querySelector(".fn"), fd = el.querySelector(".fd");
+      if(fw && m[1] && isBlank(fw.value)){ fw.value = m[1]; filled++; }
+      if(fn && m[2] && isBlank(fn.value)){ fn.value = m[2]; filled++; }
+      if(fd && m[3] && isBlank(fd.value)){ fd.value = m[3]; filled++; }
+      return;
+    }
+    if(el.classList.contains("opts")){
+      if(!same(el.dataset.q, r.q) || el.querySelector("input:checked")) return;
+      el.querySelectorAll(".opt").forEach(function(lab){
+        if(same(lab.textContent, gave)){ lab.querySelector("input").checked = true; filled++; }
+      });
+      return;
+    }
+    if(!same(el.dataset.q || el.getAttribute("aria-label"), r.q)) return;
+    if(isBlank(el.value)){ el.value = gave; filled++; }
+  });
+  return filled;
+}
+
+/* Handwriting: a pad comes back only when this iPad has no copy of it at
+   all. A pad she cleared here has an empty copy, so it stays cleared. */
+function restorePads(block, kid, day, pads, done){
+  if(!window.Ink || !Ink.available() || !pads.length){ done(0); return; }
+  var left = pads.length, count = 0;
+  function one(){ if(--left === 0) done(count); }
+  pads.forEach(function(p){
+    var data = null;
+    try{ data = typeof p.data === "string" ? JSON.parse(p.data) : p.data; }catch(e){}
+    var empty = !data || (!(data.s && data.s.length) && !(data.imgs && data.imgs.length) &&
+                          !(data.text && String(data.text).trim()));
+    if(empty || !/^[A-Za-z0-9_-]+$/.test(p.pad || "")){ one(); return; }
+    var key = "ink:" + kid + ":" + day + ":" + block + ":" + p.pad;
+    Ink.load(key).then(function(saved){
+      /* null means storage failed - leave it alone; a real copy, even an
+         empty one she cleared, has a mode */
+      if(saved === null || (saved && typeof saved === "object" && "mode" in saved)){ one(); return; }
+      return Ink.save(key, data).then(function(ok){
+        if(ok === null){ one(); return; }
+        count++;
+        if(activeBlock === block && who() === kid && todayKey() === day){
+          var row = app.querySelector('.workrow[data-pad="' + p.pad + '"]');
+          if(row) paintPreview(row, data);
+          var strip = app.querySelector('.wordpad[data-pad="' + p.pad + '"]');
+          if(strip && strip._mount) strip._mount();
+          var wa = $("#writeAns");
+          if(p.pad === "write" && wa && data.mode === "type" && isBlank(wa.value)) wa.value = data.text || "";
+        }
+        one();
+      });
+    }).catch(function(){ one(); });
+  });
 }
 
 /* drop drafts older than three weeks so storage cannot creep up */
@@ -1286,6 +1447,7 @@ function shell(title, mins, bodyHTML, onMount, block){
   wireLiveClear();
   addGoHome();
   if(block && loadDraft(block)) toast("Your answers from before are still here");
+  if(block) restoreSheet(block);
   /* Only now, with the sheet built and any saved answers restored, is there
      anything worth telling a parent. Started earlier it counts an empty page. */
   if(block) startPings(block);
@@ -1495,9 +1657,11 @@ function mountPads(block){
       Ink.openSheet(key, {
         title: row.dataset.q || "Your working",
         placeholder: "write your working here",
-        onClose: function(data){
+        onClose: function(data, touched){
           paintPreview(row, data);
-          if(data) sendInk(block, pad, data);
+          /* only if she drew, typed or erased - an untouched pad on a fresh
+             iPad is blank, and must never be sent over her real working */
+          if(data && touched) sendInk(block, pad, data);
         }
       });
     });
@@ -1699,9 +1863,12 @@ function blockEnglish(){
       var sbase = "ink:" + who() + ":" + todayKey() + ":eng:";
       app.querySelectorAll(".wordpad").forEach(function(w){
         var id = w.dataset.pad;
-        Ink.mount(w, sbase + id, { height: 56, compact: true,
-          placeholder: " ", label: "write word " + (id.slice(2) * 1 + 1),
-          onChange: function(d){ sendInk("eng", id, d); } });
+        w._mount = function(){
+          Ink.mount(w, sbase + id, { height: 56, compact: true,
+            placeholder: " ", label: "write word " + (id.slice(2) * 1 + 1),
+            onChange: function(d){ sendInk("eng", id, d); } });
+        };
+        w._mount();
       });
     }
 
@@ -1722,11 +1889,11 @@ function blockEnglish(){
           title: E.writing.p,
           maxShots: 6,
           placeholder: "start writing here",
-          onClose: function(data){
+          onClose: function(data, touched){
             paintPreview(wrow, data);
             /* typed writing still reaches the sheet; handwriting goes up as ink */
             if(wa) wa.value = (data && data.mode === "type") ? (data.text || "") : "";
-            if(data) sendInk("eng", "write", data);
+            if(data && touched) sendInk("eng", "write", data);
           }
         });
       });

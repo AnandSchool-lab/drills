@@ -12,6 +12,8 @@
      POST /result   a finished block              (open)
      POST /ink      one pad of working            (open)
      POST /writing  their writing, when typed     (open)
+     POST /draft    a sheet's answers as she goes (open, append-only)
+     GET  /mywork   one of her sheets, to refill an iPad (open)
      GET  /retake   has a parent asked for a redo (open)
      GET  /live     the dashboard                 (needs the parent key)
      POST /retake   ask for a redo                (needs the parent key)
@@ -194,6 +196,22 @@ async function postInk(body, env) {
   const payload = JSON.stringify(body.data || {});
   if (payload.length > MAX_PAD) return "too big";
 
+  /* A blank pad never replaces real working. A fresh iPad or a Safari tab
+     starts with empty pads, and once sent an empty one over a full one -
+     her handwriting gone from the server. If she really cleared a pad,
+     her iPad still shows it cleared; the server just keeps the last real
+     version. Their work is the one thing this project must never lose. */
+  if (padIsEmpty(body.data)) {
+    await env.DB.prepare(
+      `INSERT INTO ink (kid, date, block, pad, data, bytes, mode, at)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+       ON CONFLICT (kid, date, block, pad) DO NOTHING`
+    ).bind(body.kid, body.date, body.block, pad, payload,
+           payload.length, (body.data && body.data.mode) || "photo", now()
+    ).run();
+    return null;
+  }
+
   await env.DB.prepare(
     `INSERT INTO ink (kid, date, block, pad, data, bytes, mode, at)
      VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
@@ -203,6 +221,76 @@ async function postInk(body, env) {
          payload.length, (body.data && body.data.mode) || "photo", now()
   ).run();
   return null;
+}
+
+function padIsEmpty(d) {
+  if (!d || typeof d !== "object") return true;
+  const strokes = Array.isArray(d.s) && d.s.length;
+  const photos = Array.isArray(d.imgs) && d.imgs.length;
+  const text = typeof d.text === "string" && d.text.trim();
+  return !strokes && !photos && !text;
+}
+
+/* How many boxes on a saved sheet have something in them. */
+function draftFilled(d) {
+  if (!d || typeof d !== "object") return 0;
+  let n = 0;
+  const has = (v) => v !== null && v !== undefined && String(v).trim() !== "";
+  (Array.isArray(d.ans) ? d.ans : []).forEach((v) => { if (has(v)) n++; });
+  (Array.isArray(d.frac) ? d.frac : []).forEach((f) => {
+    (Array.isArray(f) ? f : []).forEach((v) => { if (has(v)) n++; });
+  });
+  (Array.isArray(d.opts) ? d.opts : []).forEach((v) => { if (has(v)) n++; });
+  Object.values(d.text && typeof d.text === "object" ? d.text : {})
+    .forEach((v) => { if (has(v)) n++; });
+  return n;
+}
+
+/* A sheet's typed answers, saved as she goes - before Check as well as
+   after. Only ever added to, so no save can wipe an earlier one. A blank
+   sheet is not worth a row, and an identical one to the last is skipped. */
+async function postDraft(body, env) {
+  if (!isKid(body.kid) || !isBlock(body.block) || !isDate(body.date)) return "bad fields";
+  const filled = draftFilled(body.data);
+  if (!filled) return null;
+  const payload = JSON.stringify(body.data);
+  if (payload.length > 256 * 1024) return "too big";
+  const last = await env.DB.prepare(
+    `SELECT data FROM drafts WHERE kid = ?1 AND date = ?2 AND block = ?3
+     ORDER BY id DESC LIMIT 1`
+  ).bind(body.kid, body.date, body.block).first();
+  if (last && last.data === payload) return null;
+  await env.DB.prepare(
+    `INSERT INTO drafts (kid, date, block, filled, data, at)
+     VALUES (?1, ?2, ?3, ?4, ?5, ?6)`
+  ).bind(body.kid, body.date, body.block, filled, payload, now()).run();
+  return null;
+}
+
+/* Everything one child put on one day's sheets, so her iPad can fill a
+   sheet back in when it has no copy of its own (a Safari tab, a new iPad,
+   a cleared browser). Open, like /review: the app has no key and cannot
+   have one. Each part is fetched on its own so a missing table only
+   empties that part. */
+async function getMyWork(url, env) {
+  const kid = url.searchParams.get("kid");
+  const date = url.searchParams.get("date");
+  const block = url.searchParams.get("block");
+  if (!isKid(kid) || !isDate(date) || !isBlock(block)) return { ok: false, error: "bad fields" };
+  const notes = [];
+  const draft = await safeAll(env.DB.prepare(
+    `SELECT data FROM drafts WHERE kid = ?1 AND date = ?2 AND block = ?3 AND filled > 0
+     ORDER BY id DESC LIMIT 1`
+  ).bind(kid, date, block), "drafts", notes);
+  let latest = null;
+  if (draft[0]) { try { latest = JSON.parse(draft[0].data); } catch { /* skip */ } }
+  const answers = await safeAll(env.DB.prepare(
+    `SELECT n, q, gave FROM answers WHERE kid = ?1 AND date = ?2 AND block = ?3 ORDER BY n`
+  ).bind(kid, date, block), "answers", notes);
+  const pads = await safeAll(env.DB.prepare(
+    `SELECT pad, data FROM ink WHERE kid = ?1 AND date = ?2 AND block = ?3`
+  ).bind(kid, date, block), "ink", notes);
+  return { ok: true, kid, date, block, draft: latest, answers, pads, notes };
 }
 
 async function postWriting(body, env) {
@@ -474,6 +562,10 @@ export default {
         return json(await getStuck(url, env), 200, origin);
       }
 
+      if (path === "/mywork" && request.method === "GET") {
+        return json(await getMyWork(url, env), 200, origin);
+      }
+
       if (request.method === "POST") {
         const body = await readJson(request);
         let err = null;
@@ -483,6 +575,7 @@ export default {
         else if (path === "/writing")      err = await postWriting(body, env);
         else if (path === "/retake-done")  err = await postRetakeDone(body, env);
         else if (path === "/stuck")        err = await postStuck(body, env);
+        else if (path === "/draft")        err = await postDraft(body, env);
         else return bad("no such route", origin, 404);
         return err ? bad(err, origin) : json({ ok: true }, 200, origin);
       }

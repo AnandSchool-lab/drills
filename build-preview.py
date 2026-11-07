@@ -109,6 +109,29 @@ kids = kids.replace("</head>", """
     if(u.indexOf("/retake") > -1)
       return Promise.resolve(new Response(JSON.stringify({ ok:true, dates:[] }),
         { headers:{ "Content-Type":"application/json" } }));
+    /* A pretend server that remembers what the app backs up, kept in
+       sessionStorage so it survives wiping the "iPad" (localStorage and
+       IndexedDB) - which is exactly the restore test. */
+    if(u.indexOf("/draft") > -1 || u.indexOf("/ink") > -1 || u.indexOf("/mywork") > -1){
+      var S; try{ S = JSON.parse(sessionStorage.getItem("pv:server") || "null"); }catch(e){}
+      S = S || { drafts:{}, ink:{} };
+      var keep = function(){ sessionStorage.setItem("pv:server", JSON.stringify(S)); };
+      if(o && o.method === "POST"){
+        var b = JSON.parse(o.body || "{}");
+        if(u.indexOf("/draft") > -1){ S.drafts[b.kid+"|"+b.date+"|"+b.block] = b.data; keep(); }
+        if(u.indexOf("/ink") > -1){
+          var k = b.kid+"|"+b.date+"|"+b.block+"|"+b.pad, d = b.data || {};
+          var blank = !(d.s && d.s.length) && !(d.imgs && d.imgs.length) && !String(d.text || "").trim();
+          if(!(blank && S.ink[k])) S.ink[k] = d;
+          keep();
+        }
+        return reply({ ok:true });
+      }
+      var qs = new URL(u).searchParams, pre = qs.get("kid")+"|"+qs.get("date")+"|"+qs.get("block");
+      return reply({ ok:true, draft: S.drafts[pre] || null, answers: [],
+        pads: Object.keys(S.ink).filter(function(k){ return k.indexOf(pre + "|") === 0; })
+              .map(function(k){ return { pad: k.split("|")[3], data: JSON.stringify(S.ink[k]) }; }) });
+    }
     if(u.indexOf("preview.invalid") > -1)
       return Promise.resolve(new Response(JSON.stringify({ ok:true }),
         { headers:{ "Content-Type":"application/json" } }));

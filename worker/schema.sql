@@ -17,6 +17,11 @@
 --               Rule learned: adding a table here is half the job. Run the
 --               file against the live database in the same sitting, and
 --               never let one query's failure sink a whole response.
+--
+--   2026-11-06  the drafts table, so a sheet's typed answers are on the
+--               server before Check as well as after. Create it with:
+--               CREATE TABLE IF NOT EXISTS drafts (id INTEGER PRIMARY KEY AUTOINCREMENT, kid TEXT NOT NULL, date TEXT NOT NULL, block TEXT NOT NULL, filled INTEGER NOT NULL, data TEXT NOT NULL, at TEXT NOT NULL);
+--               CREATE INDEX IF NOT EXISTS drafts_kid_date ON drafts (kid, date, block, id);
 
 -- One row per child, per day, per block, once they press Check.
 CREATE TABLE IF NOT EXISTS results (
@@ -141,3 +146,19 @@ CREATE TABLE IF NOT EXISTS stuck (
   PRIMARY KEY (kid, date, block, pad)
 );
 CREATE INDEX IF NOT EXISTS stuck_open ON stuck (date, solution);
+
+-- Every saved state of a sheet's typed answers, before and after Check.
+-- Append-only on purpose: a blank sheet on a fresh iPad can never replace
+-- a full one, because nothing here is ever overwritten or deleted. The
+-- app restores the newest row that has something in it. `data` is the
+-- same shape the iPad keeps locally: { ans:[], frac:[[w,n,d]], opts:[], text:{} }.
+CREATE TABLE IF NOT EXISTS drafts (
+  id     INTEGER PRIMARY KEY AUTOINCREMENT,
+  kid    TEXT NOT NULL,
+  date   TEXT NOT NULL,
+  block  TEXT NOT NULL,
+  filled INTEGER NOT NULL,       -- how many boxes had something in them
+  data   TEXT NOT NULL,
+  at     TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS drafts_kid_date ON drafts (kid, date, block, id);
