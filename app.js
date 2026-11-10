@@ -8,7 +8,7 @@
 
 /* ---------- configuration you may want to change ---------- */
 var START_DATE = "2026-10-27";   // Monday the programme begins. Week 1 starts here.
-var APP_VERSION = "28";          // shown on the home screen; keep in step with CACHE in sw.js
+var APP_VERSION = "29";          // shown on the home screen; keep in step with CACHE in sw.js
 
 /* Google Apps Script web-app URL. Blank = results stay on the iPad only.
    Paste the /exec URL from Deploy → New deployment → Web app. */
@@ -308,7 +308,7 @@ function wordProblem(L){
   var a,b,c,d;
   if(type === 1){
     a = ri(L>2?12:4, L>2?40:12); b = ri(3,9); c = ri(2,6);
-    return { q:n1+" has "+(a*b)+" "+thing+". "+n1+" shares them equally among "+b+" friends, then gives away "+c+" of their own share. How many does each friend keep?",
+    return { q:n1+" has "+(a*b)+" "+thing+". "+n1+" shares them equally among "+b+" friends, then gives away "+c+" from "+n1+"'s own share. How many does each friend keep?",
              a:a, hint:"Divide first, then subtract — but read carefully whose share changes." , aNote:"Each friend gets "+a+". The "+c+" given away came from "+n1+"'s share, not the friends'." };
   }
   if(type === 2){
@@ -412,8 +412,10 @@ function compareProblem(L){
     var n1 = ri(1,d1-1), n2 = ri(1,d2-1);
     var v1 = n1/d1, v2 = n2/d2;
     var ans = Math.abs(v1-v2) < 1e-9 ? 3 : (v1 > v2 ? 1 : 2);
-    return { q:"Which is larger: (1) "+n1+"/"+d1+"   or   (2) "+n2+"/"+d2+" ?   Type 1, 2, or 3 if they are equal.",
-             a:ans, hint:"Give them the same bottom number, or compare each to one half." };
+    /* Tap to choose. As a typed number, "2/4" (the right fraction) was
+       read as 2 and marked wrong - she knew the answer and lost it. */
+    return { q:"Which is larger: "+n1+"/"+d1+" or "+n2+"/"+d2+"?",
+             o:[n1+"/"+d1, n2+"/"+d2, "They are equal"], a:ans, hint:"Give them the same bottom number, or compare each to one half." };
   }
   var t = ri(180,900), per = ri(3,9);
   return { q:"Estimate: about how many groups of "+per+" fit into "+t+"? Round your answer to the nearest ten.",
@@ -1737,6 +1739,14 @@ function blockMath(){
 }
 
 /* ---------- THINKING ---------- */
+/* A tap-to-choose answer (it.o) - it.a is the 1-based choice. */
+function thinkOpts(it, i){
+  var opts = it.o.map(function(t, oi){
+    return '<label class="opt"><input type="radio" name="th'+i+'" value="'+oi+'"><span>'+esc(t)+'</span></label>';
+  }).join("");
+  return '<div class="opts" data-ans="'+(it.a - 1)+'" data-q="'+esc(it.q)+'">'+opts+'</div>';
+}
+
 function blockThink(){
   var L = levelNow();
   seedFor("think");
@@ -1756,7 +1766,7 @@ function blockThink(){
     chalRows + clearBar("c0") + '</section>';
   var rows = items.map(function(it,i){
     return '<div class="prob"><p class="pq"><b>'+(i+1)+'.</b> '+esc(it.q)+'</p>' +
-      '<div class="prow">'+numInput(it.a, "Answer "+(i+1), it.q, it.kind)+
+      '<div class="prow">'+(it.o ? thinkOpts(it, i) : numInput(it.a, "Answer "+(i+1), it.q, it.kind))+
       '<button class="ghost sm" data-hint="'+i+'">Hint</button></div>' +
       padHost("t0", i, it.q) +
       '<p class="hint" id="h'+i+'" hidden>'+esc(it.hint)+(it.aNote ? " " + esc(it.aNote) : "")+'</p></div>';

@@ -62,7 +62,7 @@ touching saving, loading, clearing or retakes, prove old work survives
 
 **Bumping the version is a three-line ritual.** `APP_VERSION` in `app.js`,
 `CACHE` in `sw.js`, and the file list in `app.js` (~line 2116) that the Update
-button fetches. Currently 28 / `drills-v28`. A new file that is not in that list
+button fetches. Currently 29 / `drills-v29`. A new file that is not in that list
 never reaches the iPads — `ink.js` was missing once and the handwriting fixes
 silently did not ship.
 

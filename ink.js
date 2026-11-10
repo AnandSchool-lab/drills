@@ -330,7 +330,7 @@ function mount(host, key, opts){
         (opts.placeholder || "write your working here") + '</span>' +
         '<canvas class="pad-canvas"></canvas></div>' +
       '<div class="shots" hidden></div>' +
-      '<textarea class="pad-text" hidden spellcheck="false"' +
+      '<textarea class="pad-text" hidden spellcheck="false" autocorrect="off" autocapitalize="off" autocomplete="off"' +
         (opts.textId ? ' id="' + opts.textId + '"' : "") +
         ' placeholder="Type your working here"' +
         ' aria-label="' + (opts.label || "your working") + '"></textarea>' +
