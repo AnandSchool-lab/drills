@@ -1,0 +1,257 @@
+{
+  "date": "2026-11-09",
+  "pulledAt": "2026-11-10T06:51:20.692Z",
+  "kids": {
+    "Andrila": {
+      "pads": 13,
+      "photos": 0
+    },
+    "Alvina": {
+      "pads": 11,
+      "photos": 0
+    }
+  },
+  "results": [
+    {
+      "kid": "Alvina",
+      "date": "2026-11-09",
+      "block": "eng",
+      "got": 13,
+      "total": 14,
+      "secs": 2123,
+      "at": "2026-11-10T00:50:08.523Z"
+    },
+    {
+      "kid": "Alvina",
+      "date": "2026-11-09",
+      "block": "math",
+      "got": 38,
+      "total": 42,
+      "secs": 1019,
+      "at": "2026-11-10T00:09:58.286Z"
+    },
+    {
+      "kid": "Alvina",
+      "date": "2026-11-09",
+      "block": "think",
+      "got": 5,
+      "total": 10,
+      "secs": 225,
+      "at": "2026-11-10T00:54:12.772Z"
+    },
+    {
+      "kid": "Andrila",
+      "date": "2026-11-09",
+      "block": "eng",
+      "got": 12,
+      "total": 14,
+      "secs": 2865,
+      "at": "2026-11-10T00:48:40.270Z"
+    },
+    {
+      "kid": "Andrila",
+      "date": "2026-11-09",
+      "block": "math",
+      "got": 37,
+      "total": 42,
+      "secs": 661,
+      "at": "2026-11-09T23:45:49.734Z"
+    },
+    {
+      "kid": "Andrila",
+      "date": "2026-11-09",
+      "block": "recap",
+      "got": 4,
+      "total": 4,
+      "secs": 286,
+      "at": "2026-11-09T23:34:29.268Z"
+    },
+    {
+      "kid": "Andrila",
+      "date": "2026-11-09",
+      "block": "think",
+      "got": 5,
+      "total": 10,
+      "secs": 387,
+      "at": "2026-11-09T23:52:55.720Z"
+    }
+  ],
+  "misses": [
+    {
+      "kid": "Andrila",
+      "date": "2026-11-09",
+      "block": "math",
+      "q": "remainder",
+      "gave": "2",
+      "want": "3"
+    },
+    {
+      "kid": "Andrila",
+      "date": "2026-11-09",
+      "block": "math",
+      "q": "60 ÷ 4",
+      "gave": "14",
+      "want": "15"
+    },
+    {
+      "kid": "Andrila",
+      "date": "2026-11-09",
+      "block": "math",
+      "q": "5 3/4  −  1 1/4  (simplify)",
+      "gave": "4 2/4",
+      "want": "4 1/2"
+    },
+    {
+      "kid": "Andrila",
+      "date": "2026-11-09",
+      "block": "math",
+      "q": "1/4  =  ?/8",
+      "gave": "4/8",
+      "want": "2/8"
+    },
+    {
+      "kid": "Andrila",
+      "date": "2026-11-09",
+      "block": "math",
+      "q": "2 5/6  −  1 1/6  (simplify)",
+      "gave": "1 4/6",
+      "want": "1 2/3"
+    },
+    {
+      "kid": "Andrila",
+      "date": "2026-11-09",
+      "block": "think",
+      "q": "★ The sum of 3 numbers in a row (like 7, 8, 9…) is 108. What is the largest of the 3 numbers?",
+      "gave": "100",
+      "want": "37"
+    },
+    {
+      "kid": "Andrila",
+      "date": "2026-11-09",
+      "block": "think",
+      "q": "★ A book has 72 pages, numbered 1 to 72. How many digits does the printer use to number all the pages?",
+      "gave": "149",
+      "want": "135"
+    },
+    {
+      "kid": "Andrila",
+      "date": "2026-11-09",
+      "block": "think",
+      "q": "Which is larger: (1) 2/4   or   (2) 1/5 ?   Type 1, 2, or 3 if they are equal.",
+      "gave": "2 1/5",
+      "want": "1"
+    },
+    {
+      "kid": "Andrila",
+      "date": "2026-11-09",
+      "block": "think",
+      "q": "___ ÷ 4 = 20",
+      "gave": "5 ",
+      "want": "80"
+    },
+    {
+      "kid": "Andrila",
+      "date": "2026-11-09",
+      "block": "think",
+      "q": "Sara has 30 cards. Sara shares them equally among 6 friends, then gives away 4 of their own share. How many does each friend keep?",
+      "gave": "1",
+      "want": "5"
+    },
+    {
+      "kid": "Alvina",
+      "date": "2026-11-09",
+      "block": "math",
+      "q": "3 2/6  +  1 1/6 =",
+      "gave": " 43/6",
+      "want": "4 3/6"
+    },
+    {
+      "kid": "Alvina",
+      "date": "2026-11-09",
+      "block": "math",
+      "q": "5 3/4  −  1 1/4  (simplify)",
+      "gave": " 21/2",
+      "want": "4 1/2"
+    },
+    {
+      "kid": "Alvina",
+      "date": "2026-11-09",
+      "block": "math",
+      "q": "1/4  =  ?/8",
+      "gave": "8/8",
+      "want": "2/8"
+    },
+    {
+      "kid": "Alvina",
+      "date": "2026-11-09",
+      "block": "math",
+      "q": "2 5/6  −  1 1/6  (simplify)",
+      "gave": " 7/3",
+      "want": "1 2/3"
+    },
+    {
+      "kid": "Andrila",
+      "date": "2026-11-09",
+      "block": "eng",
+      "q": "Which sentence is punctuated correctly?",
+      "gave": "wow, that cake looks delicious.",
+      "want": "Wow, that cake looks delicious!"
+    },
+    {
+      "kid": "Andrila",
+      "date": "2026-11-09",
+      "block": "eng",
+      "q": "Which word is a proper noun?",
+      "gave": "teacher",
+      "want": "Mrs. Patel"
+    },
+    {
+      "kid": "Alvina",
+      "date": "2026-11-09",
+      "block": "eng",
+      "q": "Why is it surprising that monarchs find the forest in Mexico?",
+      "gave": "(blank)",
+      "want": "None of them has made the trip before"
+    },
+    {
+      "kid": "Alvina",
+      "date": "2026-11-09",
+      "block": "think",
+      "q": "★ The sum of 3 numbers in a row (like 7, 8, 9…) is 108. What is the largest of the 3 numbers?",
+      "gave": "",
+      "want": "37"
+    },
+    {
+      "kid": "Alvina",
+      "date": "2026-11-09",
+      "block": "think",
+      "q": "★ A book has 72 pages, numbered 1 to 72. How many digits does the printer use to number all the pages?",
+      "gave": "",
+      "want": "135"
+    },
+    {
+      "kid": "Alvina",
+      "date": "2026-11-09",
+      "block": "think",
+      "q": "Which is larger: (1) 2/4   or   (2) 1/5 ?   Type 1, 2, or 3 if they are equal.",
+      "gave": "2/4",
+      "want": "1"
+    },
+    {
+      "kid": "Alvina",
+      "date": "2026-11-09",
+      "block": "think",
+      "q": "___ ÷ 4 = 20",
+      "gave": "5",
+      "want": "80"
+    },
+    {
+      "kid": "Alvina",
+      "date": "2026-11-09",
+      "block": "think",
+      "q": "Sara has 30 cards. Sara shares them equally among 6 friends, then gives away 4 of their own share. How many does each friend keep?",
+      "gave": "1",
+      "want": "5"
+    }
+  ]
+}
