@@ -1,0 +1,27 @@
+{
+  "praise": "Last time your paragraph said \"My favorite place is home\" twice, and I asked you to say it once and then give the reason. Today you said it once and went straight to the reason, and you added \"warm\" to \"cozy\". You read it and you changed it.",
+  "spelling": [
+    { "word": "favorite", "wrote": "Favot", "right": "favorite" }
+  ],
+  "essay": {
+    "summary": "One clear sentence, with a reason and three things you like about home. The question asked you to use your five senses, though, and they are not in there yet — someone reading this cannot smell, hear or touch your home.",
+    "fixes": [
+      {
+        "was": "it is cozy, warm, and it has everything I need",
+        "should": "it is cozy and warm, and it has everything I need",
+        "why": "A list works best when the parts match: two describing words together, then the extra idea."
+      }
+    ],
+    "next": "Add one sentence for one sense: \"At home I can smell ___.\" If that one goes well, do another sense."
+  },
+  "math": {
+    "approach": "All four of your maths misses were fractions, and in three of them the whole number and the fraction ended up in the same box. On 3 2/6 + 1 1/6 the digits you wrote were 4 and 3/6 — exactly right — but the 4 went into the top of the fraction instead of the box in front of it, so it was read as 43/6. That is the same thing that happened last time, when 6 9/12 was written as 69/12.",
+    "note": "You are already good at the step people forget: in 5 3/4 − 1 1/4 your fraction was cut right down to 1/2, not left as 2/4. So the fraction is the easy part for you — it is the whole number that needs its own box. And on \"which is larger, 2/4 or 1/5\", you wrote 2/4, which is the right one; that question wanted the number in front of it, so type 1."
+  },
+  "focus": [
+    "writing a mixed number: whole number in its own box, then the fraction",
+    "equivalent fractions: 1/4 = ?/8",
+    "missing-number division: ___ ÷ 4 = 20",
+    "reading a word problem to the end before answering"
+  ]
+}
