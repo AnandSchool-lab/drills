@@ -1,0 +1,36 @@
+{
+  "praise": "You answered every English question today and got all fourteen right. Yesterday the reading question was left empty and this time you had an answer for every one of them.",
+  "essay": {
+    "summary": "One sentence, and everything in it is correct — a capital at the start, a full stop at the end, and \"nervous\" spelled right. It answers the question too: a time you were nervous, and why. What it does not do yet is tell me what happened. You stop at the door.",
+    "next": "Add two sentences after it: what you did when you walked in late, and how you felt once you were in your seat."
+  },
+  "math": {
+    "approach": "On 2 1/4 + 3 1/4 the digits you wrote were 5 and 2/4, and that is the right answer. They both went into the top of the fraction, though, with the box in front left empty, so it came out as 52/4. On 5 5/12 − 2 2/12 the front box was left empty again. The adding and the subtracting are not what is going wrong here — it is where the whole number lands. The whole number gets its own box, in front, on its own.",
+    "note": "On 5/6 = ?/12, you put 60 on top. Look at what happened underneath: 6 became 12, which is doubling. So the top doubles too — 5 becomes 10, giving 10/12. Whatever you do to the bottom, do exactly the same to the top. Multiplying the top by the new bottom is what gives 60."
+  },
+  "focus": [
+    "writing a mixed number: whole number in its own box, then the fraction",
+    "equivalent fractions: do the same to the top as you did to the bottom",
+    "missing-number division: ___ ÷ 8 = 32 means 8 × 32",
+    "reading to the last word: \"how much older\" needs a take-away after the times",
+    "two-digit division: 72 ÷ 4, and remainders"
+  ],
+  "tips": [
+    {
+      "q": "Ella is 6 years old. Leo is 3 times as old. How much older is Leo?",
+      "note": "Your 18 is not a slip — 3 × 6 = 18 is exactly right, and that is Leo's age. The question asks how much older, which is one more step: 18 − 6 = 12. You did the same thing on the Aisha and Zoe one, so it is the last few words of the question to watch, not your times tables."
+    },
+    {
+      "q": "Aisha is 8 years old. Zoe is 3 times as old. How much older is Zoe?",
+      "note": "Same as the Ella and Leo one: 3 × 8 = 24 is Zoe's age and it is right. \"How much older\" wants the gap between them, 24 − 8 = 16. Two in a row today, so try reading the question again after you have your first answer."
+    },
+    {
+      "q": "___ ÷ 8 = 32",
+      "note": "You divided here, and you divided on the last one of these too. The empty box is the big number — it is the thing being shared out — so it has to be bigger than 32, not smaller. When you see a box before the ÷ sign, multiply."
+    },
+    {
+      "q": "2 1/4  +  3 1/4 =",
+      "note": "Your answer here was right. Five and two quarters is exactly it — both digits just went into the top box together, so the app read it as 52/4. Put the 5 in the box in front, on its own, and this one is yours."
+    }
+  ]
+}

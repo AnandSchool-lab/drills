@@ -1,0 +1,22 @@
+{
+  "praise": "Every question in a Recap is one you got wrong before, and this time you got eight of the ten right. You also stayed with them — twenty-three minutes for ten questions. The only two left standing are the star puzzle and one mixed-number subtraction.",
+  "math": {
+    "approach": "On 3 10/12 − 2 2/12 only the first box has anything in it, a 2, and the top and bottom of the fraction were left empty — so whatever you worked out, the fraction part never got written down. The twelfths in that question already match, so nothing needs converting: 10 − 2 = 8 on top, 3 − 2 = 1 in front, which is 1 8/12. Then simplify — 8 and 12 both divide by 4 — and it is 1 2/3. You met this same question once before and had the 1 in front of it right that time, so the front box is not the hard part for you. The fraction is.",
+    "note": "The star one is worth knowing a trick for. Three numbers in a row sit evenly either side of the middle one, so the middle one is always the total shared into three: 108 ÷ 3 = 36. That makes them 35, 36, 37, and the largest is 37. Any three in a row work that way, so you never have to guess at this kind again."
+  },
+  "focus": [
+    "mixed-number subtraction: fill all three boxes — whole number, top, bottom",
+    "simplifying twelfths: 8/12 is 2/3",
+    "three numbers in a row: the middle one is the total ÷ 3"
+  ],
+  "tips": [
+    {
+      "q": "3 10/12  −  2 2/12  (simplify)",
+      "note": "This time only the front box was filled in, with a 2, and the top and bottom were left blank. Before you move on from a mixed number, check all three boxes have something in them — an empty pair of fraction boxes cannot be right on a question that asks you to simplify."
+    },
+    {
+      "q": "★ The sum of 3 numbers in a row (like 7, 8, 9…) is 108. What is the largest of the 3 numbers?",
+      "note": "There is nothing written down for this one either time you have tried it. This is a puzzle you cannot do in your head, and that is fine — it is not supposed to be. Write the three numbers down as boxes first and it stops being a guessing game."
+    }
+  ]
+}
