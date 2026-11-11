@@ -64,6 +64,24 @@ def real_review(kid, fallback):
     found = sorted((SRC / "archive").glob(f"*/*/review-{kid}.json"))
     return {"kid": kid, "date": TODAY, **json.load(open(found[-1]))} if found else fallback
 
+def real_misses():
+    """Their real misses from the archive, shaped the way the iPad keeps
+    them, so the Recap and its "Show me how" run on what they actually got
+    wrong rather than on invented questions."""
+    rec, flat = {}, {}
+    for f in sorted((SRC / "archive").glob("*/*/day.json")):
+        for m in json.load(open(f)).get("misses", []):
+            k = m["kid"]
+            day = rec.setdefault(k, {}).setdefault(m["date"], {})
+            day.setdefault("miss:" + m["block"], []).append(
+                {"q": m["q"], "gave": m.get("gave"), "want": m.get("want")})
+            flat.setdefault(k, []).append({kk: m.get(kk) for kk in ("date", "block", "q", "gave", "want")})
+    return rec, flat
+REC, FLAT = real_misses()
+# A sample of what the overnight review will add once it writes tips.
+SAMPLE_TIPS = [{"q": "1/4  =  ?/8",
+                "note": "In your working you drew 8 boxes - that was the right idea. Colour in 1/4 of them and count."}]
+
 kids = inline_scripts((SRC / "index.html").read_text(), SRC)
 kids = kids.replace("</head>", """
 <script>
@@ -71,8 +89,9 @@ kids = kids.replace("</head>", """
    Nothing below ships. It stands in for the network so the page can be
    clicked through without an iPad, a Worker or a database. */
 (function(){
-  var REVIEW = %s;
+  var REVIEW = %s, REC = __REC__, FLAT = __FLAT__, TIPS = __TIPS__;
   try{
+    Object.keys(REC).forEach(function(k){ localStorage.setItem("dd:rec:" + k, JSON.stringify(REC[k])); });
     localStorage.setItem("dd:names", JSON.stringify(["Alvina","Andrila"]));
     localStorage.setItem("dd:profile", JSON.stringify("Alvina"));
     localStorage.setItem("dd:apiUrl", JSON.stringify("https://preview.invalid"));
@@ -84,8 +103,11 @@ kids = kids.replace("</head>", """
   window.fetch = function(u, o){
     u = String(u);
     if(u.indexOf("/review") > -1)
-      return Promise.resolve(new Response(JSON.stringify({ ok:true, review:REVIEW }),
-        { headers:{ "Content-Type":"application/json" } }));
+      return reply({ ok:true, review: Object.assign({}, REVIEW, { tips: TIPS }) });
+    if(u.indexOf("/misses") > -1){
+      var who = new URL(u).searchParams.get("kid");
+      return reply({ ok:true, misses: FLAT[who] || [] });
+    }
     if(u.indexOf("/stuck") > -1 && (!o || o.method !== "POST")){
       /* Work the answer out from the question actually on the screen, using
          the same solve.js the parent dashboard uses. Nothing is canned, so
@@ -155,6 +177,7 @@ kids = kids.replace("</head>", """
 .previewbar b{letter-spacing:.06em;text-transform:uppercase;font-size:.72rem}
 </style>
 </head>""" % json.dumps(REVIEW_ALVINA := real_review("Alvina", REVIEW_ALVINA)))
+kids = kids.replace("__REC__", json.dumps(REC)).replace("__FLAT__", json.dumps(FLAT)).replace("__TIPS__", json.dumps(SAMPLE_TIPS))
 (OUT / "Preview-kids-app.html").write_text(kids)
 print("kids preview:", len(kids)//1024, "KB")
 
@@ -308,6 +331,10 @@ parent = parent.replace("</head>", """
       var n = /kid=([^&]+)/.exec(u);
       return reply(INK[n ? decodeURIComponent(n[1]) : "Alvina"] || { ok:true, pads:[] });
     }
+    if(u.indexOf("/misses") > -1){
+      var mk = /kid=([^&]+)/.exec(u);
+      return reply({ ok:true, misses: __FLAT__[mk ? decodeURIComponent(mk[1]) : "Alvina"] || [] });
+    }
     if(u.indexOf("/solution") > -1) return reply({ ok:true });
     if(u.indexOf("/retake") > -1) return reply({ ok:true });
     return real.apply(this, arguments);
@@ -330,5 +357,6 @@ parent = parent.replace("</head>", """
 </style>
 </head>""" % (json.dumps(LIVE), json.dumps({"Alvina":REVIEW_ALVINA,"Andrila":REVIEW_ANDRILA}),
               json.dumps(INK)))
+parent = parent.replace("__FLAT__", json.dumps(FLAT))
 (OUT / "Preview-parent-dashboard.html").write_text(parent)
 print("parent preview:", len(parent)//1024, "KB")

@@ -60,9 +60,21 @@ pad - it used to return the IDBRequest, which looked like a copy. Before
 touching saving, loading, clearing or retakes, prove old work survives
 (the kids preview has a pretend server in sessionStorage for this).
 
+**Recap "Show me how" (v30, `explain.js`).** Each Recap question opens a
+step-by-step with pictures, built from the question text alone (so old days
+work too) - one rule per question shape, a reading/grammar/spelling fallback.
+`Explain.pattern()` names the *kind* of mistake (whole number in the fraction,
+not simplified, bottom number on top...), and `Explain.repeats()` finds the
+same kind on **earlier days** (same-day slips don't count), from the iPad's
+records plus `GET /misses` (60 days). When it repeats, a teacher's note lists
+the dated tries and one habit; the 1 am review adds `tips` [{q, note}] in
+`review.tips`. The parent page loads the same file for its ↻ tags. Any new
+question template in `app.js` needs a rule here - `node verify-explain.js` builds
+every generated question and checks the steps land on the right answer.
+
 **Bumping the version is a three-line ritual.** `APP_VERSION` in `app.js`,
 `CACHE` in `sw.js`, and the file list in `app.js` (~line 2116) that the Update
-button fetches. Currently 29 / `drills-v29`. A new file that is not in that list
+button fetches. Currently 30 / `drills-v30`. A new file that is not in that list
 never reaches the iPads — `ink.js` was missing once and the handwriting fixes
 silently did not ship.
 

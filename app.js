@@ -8,7 +8,7 @@
 
 /* ---------- configuration you may want to change ---------- */
 var START_DATE = "2026-10-27";   // Monday the programme begins. Week 1 starts here.
-var APP_VERSION = "29";          // shown on the home screen; keep in step with CACHE in sw.js
+var APP_VERSION = "30";          // shown on the home screen; keep in step with CACHE in sw.js
 
 /* Google Apps Script web-app URL. Blank = results stay on the iPad only.
    Paste the /exec URL from Deploy → New deployment → Web app. */
@@ -1377,10 +1377,11 @@ function pastMisses(fromDaysAgo, toDaysAgo, limit){
       (r["miss:" + b] || []).forEach(function(m){
         if(out.length >= limit) return;
         if(!m.q || !String(m.want || "").trim()) return;
+        if(/^remainder$/i.test(String(m.q).trim())) return;   /* logged without its question - nothing to ask */
         var sig = b + "|" + m.q;
         if(seen[sig]) return;
         seen[sig] = 1;
-        out.push({ q:m.q, want:m.want, gave:m.gave, block:b, date:dates[i], age:age, kind:missKind(m) });
+        out.push(upgradeMiss({ q:m.q, want:m.want, gave:m.gave, block:b, date:dates[i], age:age, kind:missKind(m), sol:m.sol }));
       });
     });
   }
@@ -1393,16 +1394,119 @@ function recapParts(){
   return { fresh:fresh, older:older, total:fresh.length + older.length };
 }
 
+/* Before v29 "Which is larger" was typed as 1, 2 or 3. Ask it the new way. */
+function upgradeMiss(m){
+  var c = String(m.q).match(/^Which is larger: \(1\) (\d+\/\d+)\s+or\s+\(2\) (\d+\/\d+)/);
+  if(!c) return m;
+  var o = [c[1], c[2], "They are equal"], k = +m.want - 1;
+  m.q = "Which is larger: " + c[1] + " or " + c[2] + "?";
+  m.opts = o; m.want = o[k] || m.want; m.kind = "word";
+  return m;
+}
+
 function recapRow(m, i){
-  var label = "Recap " + (i+1);
-  var input = m.kind === "word"
+  var label = "Recap " + (i+1), input;
+  if(m.opts){
+    input = '<div class="opts" data-ans="'+m.opts.indexOf(m.want)+'" data-q="'+esc(m.q)+'">' +
+      m.opts.map(function(t, oi){ return '<label class="opt"><input type="radio" name="rc'+i+'" value="'+oi+'"><span>'+esc(t)+'</span></label>'; }).join("") + '</div>';
+  } else input = m.kind === "word"
     ? '<input class="ans word" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"' +
         ' data-a="'+esc(m.want)+'" data-q="'+esc(m.q)+'" aria-label="'+esc(label)+'">'
     : numInput(m.want, label, m.q);
   var ago = m.age === 1 ? "yesterday" : m.age + " days ago";
-  return '<div class="prob"><p class="pq"><b>'+(i+1)+'.</b> '+esc(m.q)+'</p>' +
+  return '<div class="prob" data-rc="'+i+'"><p class="pq"><b>'+(i+1)+'.</b> '+esc(m.q)+
+    ' <span class="again" hidden></span></p>' +
     '<p class="recall">You wrote <b>'+esc(m.gave || "nothing")+'</b> '+ago+'.</p>' +
-    '<div class="prow">'+input+'</div></div>';
+    '<div class="prow">'+input+
+    (window.Explain ? '<button type="button" class="howbtn" data-how="'+i+'">&#128214; Show me how</button>' : '') +
+    '</div></div>';
+}
+
+/* ---------- "Show me how" ----------
+   Every miss this iPad knows about, plus the server's copy, so a fresh
+   iPad still knows what she got wrong last week. Read-only: nothing here
+   writes to her records. */
+function missHistory(){
+  var all = records(), out = [], seen = {};
+  function add(m, date, block){
+    if(!m || !m.q) return;
+    var k = date + "|" + block + "|" + String(m.q).replace(/\s+/g, " ").trim();
+    if(seen[k]) return; seen[k] = 1;
+    out.push({ q:m.q, gave:m.gave, want:m.want, block:block, date:date, sol:m.sol });
+  }
+  Object.keys(all).forEach(function(d){
+    ["math","think","eng","recap"].forEach(function(b){ (all[d]["miss:" + b] || []).forEach(function(m){ add(m, d, b); }); });
+  });
+  (store.get("hist:" + who(), []) || []).forEach(function(m){ add(m, m.date, m.block); });
+  return out;
+}
+function fetchHistory(done){
+  if(!apiUrl() || !who()){ done(); return; }
+  fetch(apiUrl() + "/misses?kid=" + encodeURIComponent(who()))
+    .then(function(r){ return r.json(); })
+    .then(function(d){ if(d && d.ok && d.misses) store.set("hist:" + who(), d.misses.slice(0, 400)); done(); })
+    .catch(function(){ done(); });
+}
+/* The overnight review's line about one question, matched on its text. */
+var recapTips = {};
+function fetchTips(dates, done){
+  if(!apiUrl() || !who() || !dates.length){ done(); return; }
+  var left = dates.length;
+  dates.forEach(function(d){
+    fetch(apiUrl() + "/review?kid=" + encodeURIComponent(who()) + "&date=" + d)
+      .then(function(r){ return r.json(); })
+      .then(function(x){
+        var t = x && x.review && x.review.tips;
+        (Array.isArray(t) ? t : []).forEach(function(tp){
+          if(tp && tp.q && tp.note) recapTips[d + "|" + String(tp.q).replace(/\s+/g, " ").trim()] = String(tp.note);
+        });
+      })
+      .catch(function(){})
+      .then(function(){ if(--left === 0) done(); });
+  });
+}
+function tipFor(m){ return recapTips[m.date + "|" + String(m.q).replace(/\s+/g, " ").trim()] || ""; }
+
+function markRepeats(list){
+  var hist = missHistory();
+  list.forEach(function(m, i){
+    var tag = app.querySelector('[data-rc="'+i+'"] .again');
+    if(!tag || !window.Explain) return;
+    var n = Explain.repeats(m, hist).length;
+    tag.hidden = n < 2;
+    tag.textContent = "↻ " + Explain.ord(n) + " time";
+  });
+}
+
+function showHow(m){
+  var lesson = Explain.build(m, missHistory(), tipFor(m));
+  var pages = lesson.steps.length + (lesson.note ? 1 : 0), at = 0;
+  var v = document.createElement("div");
+  v.className = "xveil";
+  v.innerHTML = '<div class="xpop" role="dialog" aria-modal="true">' +
+    '<div class="xhead"><h3>' + esc(lesson.title) + '</h3><div class="xdots"></div>' +
+    '<button type="button" class="ghost sm" data-x="close" aria-label="Close">&#10005;</button></div>' +
+    '<div class="xbody"></div>' +
+    '<div class="xfoot"><button type="button" data-x="prev">&lsaquo; Back</button>' +
+    '<button type="button" class="go" data-x="next"></button></div></div>';
+  function draw(){
+    v.querySelector(".xbody").innerHTML = Explain.stepHTML(lesson, at);
+    v.querySelector(".xbody").scrollTop = 0;
+    v.querySelector(".xdots").innerHTML = Array.apply(null, Array(pages)).map(function(_, k){ return '<i class="'+(k === at ? "on" : "")+'"></i>'; }).join("");
+    v.querySelector('[data-x="prev"]').style.visibility = at ? "visible" : "hidden";
+    v.querySelector('[data-x="next"]').textContent = at === pages - 1 ? "Try it again ✓" : "Next step ›";
+  }
+  function close(){ v.remove(); }
+  v.addEventListener("click", function(e){
+    var x = e.target.closest("[data-x]");
+    if(e.target === v || (x && x.dataset.x === "close")) return close();
+    if(!x) return;
+    if(x.dataset.x === "prev" && at) at--;
+    else if(x.dataset.x === "next"){ if(at < pages - 1) at++; else return close(); }
+    draw();
+  });
+  document.body.appendChild(v);
+  draw();
 }
 
 function blockRecap(){
@@ -1432,7 +1536,18 @@ function blockRecap(){
       clearBar("k1") + '</section>';
   }
 
-  shell("Recap", BLOCKS.recap.mins, html + endBar(), function(){ wireSheet("recap"); }, "recap");
+  var list = parts.fresh.concat(parts.older);
+  shell("Recap", BLOCKS.recap.mins, html + endBar(), function(){
+    wireSheet("recap");
+    if(!window.Explain) return;
+    app.querySelectorAll("[data-how]").forEach(function(b){
+      b.addEventListener("click", function(){ showHow(list[+b.dataset.how]); });
+    });
+    markRepeats(list);
+    var dates = list.map(function(m){ return m.date; }).filter(function(d, i, a){ return a.indexOf(d) === i; });
+    fetchHistory(function(){ if(activeBlock === "recap") markRepeats(list); });
+    fetchTips(dates, function(){});
+  }, "recap");
 }
 
 /* ---------- sheet shell ---------- */
@@ -1755,7 +1870,7 @@ function blockThink(){
   var chal = genChallenge(L);
   var chalRows = chal.map(function(it,i){
     return '<div class="prob"><p class="pq"><b>★'+(i+1)+'.</b> '+esc(it.q)+'</p>' +
-      '<div class="prow">'+numInput(it.a, "Challenge "+(i+1), "★ "+it.q, it.kind)+
+      '<div class="prow">'+numInput(it.a, "Challenge "+(i+1), "★ "+it.q, it.kind).replace("<input ", '<input data-sol="'+esc(it.sol || "")+'" ')+
       '<button class="ghost sm" data-hint="c'+i+'">Hint</button></div>' +
       padHost("c0", i, it.q) +
       '<p class="hint" id="hc'+i+'" hidden>'+esc(it.hint)+'</p>' +
@@ -2045,12 +2160,13 @@ function padOf(el){
 function gradeSheet(block){
   var got = 0, total = 0, misses = [], answers = [];
 
-  function record(q, gave, want, right, kind, pad){
+  function record(q, gave, want, right, kind, pad, sol){
     total++;
     if(right) got++;
     answers.push({ n: total, q: q || "", gave: gave, want: want,
                    ok: right ? 1 : 0, kind: kind, pad: pad || "" });
-    if(!right) misses.push({ q: q || "", gave: gave, want: want, kind: kind });
+    if(!right) misses.push(sol ? { q: q || "", gave: gave, want: want, kind: kind, sol: sol }
+                               : { q: q || "", gave: gave, want: want, kind: kind });
   }
 
   app.querySelectorAll("input.ans, .fracbox, .opts").forEach(function(el){
@@ -2101,7 +2217,7 @@ function gradeSheet(block){
     el.classList.toggle("ok", right); el.classList.toggle("no", !right);
     record(el.dataset.q || el.getAttribute("aria-label") || "",
            el.value.trim() || "(blank)", want, right,
-           el.classList.contains("word") ? "word" : "num", padOf(el));
+           el.classList.contains("word") ? "word" : "num", padOf(el), el.dataset.sol || "");
   });
 
   saveResult(block, got, total, elapsed());
@@ -2298,7 +2414,7 @@ function getLatest(){
   var btn = $("#refresh");
   if(!navigator.onLine){ toast("No internet — connect to Wi-Fi and try again"); return; }
   if(btn){ btn.disabled = true; btn.textContent = "Updating…"; }
-  var files = ["./", "./index.html", "./app.js", "./content.js", "./ink.js", "./solve.js", "./sw.js", "./manifest.webmanifest"];
+  var files = ["./", "./index.html", "./app.js", "./content.js", "./ink.js", "./explain.js", "./solve.js", "./sw.js", "./manifest.webmanifest"];
   var swUpdate = ("serviceWorker" in navigator)
     ? navigator.serviceWorker.getRegistration().then(function(r){ return r ? r.update() : null; }).catch(function(){})
     : Promise.resolve();

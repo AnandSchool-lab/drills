@@ -420,12 +420,35 @@ body.sheetopen{overflow:hidden}
 }
 
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* Recap: "Show me how" */
+.howbtn{border:0;background:var(--accent-soft);color:var(--accent);border-radius:10px;padding:8px 12px;font:700 .9rem var(--body);cursor:pointer}
+.again{display:inline-block;background:var(--amber-soft);color:var(--amber);border-radius:99px;padding:0 9px;font-size:.75rem;font-weight:700;margin-left:6px;vertical-align:middle}
+.again[hidden]{display:none}
+.xveil{position:fixed;inset:0;background:rgba(10,20,40,.45);display:flex;align-items:flex-end;justify-content:center;z-index:60}
+.xpop{background:var(--surface);width:min(760px,100%);max-height:92vh;border-radius:20px 20px 0 0;display:flex;flex-direction:column;box-shadow:0 -6px 30px rgba(0,0,0,.2)}
+.xhead{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line)}
+.xhead h3{margin:0;font:700 1.1rem var(--display);flex:1}
+.xdots{display:flex;gap:6px}.xdots i{width:9px;height:9px;border-radius:50%;background:var(--line)}.xdots i.on{background:var(--accent)}
+.xbody{overflow:auto;padding:16px 18px;min-height:180px}
+.xstep h4{margin:0 0 6px;font:700 1.05rem var(--display);color:var(--accent)}
+.xstep p{margin:0 0 10px;font-size:1.05rem}
+.xpic{background:var(--surface-2);border-radius:14px;padding:12px;margin:6px 0 4px;text-align:center;overflow-x:auto}
+.xteach{background:var(--amber-soft);border-left:4px solid var(--amber);border-radius:12px;padding:12px 14px}
+.xteach .xt{display:block;font:700 1rem var(--display);color:var(--amber);margin-bottom:6px}
+.xteach p{margin:0 0 8px}
+.xwas{margin:0 0 10px;padding-left:18px}.xwas li{margin:3px 0}
+.xtip{background:var(--surface);border-radius:10px;padding:8px 10px}
+.xfoot{display:flex;gap:10px;padding:12px 18px;border-top:1px solid var(--line)}
+.xfoot button{flex:1;padding:12px;border-radius:12px;font:700 1rem var(--body);border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+.xfoot .go{background:var(--accent);border-color:var(--accent);color:#fff}
 </style>
 </head>
 <body>
 <div id="app"></div>
 <script src="content.js"></script>
 <script src="ink.js"></script>
+<script src="explain.js"></script>
 <script src="solve.js"></script>
 <script src="app.js"></script>
 <script>

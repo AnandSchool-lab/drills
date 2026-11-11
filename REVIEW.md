@@ -56,7 +56,8 @@ If neither girl did any work, write nothing and commit nothing.
                 "next":    "one thing to try today" },
   "math":     { "approach": "how she went about it, from her working",
                 "note":     "the one idea to fix or keep doing" },
-  "focus":    ["short topic names to practise next, e.g. mixed numbers to fractions"]
+  "focus":    ["short topic names to practise next, e.g. mixed numbers to fractions"],
+  "tips":     [{ "q": "the question text exactly as in day.json misses", "note": "one teacher line about her own working on it" }]
 }
 ```
 
@@ -80,6 +81,15 @@ that matter most.
 - **Spelling** comes only from what she actually handwrote. If you cannot
   read a word, leave it out rather than guess.
 - Keep the whole note short enough to read in a minute.
+- **Tips** appear in the Recap, inside "Show me how" for that question, after
+  the app's own step-by-step. The app already explains the method and
+  already lists her earlier tries of the same mistake, so don't repeat
+  either. Say what only someone who looked at her *working* can: where
+  her working went off track, what she did that was right, or a habit that
+  would have caught it. One or two short sentences, to her. Copy `q`
+  character for character from `misses[].q` in `day.json` (it is matched
+  exactly). Skip any miss where you have nothing beyond the method to say,
+  and any the checker got wrong.
 
 ## When the app was wrong, not her
 

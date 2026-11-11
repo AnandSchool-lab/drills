@@ -22,6 +22,10 @@
 --               server before Check as well as after. Create it with:
 --               CREATE TABLE IF NOT EXISTS drafts (id INTEGER PRIMARY KEY AUTOINCREMENT, kid TEXT NOT NULL, date TEXT NOT NULL, block TEXT NOT NULL, filled INTEGER NOT NULL, data TEXT NOT NULL, at TEXT NOT NULL);
 --               CREATE INDEX IF NOT EXISTS drafts_kid_date ON drafts (kid, date, block, id);
+--
+--   2026-11-10  a teacher's note per missed question, for the Recap's
+--               "Show me how". Run:
+--               ALTER TABLE review ADD COLUMN tips TEXT;
 
 -- One row per child, per day, per block, once they press Check.
 CREATE TABLE IF NOT EXISTS results (
@@ -127,6 +131,7 @@ CREATE TABLE IF NOT EXISTS review (
   essay    TEXT,                 -- JSON {summary, fixes:[{was,should,why}], next}
   math     TEXT,                 -- JSON {approach, note}
   focus    TEXT,                 -- JSON [topic] - feeds tomorrow's Recap
+  tips     TEXT,                 -- JSON [{q, note}] - one line per missed question, for "Show me how"
   at       TEXT NOT NULL,
   PRIMARY KEY (kid, date)
 );

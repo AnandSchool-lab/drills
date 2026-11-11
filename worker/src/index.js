@@ -14,6 +14,7 @@
      POST /writing  their writing, when typed     (open)
      POST /draft    a sheet's answers as she goes (open, append-only)
      GET  /mywork   one of her sheets, to refill an iPad (open)
+     GET  /misses   her misses, last 60 days, for "Show me how" (open)
      GET  /retake   has a parent asked for a redo (open)
      GET  /live     the dashboard                 (needs the parent key)
      POST /retake   ask for a redo                (needs the parent key)
@@ -272,6 +273,20 @@ async function postDraft(body, env) {
    a cleared browser). Open, like /review: the app has no key and cannot
    have one. Each part is fetched on its own so a missing table only
    empties that part. */
+/* Everything she got wrong lately, so "Show me how" can say "you did the
+   same thing on Nov 5" even on an iPad that has lost its own history.
+   Open, like /review: the same remarks are in the public archive. */
+async function getMisses(url, env) {
+  const kid = url.searchParams.get("kid");
+  if (!isKid(kid)) return { ok: false, error: "bad kid" };
+  const notes = [];
+  const misses = await safeAll(env.DB.prepare(
+    `SELECT date, block, q, gave, want FROM misses
+     WHERE kid = ?1 AND date >= date('now', '-60 day') ORDER BY date DESC, id LIMIT 400`
+  ).bind(kid), "misses", notes);
+  return { ok: true, kid, misses, notes };
+}
+
 async function getMyWork(url, env) {
   const kid = url.searchParams.get("kid");
   const date = url.searchParams.get("date");
@@ -453,6 +468,17 @@ async function postSolution(body, env) {
 async function postReview(body, env) {
   if (!isKid(body.kid) || !isDate(body.date)) return "bad fields";
   const j = (v) => (v == null ? null : clampText(JSON.stringify(v), 20000));
+  /* tips: [{ q, note }] - a teacher's line per missed question, shown in
+     the Recap's "Show me how". Its own statement, so a database without
+     the column (added 2026-11-10) still takes the rest of the review. */
+  if (Array.isArray(body.tips)) {
+    try {
+      await env.DB.prepare(
+        `INSERT INTO review (kid, date, tips, at) VALUES (?1, ?2, ?3, ?4)
+         ON CONFLICT (kid, date) DO UPDATE SET tips = ?3`
+      ).bind(body.kid, body.date, j(body.tips.slice(0, 60)), now()).run();
+    } catch (e) { /* no tips column yet - the review below still lands */ }
+  }
   await env.DB.prepare(
     `INSERT INTO review (kid, date, praise, spelling, essay, math, focus, at)
      VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
@@ -479,7 +505,8 @@ async function getReview(url, env) {
   const p = (v) => { try { return v ? JSON.parse(v) : null; } catch { return null; } };
   return { ok: true, review: {
     kid: row.kid, date: row.date, praise: row.praise,
-    spelling: p(row.spelling), essay: p(row.essay), math: p(row.math), focus: p(row.focus)
+    spelling: p(row.spelling), essay: p(row.essay), math: p(row.math), focus: p(row.focus),
+    tips: p(row.tips)
   } };
 }
 
@@ -560,6 +587,10 @@ export default {
 
       if (path === "/stuck" && request.method === "GET") {
         return json(await getStuck(url, env), 200, origin);
+      }
+
+      if (path === "/misses" && request.method === "GET") {
+        return json(await getMisses(url, env), 200, origin);
       }
 
       if (path === "/mywork" && request.method === "GET") {

@@ -113,6 +113,9 @@ input,select{font:inherit;font-size:15px;padding:8px 10px;border-radius:9px;
 .qrow{font-size:14px;border-bottom:1px solid var(--line)}
 .qrow:nth-child(even){background:var(--surface)}
 .qrow.bad{background:var(--bad-soft)}
+.qrow .rep{display:inline-block;margin-left:6px;background:var(--amber-soft,#FDEEDC);color:var(--amber,#D9731A);
+  border-radius:99px;padding:0 7px;font-size:11px;font-weight:700;cursor:help}
+.qrow .rep[hidden]{display:none}
 .qrow .n{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums;text-align:right}
 .qrow .qq{min-width:0;overflow-wrap:anywhere}
 .qrow .ga{font-weight:700;color:var(--bad);font-variant-numeric:tabular-nums;
@@ -284,6 +287,7 @@ body{background:var(--bg)}
 
 <script src="../ink.js"></script>
 <script src="../solve.js"></script>
+<script src="../explain.js"></script>
 <script>
 var API  = "https://drills-api.anandm401-amazon.workers.dev";
 var KIDS = ["Alvina", "Andrila"];
@@ -412,9 +416,10 @@ function paint(d){
    answer when she missed it, and a pencil if she showed her working. */
 function rowHTML(a){
   var gave = a.gave || "", blank = !gave || /^\(?blank\)?$/i.test(gave);
-  return '<div class="qrow' + (a.ok ? "" : " bad") + '" data-pad="' + esc(a.pad || "") + '">' +
+  return '<div class="qrow' + (a.ok ? "" : " bad") + '" data-pad="' + esc(a.pad || "") + '"' +
+    (a.ok ? '' : ' data-q="' + esc(a.q) + '" data-gave="' + esc(gave) + '" data-want="' + esc(a.want) + '"') + '>' +
     '<span class="n">' + a.n + '</span>' +
-    '<span class="qq">' + esc(a.q) + '</span>' +
+    '<span class="qq">' + esc(a.q) + (a.ok ? '' : '<span class="rep" hidden></span>') + '</span>' +
     '<span class="ga' + (a.ok ? " ok" : "") + (blank ? " blank" : "") + '">' +
       esc(blank ? "nothing" : gave) + '</span>' +
     '<span class="mk">' + (a.ok ? "✓" : "✗") + '</span>' +
@@ -506,6 +511,34 @@ function columns(rows){
   loadNotes();
   loadReview();
   paintStuck(d);
+  tagRepeats(kid, day);
+}
+
+/* "↻ 3rd time": the same kind of mistake on earlier days, so a pattern
+   shows on the row instead of hiding across separate days. The kids'
+   Recap uses the same rules (explain.js) to say so to her. */
+var histCache = {};
+function tagRepeats(k, dayKey){
+  if(!window.Explain) return;
+  function paint(hist){
+    if(k !== kid) return;
+    $("#blocks").querySelectorAll(".qrow.bad[data-q]").forEach(function(row){
+      var b = row.closest(".blk"), tag = row.querySelector(".rep");
+      if(!tag || !b) return;
+      var m = { q:row.dataset.q, gave:row.dataset.gave, want:row.dataset.want, block:b.dataset.b, date:dayKey };
+      var list = Explain.repeats(m, hist), n = list.length;
+      if(n < 2){ tag.hidden = true; return; }
+      tag.hidden = false;
+      tag.textContent = "↻ " + Explain.ord(n) + " time";
+      tag.title = list.map(function(h){ return Explain.day(h.date) + ": " + h.q + " → " + (h.gave || "nothing"); }).join("\n") +
+        "\n" + Explain.pattern(m).habit;
+    });
+  }
+  if(histCache[k]){ paint(histCache[k]); return; }
+  fetch(API + "/misses?kid=" + encodeURIComponent(k))
+    .then(function(r){ return r.json(); })
+    .then(function(d){ histCache[k] = (d && d.misses) || []; paint(histCache[k]); })
+    .catch(function(){});
 }
 
 /* The ones they said they could not do. This is the part that wants

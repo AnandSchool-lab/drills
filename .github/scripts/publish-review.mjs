@@ -8,7 +8,8 @@
  *     "essay":   { "summary":"...", "fixes":[{ "was":"dosent","should":"doesn't","why":"..." }],
  *                  "next":"one thing to try today" },
  *     "math":    { "approach":"how she went about it", "note":"..." },
- *     "focus":   ["what tomorrow's Recap should lean on"] }
+ *     "focus":   ["what tomorrow's Recap should lean on"],
+ *     "tips":    [{ "q":"the question, exactly as missed", "note":"for Show me how" }] }
  *
  * Everything is optional. A day with nothing worth saying should have no
  * file at all rather than a file full of filler.
