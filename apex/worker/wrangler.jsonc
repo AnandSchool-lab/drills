@@ -11,7 +11,7 @@
       "binding": "DB",
       "database_name": "apex",
       // From the D1 page in the dashboard. An identifier, not a credential.
-      "database_id": "PASTE-APEX-DATABASE-ID-HERE"
+      "database_id": "e22ec764-e766-45ea-bd5a-ede0d4f8e81e"
     }
   ],
 
