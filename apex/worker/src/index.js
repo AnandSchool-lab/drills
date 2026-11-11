@@ -123,7 +123,15 @@ export default {
     const path = new URL(request.url).pathname.replace(/\/+$/, "") || "/";
 
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors(origin) });
-    if (path === "/health") return json({ ok: true, app: "apex", time: new Date().toISOString() }, 200, origin);
+    if (path === "/health") {
+      /* Says whether the database is reachable, never what is in it. */
+      let db = "no binding";
+      if (env.DB) {
+        try { await ensureTables(env); await env.DB.prepare("SELECT 1").first(); db = "ok"; }
+        catch (e) { db = "error: " + String((e && e.message) || e).slice(0, 120); }
+      }
+      return json({ ok: true, app: "apex", db, key: env.APEX_KEY ? "set" : "missing", time: new Date().toISOString() }, 200, origin);
+    }
 
     try {
       if (request.method === "POST" && (path === "/read" || path === "/save")) {
