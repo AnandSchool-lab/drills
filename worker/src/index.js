@@ -19,8 +19,6 @@
      GET  /live     the dashboard                 (needs the parent key)
      POST /retake   ask for a redo                (needs the parent key)
      GET  /health   is this thing on              (open)
-     POST /apex/read  Anand's APEX study work     (needs the parent key)
-     POST /apex     save APEX study work          (needs the parent key)
 
    The write routes are open on purpose. Locking them would mean a
    secret inside a public web page, which is not a secret. They accept
@@ -525,67 +523,6 @@ async function getInk(url, env) {
   return { ok: true, kid, date, pads: rows.results || [] };
 }
 
-/* ---------- Anand's own APEX study app (drills/apex/) ----------
-   Nothing to do with the girls' data: its own two tables, created here
-   on first use so no hand-run DDL can be forgotten (see schema.sql).
-   Reads and writes both need the parent key - these are his notes. */
-
-const APEX_KINDS = ["answers", "days", "quiz"];
-const APEX_MAX_DOC = 64 * 1024;
-let apexReady = false;
-
-async function apexTables(env) {
-  if (apexReady) return;
-  await env.DB.batch([
-    env.DB.prepare(`CREATE TABLE IF NOT EXISTS apex_work (
-      kind TEXT NOT NULL, id TEXT NOT NULL, data TEXT NOT NULL,
-      at INTEGER NOT NULL, saved TEXT NOT NULL, PRIMARY KEY (kind, id))`),
-    env.DB.prepare(`CREATE TABLE IF NOT EXISTS apex_history (
-      n INTEGER PRIMARY KEY AUTOINCREMENT, kind TEXT NOT NULL, id TEXT NOT NULL,
-      data TEXT NOT NULL, at INTEGER NOT NULL, saved TEXT NOT NULL)`)
-  ]);
-  apexReady = true;
-}
-
-async function getApex(env) {
-  await apexTables(env);
-  const rows = await env.DB.prepare(`SELECT kind, id, data, at FROM apex_work`).all();
-  const out = { answers: {}, days: {}, quiz: {} };
-  for (const r of rows.results || []) {
-    if (!out[r.kind]) continue;
-    try { out[r.kind][r.id] = JSON.parse(r.data); } catch { /* skip a bad row, keep the rest */ }
-  }
-  return { ok: true, ...out };
-}
-
-/* Newer wins, older is ignored, and every accepted write is also kept in
-   apex_history - so no edit can ever wipe an earlier answer for good. */
-async function postApex(body, env) {
-  const docs = Array.isArray(body.docs) ? body.docs : null;
-  if (!docs || !docs.length || docs.length > 300) return "docs must be 1-300 items";
-  await apexTables(env);
-  const stmts = [];
-  const t = now();
-  for (const d of docs) {
-    if (!d || !APEX_KINDS.includes(d.kind)) return "bad kind";
-    if (typeof d.id !== "string" || !/^[a-z0-9-]{1,60}$/.test(d.id)) return "bad id";
-    const at = Number(d.data && d.data.at);
-    if (!Number.isFinite(at) || at <= 0) return "data.at missing";
-    const data = JSON.stringify(d.data);
-    if (data.length > APEX_MAX_DOC) return "doc too big";
-    stmts.push(env.DB.prepare(
-      `INSERT INTO apex_work (kind, id, data, at, saved) VALUES (?1, ?2, ?3, ?4, ?5)
-       ON CONFLICT (kind, id) DO UPDATE SET data = excluded.data, at = excluded.at, saved = excluded.saved
-       WHERE excluded.at >= apex_work.at`
-    ).bind(d.kind, d.id, data, at, t));
-    stmts.push(env.DB.prepare(
-      `INSERT INTO apex_history (kind, id, data, at, saved) VALUES (?1, ?2, ?3, ?4, ?5)`
-    ).bind(d.kind, d.id, data, at, t));
-  }
-  await env.DB.batch(stmts);
-  return null;
-}
-
 /* ---------- the entry point ---------- */
 
 export default {
@@ -636,19 +573,6 @@ export default {
         const body = await readJson(request);
         if (!keyOk(body.key, env.PARENT_KEY)) return bad("wrong key", origin, 401);
         const err = await postReview(body, env);
-        return err ? bad(err, origin) : json({ ok: true }, 200, origin);
-      }
-
-      if (path === "/apex/read" && request.method === "POST") {
-        const body = await readJson(request);
-        if (!keyOk(body.key, env.PARENT_KEY)) return bad("wrong key", origin, 401);
-        return json(await getApex(env), 200, origin);
-      }
-
-      if (path === "/apex" && request.method === "POST") {
-        const body = await readJson(request);
-        if (!keyOk(body.key, env.PARENT_KEY)) return bad("wrong key", origin, 401);
-        const err = await postApex(body, env);
         return err ? bad(err, origin) : json({ ok: true }, 200, origin);
       }
 

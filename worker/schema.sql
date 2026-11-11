@@ -26,11 +26,6 @@
 --   2026-11-10  a teacher's note per missed question, for the Recap's
 --               "Show me how". Run:
 --               ALTER TABLE review ADD COLUMN tips TEXT;
---
---   2026-11-10  apex_work and apex_history, for Anand's own APEX study page
---               (drills/apex/). Unrelated to the girls' data. The Worker
---               creates both on first use (apexTables), so nothing to run
---               by hand; listed below so this file stays the full picture.
 
 -- One row per child, per day, per block, once they press Check.
 CREATE TABLE IF NOT EXISTS results (
@@ -172,12 +167,3 @@ CREATE TABLE IF NOT EXISTS drafts (
   at     TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS drafts_kid_date ON drafts (kid, date, block, id);
-
--- Anand's APEX study page: latest copy of each answer / day / quiz pick.
-CREATE TABLE IF NOT EXISTS apex_work (
-  kind TEXT NOT NULL, id TEXT NOT NULL, data TEXT NOT NULL,
-  at INTEGER NOT NULL, saved TEXT NOT NULL, PRIMARY KEY (kind, id));
--- Every accepted save, append-only, so an edit never erases the one before.
-CREATE TABLE IF NOT EXISTS apex_history (
-  n INTEGER PRIMARY KEY AUTOINCREMENT, kind TEXT NOT NULL, id TEXT NOT NULL,
-  data TEXT NOT NULL, at INTEGER NOT NULL, saved TEXT NOT NULL);

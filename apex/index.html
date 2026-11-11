@@ -1293,13 +1293,13 @@ async function connect(){
 }
 
 /* ===================== SYNC FOR THE GITHUB COPY =====================
-   On github.io there is no Claude account, so answers go to the family
-   Worker (private routes, parent passphrase). Newer copy always wins on
+   On github.io there is no Claude account, so answers go to the separate
+   apex-api Worker and its own "apex" database (passphrase APEX_KEY). Newer copy always wins on
    both sides; the server also keeps every version. Unsent saves wait in
    this browser and retry, so nothing typed offline is lost. */
 const remote = (function(){
-  const API = 'https://drills-api.anandm401-amazon.workers.dev';
-  const QK = 'apexdrills.queue', KEY = 'dd:parentKey';
+  const API = 'https://apex-api.anandm401-amazon.workers.dev';
+  const QK = 'apexdrills.queue', KEY = 'apex:key';
   let on = false, timer = null, busy = false;
   const get = k => { try{ return localStorage.getItem(k); }catch(e){ return null; } };
   const put = (k, v) => { try{ localStorage.setItem(k, v); }catch(e){} };
@@ -1324,7 +1324,7 @@ const remote = (function(){
     if(!docs.length){ setSync('Synced to all your devices'); return; }
     busy = true;
     try{
-      await call('/apex', { docs });
+      await call('/save', { docs });
       docs.forEach(d => { const k = d.kind + '/' + d.id; if(queue[k] && queue[k].data === d.data) delete queue[k]; });
       saveQ();
       setSync('Synced to all your devices');
@@ -1337,7 +1337,7 @@ const remote = (function(){
   async function pull(){
     if(!on) return;
     try{
-      const j = await call('/apex/read', {});
+      const j = await call('/read', {});
       const merge = (src, target, kind) => {
         Object.entries(src || {}).forEach(([id, v]) => {
           const cur = target[id];
@@ -1367,7 +1367,7 @@ const remote = (function(){
     };
   }
   function start(){
-    if(!key()){ askKey('To sync across devices, enter the parent-page passphrase:'); return; }
+    if(!key()){ askKey('To sync across devices, enter your APEX passphrase:'); return; }
     on = true; setSync('Syncing…'); pull();
     document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible') pull(); });
     window.addEventListener('online', flush);

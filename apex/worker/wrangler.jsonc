@@ -1,0 +1,22 @@
+{
+  // APEX Expert Drills sync API - separate from the girls' drills-api.
+  // Deployed by Cloudflare Workers Builds from this folder (root: apex/worker).
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "apex-api",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-01",
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "apex",
+      // From the D1 page in the dashboard. An identifier, not a credential.
+      "database_id": "PASTE-APEX-DATABASE-ID-HERE"
+    }
+  ],
+
+  // APEX_KEY is a secret set in the dashboard, never in this file:
+  // Workers -> apex-api -> Settings -> Variables and Secrets -> Add -> Secret.
+
+  "observability": { "enabled": true }
+}
