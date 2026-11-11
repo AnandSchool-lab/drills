@@ -157,7 +157,7 @@ async function postResult(body, env) {
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)`
       ).bind(body.kid, body.date, body.block,
              clampInt(a.n, 0, 500), clampText(a.q, 400),
-             clampText(a.gave, 200), clampText(a.want, 200),
+             clampText(a.gave, 1500), clampText(a.want, 200),
              a.ok ? 1 : 0, clampText(a.pad, 40))
     );
   }

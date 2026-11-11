@@ -72,9 +72,20 @@ the dated tries and one habit; the 1 am review adds `tips` [{q, note}] in
 question template in `app.js` needs a rule here - `node verify-explain.js` builds
 every generated question and checks the steps land on the right answer.
 
+**Test like the girls, then look like a parent (v31).** Fixture tests
+missed three things the real pipeline showed at once: a spelling strip in
+Pencil mode was 0px tall (so they typed every word), typed writing was
+white-on-white on the dark parent page, and the reading answer and
+vocabulary sentences never left the iPad. The rig: the real Worker on
+node:sqlite plus the site served on localhost:8099 (both pages pointed at
+it), fill every field as a child would - including real pen strokes - then
+open the real parent page, light and dark. Spelling pads now carry their
+`word`; written answers go up as answers rows with `want: ""` (outside
+the score, shown on their own line).
+
 **Bumping the version is a three-line ritual.** `APP_VERSION` in `app.js`,
 `CACHE` in `sw.js`, and the file list in `app.js` (~line 2116) that the Update
-button fetches. Currently 30 / `drills-v30`. A new file that is not in that list
+button fetches. Currently 31 / `drills-v31`. A new file that is not in that list
 never reaches the iPads — `ink.js` was missing once and the handwriting fixes
 silently did not ship.
 

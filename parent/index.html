@@ -138,8 +138,25 @@ input,select{font:inherit;font-size:15px;padding:8px 10px;border-radius:9px;
 .qink[hidden]{display:none}
 .qink img.work{display:block;width:100%;max-height:420px;object-fit:contain;object-position:left top;
   background:#fff;border:1px solid var(--line);border-radius:8px;margin-top:9px;cursor:zoom-in}
-.qink .txt{background:#fff;border:1px solid var(--line);border-radius:8px;
+/* paper: dark ink on white in both themes - it used to inherit the dark
+   theme's light text, which on white was invisible */
+.qink .txt{background:#fff;color:#16243C;border:1px solid var(--line);border-radius:8px;
   padding:9px 11px;font-size:14px;white-space:pre-wrap;margin-top:9px}
+/* the spelling test: word asked, what she wrote, right or not */
+.spell{padding:4px 13px 10px}
+.sprow{display:grid;grid-template-columns:24px minmax(90px,160px) auto 22px 1fr;gap:10px;align-items:center;
+  padding:6px 0;border-bottom:1px solid var(--line)}
+.sprow:last-child{border-bottom:0}
+.sprow .n{color:var(--muted);font-size:12px;text-align:right}
+.sprow .w{font-weight:700}
+.sprow .sw{display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:wrap}
+.sprow .tw{background:#fff;color:#16243C;border-radius:6px;padding:3px 9px;font-size:15px;border:1px solid var(--line)}
+.sprow .tymark{font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:99px;padding:0 7px}
+.sprow img{height:52px;width:auto;max-width:100%;background:#fff;border-radius:6px;border:1px solid var(--line);cursor:zoom-in}
+.sprow .mk{font-weight:700;text-align:center}
+.sprow .mk.ok{color:var(--good)} .sprow .mk.no{color:var(--bad)}
+.sprow .fix{font-size:12.5px;color:var(--good);font-weight:700}
+.spnote{font-size:12px;color:var(--muted);padding:2px 0 6px}
 .blk.onlybad .qrow:not(.bad){display:none}
 .blk.onlybad .qrow:not(.bad)+.qink{display:none}
 .filt{font-size:12px;padding:3px 9px}
@@ -223,7 +240,14 @@ body{background:var(--bg)}
 .filt{font-size:11.5px;padding:2px 9px;border-radius:999px}
 .qhead{font-family:var(--mono);font-size:10.5px;background:var(--surface-2)}
 .qrow{font-size:13.5px;padding-top:6px;padding-bottom:6px}
-.qhead,.qrow{grid-template-columns:28px 1fr auto 14px minmax(0,auto) auto}
+/* "she wrote" can be a whole sentence: let it wrap rather than squeeze
+   the question into one letter per line */
+.qhead,.qrow{grid-template-columns:28px minmax(0,1fr) fit-content(48%) 14px fit-content(30%) auto}
+.qrow .ga,.qrow .wa{overflow-wrap:break-word;white-space:normal}
+/* a written answer (reading, vocabulary) goes on its own line under the
+   question, full width, so neither one is squeezed */
+.qrow.text .ga{grid-column:2 / -1;grid-row:2;text-align:left;font-weight:400;
+  background:#fff;color:#16243C;border:1px solid var(--line);border-radius:8px;padding:7px 10px;margin:2px 0 4px}
 /* the pencil: a small pill that opens her own handwriting, as she drew it */
 .inkbtn{border-radius:999px;font-size:11.5px;padding:1px 8px;white-space:nowrap;
   color:var(--t-math);border-color:currentColor;background:var(--surface)}
@@ -416,13 +440,13 @@ function paint(d){
    answer when she missed it, and a pencil if she showed her working. */
 function rowHTML(a){
   var gave = a.gave || "", blank = !gave || /^\(?blank\)?$/i.test(gave);
-  return '<div class="qrow' + (a.ok ? "" : " bad") + '" data-pad="' + esc(a.pad || "") + '"' +
+  return '<div class="qrow' + (a.ok ? "" : " bad") + (a.want === "" && a.ok ? " text" : "") + '" data-pad="' + esc(a.pad || "") + '"' +
     (a.ok ? '' : ' data-q="' + esc(a.q) + '" data-gave="' + esc(gave) + '" data-want="' + esc(a.want) + '"') + '>' +
     '<span class="n">' + a.n + '</span>' +
     '<span class="qq">' + esc(a.q) + (a.ok ? '' : '<span class="rep" hidden></span>') + '</span>' +
     '<span class="ga' + (a.ok ? " ok" : "") + (blank ? " blank" : "") + '">' +
       esc(blank ? "nothing" : gave) + '</span>' +
-    '<span class="mk">' + (a.ok ? "✓" : "✗") + '</span>' +
+    '<span class="mk">' + (a.want === "" && a.ok ? "✎" : a.ok ? "✓" : "✗") + '</span>' +
     '<span class="wa">' + (a.ok ? "" : esc(a.want)) + '</span>' +
     '<span class="pen"></span>' +
   '</div><div class="qink" hidden></div>';
@@ -635,10 +659,11 @@ function loadNotes(){
         "&kid=" + encodeURIComponent(kid) + "&date=" + day, { cache:"no-store" })
     .then(function(r){ return r.json(); })
     .then(function(d){
-      var loose = {};
+      var loose = {}, spell = [];
       (d.pads || []).forEach(function(p){
         var data = {}; try{ data = JSON.parse(p.data || "{}"); }catch(e){}
         if(!padHas(data)) return;                       // nothing was written here
+        if(p.block === "eng" && /^sp\d+$/.test(p.pad)){ spell.push({ i: +p.pad.slice(2), data: data }); return; }
 
         var sec = document.querySelector('.blk[data-b="' + p.block + '"]');
         if(!sec) return;
@@ -647,11 +672,12 @@ function loadNotes(){
         else (loose[p.block] = loose[p.block] || []).push(data);
       });
 
+      paintSpelling(spell);
       Object.keys(loose).forEach(function(b){
         var sec = document.querySelector('.blk[data-b="' + b + '"]');
         if(!sec) return;
         var host = sec.querySelector(".notehost");
-        host.innerHTML = '<div class="lab">Her writing</div>';
+        host.insertAdjacentHTML("beforeend", '<div class="lab">Her writing</div>');
         loose[b].forEach(function(data){
           var slot = document.createElement("div");
           slot.className = "qink";
@@ -663,6 +689,43 @@ function loadNotes(){
 }
 
 function cssq(s){ return String(s).replace(/"/g, '\\"'); }
+
+/* The spelling test as a list: the word she was given, what she wrote,
+   and - when she typed it - whether it matches. Handwriting is shown at
+   the size she wrote it; the overnight review reads it. Days before v31
+   did not send the word, so those say "word 3". */
+function paintSpelling(list){
+  var sec = document.querySelector('.blk[data-b="eng"]');
+  if(!sec || !list.length) return;
+  list.sort(function(a, b){ return a.i - b.i; });
+  var typed = 0;
+  var rows = list.map(function(s){
+    var d = s.data, word = d.word || "", txt = String(d.text || "").trim(), mark = "", body = "";
+    if(d.s && d.s.length && window.Ink){
+      try{ body = '<img alt="her handwriting" src="' + Ink.toImage(d, 2) + '">'; }catch(e){}
+    }
+    if(!body && txt){
+      typed++;
+      body = '<span class="tw">' + esc(txt) + '</span><span class="tymark">typed</span>';
+      if(word){
+        var ok = txt.toLowerCase() === word.toLowerCase();
+        mark = ok ? '<span class="mk ok">✓</span>' : '<span class="mk no">✗</span>';
+      }
+    }
+    (d.imgs || []).forEach(function(src){ body += '<img alt="photo" src="' + src + '">'; });
+    return '<div class="sprow"><span class="n">' + (s.i + 1) + '</span>' +
+      '<span class="w">' + (word ? esc(word) : '<span style="color:var(--muted);font-weight:400">word ' + (s.i + 1) + '</span>') + '</span>' +
+      '<span class="sw">' + body + '</span>' + (mark || '<span class="mk"></span>') + '</div>';
+  }).join("");
+  var host = sec.querySelector(".notehost");
+  host.insertAdjacentHTML("afterbegin",
+    '<div class="lab">Spelling</div><div class="spell">' +
+    (typed ? '<div class="spnote">' + typed + ' of ' + list.length + ' typed instead of handwritten.</div>' : '') +
+    rows + '</div>');
+  host.querySelectorAll(".sprow img").forEach(function(img){
+    img.addEventListener("click", function(){ bigPicture(img.src); });
+  });
+}
 
 /* Put one pad's contents into a slot. With a row, the slot starts closed
    and the row gets a pencil to open it; without one it is always open. */

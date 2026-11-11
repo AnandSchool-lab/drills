@@ -8,7 +8,7 @@
 
 /* ---------- configuration you may want to change ---------- */
 var START_DATE = "2026-10-27";   // Monday the programme begins. Week 1 starts here.
-var APP_VERSION = "30";          // shown on the home screen; keep in step with CACHE in sw.js
+var APP_VERSION = "31";          // shown on the home screen; keep in step with CACHE in sw.js
 
 /* Google Apps Script web-app URL. Blank = results stay on the iPad only.
    Paste the /exec URL from Deploy → New deployment → Web app. */
@@ -776,6 +776,10 @@ function stopPings(){ if(pingTimer){ clearInterval(pingTimer); pingTimer = null;
 
 /* ---------- pencil work ---------- */
 var inkTimer = {};
+function spellCopy(d, word){
+  var c = {}; for(var k in d) if(Object.prototype.hasOwnProperty.call(d, k)) c[k] = d[k];
+  c.word = word || ""; return c;
+}
 function sendInk(block, pad, data){
   if(!apiUrl() || !who()) return;
   var tag = "ink:" + block + ":" + pad;
@@ -1966,7 +1970,7 @@ function blockEnglish(){
     p.body.map(function(t,i){ return '<p><span class="pnum">'+(i+1)+'</span>'+esc(t)+'</p>'; }).join("") + '</article>' +
     mcRows(p.qs, "r") +
     '<div class="prob"><p class="pq"><b>5.</b> '+esc(p.open.q)+'</p>' +
-    '<textarea id="openAns" rows="4" placeholder="Answer in two or three sentences...">'+esc(saved.openAns||"")+'</textarea>' +
+    '<textarea id="openAns" data-q="'+esc(p.open.q)+'" rows="4" placeholder="Answer in two or three sentences...">'+esc(saved.openAns||"")+'</textarea>' +
     '<div class="model" id="openModel" hidden><strong>A good answer says:</strong> '+esc(p.open.model)+'</div></div>' +
     clearBar("e3") + '</section>' +
 
@@ -1989,9 +1993,11 @@ function blockEnglish(){
       app.querySelectorAll(".wordpad").forEach(function(w){
         var id = w.dataset.pad;
         w._mount = function(){
-          Ink.mount(w, sbase + id, { height: 56, compact: true,
+          Ink.mount(w, sbase + id, { height: 80, compact: true, typePlaceholder: "type the word",
             placeholder: " ", label: "write word " + (id.slice(2) * 1 + 1),
-            onChange: function(d){ sendInk("eng", id, d); } });
+            /* the word goes up with the pad, so the parent page can say
+               which word she was writing without regenerating the sheet */
+            onChange: function(d){ sendInk("eng", id, spellCopy(d, w.dataset.a)); } });
         };
         w._mount();
       });
@@ -2220,6 +2226,16 @@ function gradeSheet(block){
            el.classList.contains("word") ? "word" : "num", padOf(el), el.dataset.sol || "");
   });
 
+  /* Written answers the app cannot mark (the reading answer, the
+     vocabulary sentences) still belong on the parent's copy of the sheet.
+     They go after the marked ones, outside the score, with no answer. */
+  if(block === "eng"){
+    [["openAns", "Reading: " + ((app.querySelector("#openAns") || {}).dataset || {}).q],
+     ["vocabUse", "Vocabulary: two sentences using this week's words"]].forEach(function(f){
+      var el = document.getElementById(f[0]), v = el ? el.value.trim() : "";
+      if(v) answers.push({ n: answers.length + 1, q: f[1], gave: v, want: "", ok: 1, kind: "text", pad: "" });
+    });
+  }
   saveResult(block, got, total, elapsed());
   saveDetail("miss:"+block, misses.slice(0, 40));
   sendResult(block, got, total, elapsed(), misses, answers);

@@ -303,6 +303,17 @@ function prefersTyping(){
   try{ return !(navigator.maxTouchPoints > 0); }catch(e){ return true; }
 }
 
+/* The page's own accent, so ink is bright blue on a dark iPad and deep
+   blue on a light one. Saved strokes carry no colour; the parent page and
+   the nightly images draw them dark on white whatever this was. */
+function penColour(){
+  try{
+    var c = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim();
+    if(c) return c;
+  }catch(e){}
+  return "#1D4ED8";
+}
+
 function mount(host, key, opts){
   opts = opts || {};
   var height   = opts.height || 300;
@@ -332,7 +343,7 @@ function mount(host, key, opts){
       '<div class="shots" hidden></div>' +
       '<textarea class="pad-text" hidden spellcheck="false" autocorrect="off" autocapitalize="off" autocomplete="off"' +
         (opts.textId ? ' id="' + opts.textId + '"' : "") +
-        ' placeholder="Type your working here"' +
+        ' placeholder="' + (opts.typePlaceholder || "Type your working here") + '"' +
         ' aria-label="' + (opts.label || "your working") + '"></textarea>' +
     '</div>';
 
@@ -359,7 +370,7 @@ function mount(host, key, opts){
     ctx = cv.getContext("2d");
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.lineCap = "round"; ctx.lineJoin = "round";
-    ctx.strokeStyle = "#1D4ED8"; ctx.lineWidth = 2.4;   /* set once, never per stroke */
+    ctx.strokeStyle = penColour(); ctx.lineWidth = 2.4;   /* set once, never per stroke */
     var old = data.w;
     data.w = w; data.h = h;
     if(old && Math.abs(w / old - 1) > 0.02) rescale(w / old);
