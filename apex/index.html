@@ -1250,23 +1250,23 @@ function saveAnswer(id, text){
   lsWrite(); updateStats();
   clearTimeout(timers[id]);
   timers[id] = setTimeout(async () => {
-    if(!db || !uid) return;
+    if(!db || !uid){ remote.push('answers', id, state.answers[id]); return; }
     try{ await db.doc(`data/users/${uid}/answers/${id}`).set(state.answers[id]); setSync('All work saved to your account'); }
     catch(e){ setSync('Saved on this device; account save failed, will retry on next edit'); }
   }, 900);
 }
 async function saveDoc(path, data){
   lsWrite(); updateStats();
-  if(!db || !uid) return;
+  if(!db || !uid){ const [kind, id] = path.split('/'); remote.push(kind, id, data); return; }
   try{ await db.doc(`data/users/${uid}/${path}`).set(data); setSync('All work saved to your account'); }catch(e){ setSync('Saved on this device only'); }
 }
 
 async function connect(){
-  if(!window.claude?.use){ setSync('Your work is saved in this browser, on this device'); return; }
+  if(!window.claude?.use){ remote.start(); return; }
   const timeout = setTimeout(()=>setSync('Saving on this device only'), 10000);
   try{
     const [d, user] = await Promise.all([claude.use('db'), claude.use('user')]);
-    if(!d || !user){ clearTimeout(timeout); setSync('Saving on this device only (sign in to save to your account)'); return; }
+    if(!d || !user){ clearTimeout(timeout); remote.start(); return; }
     uid = await user.id();
     if(!uid){ clearTimeout(timeout); setSync('Saving on this device only'); return; }
     db = d;
@@ -1291,6 +1291,90 @@ async function connect(){
     setSync('All work saved to your account');
   }catch(e){ clearTimeout(timeout); setSync('Saving on this device only'); }
 }
+
+/* ===================== SYNC FOR THE GITHUB COPY =====================
+   On github.io there is no Claude account, so answers go to the family
+   Worker (private routes, parent passphrase). Newer copy always wins on
+   both sides; the server also keeps every version. Unsent saves wait in
+   this browser and retry, so nothing typed offline is lost. */
+const remote = (function(){
+  const API = 'https://drills-api.anandm401-amazon.workers.dev';
+  const QK = 'apexdrills.queue', KEY = 'dd:parentKey';
+  let on = false, timer = null, busy = false;
+  const get = k => { try{ return localStorage.getItem(k); }catch(e){ return null; } };
+  const put = (k, v) => { try{ localStorage.setItem(k, v); }catch(e){} };
+  let queue = (() => { try{ return JSON.parse(get(QK)) || {}; }catch(e){ return {}; } })();
+  const saveQ = () => put(QK, JSON.stringify(queue));
+  const key = () => get(KEY) || '';
+  async function call(path, body){
+    const r = await fetch(API + path, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ key: key(), ...body }) });
+    const j = await r.json().catch(() => ({}));
+    if(r.status === 401) throw Object.assign(new Error('wrong key'), { code: 401 });
+    if(!r.ok || !j.ok) throw new Error(j.error || ('HTTP ' + r.status));
+    return j;
+  }
+  function push(kind, id, data){
+    queue[kind + '/' + id] = { kind, id, data }; saveQ();
+    if(!on) return;
+    clearTimeout(timer); timer = setTimeout(flush, 1000);
+  }
+  async function flush(){
+    if(!on || busy) return;
+    const docs = Object.values(queue).slice(0, 300);
+    if(!docs.length){ setSync('Synced to all your devices'); return; }
+    busy = true;
+    try{
+      await call('/apex', { docs });
+      docs.forEach(d => { const k = d.kind + '/' + d.id; if(queue[k] && queue[k].data === d.data) delete queue[k]; });
+      saveQ();
+      setSync('Synced to all your devices');
+      if(Object.keys(queue).length) setTimeout(flush, 200);
+    }catch(e){
+      if(e.code === 401){ on = false; askKey('That passphrase was not accepted. Try again:'); }
+      else setSync('Saved in this browser; will sync when the connection is back');
+    }finally{ busy = false; }
+  }
+  async function pull(){
+    if(!on) return;
+    try{
+      const j = await call('/apex/read', {});
+      const merge = (src, target, kind) => {
+        Object.entries(src || {}).forEach(([id, v]) => {
+          const cur = target[id];
+          if(!cur || (v.at||0) > (cur.at||0)) target[id] = v;
+          else if((cur.at||0) > (v.at||0)) queue[kind + '/' + id] = { kind, id, data: cur };
+        });
+        Object.keys(target).forEach(id => { if(!(src||{})[id]) queue[kind + '/' + id] = { kind, id, data: target[id] }; });
+      };
+      merge(j.answers, state.answers, 'answers'); merge(j.days, state.days, 'days'); merge(j.quiz, state.quiz, 'quiz');
+      saveQ(); lsWrite(); updateStats(); refreshOpenView();
+      await flush();
+    }catch(e){
+      if(e.code === 401){ on = false; askKey('That passphrase was not accepted. Try again:'); }
+      else setSync('Saved in this browser; will sync when the connection is back');
+    }
+  }
+  function askKey(msg){
+    const box = document.getElementById('sync');
+    box.innerHTML = `<form id="keyform" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+      <label for="keyin">${msg}</label>
+      <input id="keyin" type="password" autocomplete="current-password" style="font:inherit;padding:3px 6px;border:1px solid var(--line);border-radius:5px;background:var(--surface);color:var(--fg);width:150px">
+      <button class="btn primary" type="submit">Sync</button></form>`;
+    box.querySelector('#keyform').onsubmit = e => {
+      e.preventDefault();
+      const v = box.querySelector('#keyin').value.trim(); if(!v) return;
+      put(KEY, v); on = true; setSync('Syncing…'); pull();
+    };
+  }
+  function start(){
+    if(!key()){ askKey('To sync across devices, enter the parent-page passphrase:'); return; }
+    on = true; setSync('Syncing…'); pull();
+    document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible') pull(); });
+    window.addEventListener('online', flush);
+    setInterval(() => { if(Object.keys(queue).length) flush(); }, 30000);
+  }
+  return { push, start };
+})();
 
 /* ===================== HELPERS ===================== */
 const dayDate = n => { const d = new Date(START); d.setDate(d.getDate() + n - 1); return d; };
