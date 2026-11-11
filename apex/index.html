@@ -1401,6 +1401,8 @@ const remote = (function(){
     window.addEventListener('pagehide', flushOnLeave);
     window.addEventListener('online', flush);
     setInterval(() => { if(pending()) flush(); }, 30000);
+    /* While the page is open and on screen, fetch other devices' work every minute. */
+    setInterval(() => { if(document.visibilityState === 'visible' && !busy) pull(); }, 60000);
   }
   function start(){
     if(!key()){ askKey('To sync across devices, enter your APEX passphrase:'); return; }
