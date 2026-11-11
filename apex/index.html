@@ -1243,14 +1243,14 @@ function lsRead(){ try{ return JSON.parse(localStorage.getItem(LS)) || null; }ca
 function lsWrite(){ try{ localStorage.setItem(LS, JSON.stringify(state)); }catch(e){} }
 (function(){ const l = lsRead(); if(l){ Object.assign(state.answers, l.answers||{}); Object.assign(state.days, l.days||{}); Object.assign(state.quiz, l.quiz||{}); } })();
 
-function setSync(t){ document.getElementById('sync').textContent = t; }
+function setSync(t){ const m = document.getElementById('syncmsg'); (m || document.getElementById('sync')).textContent = t; }
 const timers = {};
 function saveAnswer(id, text){
   state.answers[id] = { text, at: Date.now() };
   lsWrite(); updateStats();
+  if(!db || !uid){ remote.push('answers', id, state.answers[id]); return; }
   clearTimeout(timers[id]);
   timers[id] = setTimeout(async () => {
-    if(!db || !uid){ remote.push('answers', id, state.answers[id]); return; }
     try{ await db.doc(`data/users/${uid}/answers/${id}`).set(state.answers[id]); setSync('All work saved to your account'); }
     catch(e){ setSync('Saved on this device; account save failed, will retry on next edit'); }
   }, 900);
@@ -1306,8 +1306,8 @@ const remote = (function(){
   let queue = (() => { try{ return JSON.parse(get(QK)) || {}; }catch(e){ return {}; } })();
   const saveQ = () => put(QK, JSON.stringify(queue));
   const key = () => get(KEY) || '';
-  async function call(path, body){
-    const r = await fetch(API + path, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ key: key(), ...body }) });
+  async function call(path, body, keepalive){
+    const r = await fetch(API + path, { method:'POST', keepalive: !!keepalive, headers:{'Content-Type':'text/plain'}, body: JSON.stringify({ key: key(), ...body }) });
     const j = await r.json().catch(() => ({}));
     if(r.status === 401) throw Object.assign(new Error('wrong key'), { code: 401 });
     if(!r.ok || !j.ok) throw new Error(j.error || ('HTTP ' + r.status));
@@ -1321,13 +1321,13 @@ const remote = (function(){
   async function flush(){
     if(!on || busy) return;
     const docs = Object.values(queue).slice(0, 300);
-    if(!docs.length){ setSync('Synced to all your devices'); return; }
+    if(!docs.length){ synced(); return; }
     busy = true;
     try{
       await call('/save', { docs });
       docs.forEach(d => { const k = d.kind + '/' + d.id; if(queue[k] && queue[k].data === d.data) delete queue[k]; });
       saveQ();
-      setSync('Synced to all your devices');
+      synced();
       if(Object.keys(queue).length) setTimeout(flush, 200);
     }catch(e){
       if(e.code === 401){ on = false; askKey('That passphrase was not accepted. Try again:'); }
@@ -1354,6 +1354,31 @@ const remote = (function(){
       else setSync('Saved in this browser; will sync when the connection is back');
     }
   }
+  const pending = () => Object.keys(queue).length;
+  function synced(){
+    put('apexdrills.lastSync', String(Date.now()));
+    setSync('Synced ' + new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }));
+  }
+  /* Last chance when the tab is hidden, closed or the browser quits:
+     one keepalive request that outlives the page. */
+  function flushOnLeave(){
+    if(!on || !pending()) return;
+    const docs = Object.values(queue).slice(0, 300);
+    call('/save', { docs }, true).then(() => {
+      docs.forEach(d => { const k = d.kind + '/' + d.id; if(queue[k] && queue[k].data === d.data) delete queue[k]; });
+      saveQ();
+    }).catch(() => {});
+  }
+  /* The bar stays on screen: status, Sync now, change passphrase. */
+  function bar(){
+    const box = document.getElementById('sync');
+    box.innerHTML = `<span style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <span id="syncmsg"></span>
+      <button class="btn primary" id="syncnow" type="button">Sync now</button>
+      <button class="btn" id="synckey" type="button">Change passphrase</button></span>`;
+    box.querySelector('#syncnow').onclick = () => { if(!key()){ askKey('Enter your APEX passphrase:'); return; } on = true; setSync('Syncing…'); pull(); };
+    box.querySelector('#synckey').onclick = () => askKey('Enter your APEX passphrase:');
+  }
   function askKey(msg){
     const box = document.getElementById('sync');
     box.innerHTML = `<form id="keyform" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
@@ -1363,15 +1388,23 @@ const remote = (function(){
     box.querySelector('#keyform').onsubmit = e => {
       e.preventDefault();
       const v = box.querySelector('#keyin').value.trim(); if(!v) return;
-      put(KEY, v); on = true; setSync('Syncing…'); pull();
+      put(KEY, v); begin();
     };
+  }
+  let wired = false;
+  function begin(){
+    on = true; bar(); setSync('Syncing…'); pull();
+    if(wired) return; wired = true;
+    document.addEventListener('visibilitychange', () => {
+      if(document.visibilityState === 'hidden') flushOnLeave(); else pull();
+    });
+    window.addEventListener('pagehide', flushOnLeave);
+    window.addEventListener('online', flush);
+    setInterval(() => { if(pending()) flush(); }, 30000);
   }
   function start(){
     if(!key()){ askKey('To sync across devices, enter your APEX passphrase:'); return; }
-    on = true; setSync('Syncing…'); pull();
-    document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible') pull(); });
-    window.addEventListener('online', flush);
-    setInterval(() => { if(Object.keys(queue).length) flush(); }, 30000);
+    begin();
   }
   return { push, start };
 })();
