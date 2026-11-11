@@ -124,13 +124,17 @@ export default {
 
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors(origin) });
     if (path === "/health") {
-      /* Says whether the database is reachable, never what is in it. */
-      let db = "no binding";
+      /* Says whether the database is reachable and how many items it holds - never what they say. */
+      let db = "no binding", items = null, lastSave = null;
       if (env.DB) {
-        try { await ensureTables(env); await env.DB.prepare("SELECT 1").first(); db = "ok"; }
+        try {
+          await ensureTables(env);
+          const c = await env.DB.prepare("SELECT COUNT(*) AS n, MAX(saved) AS last FROM apex_work").first();
+          items = c.n; lastSave = c.last; db = "ok";
+        }
         catch (e) { db = "error: " + String((e && e.message) || e).slice(0, 120); }
       }
-      return json({ ok: true, app: "apex", db, key: env.APEX_KEY ? "set" : "missing", time: new Date().toISOString() }, 200, origin);
+      return json({ ok: true, app: "apex", db, items, lastSave, key: env.APEX_KEY ? "set" : "missing", time: new Date().toISOString() }, 200, origin);
     }
 
     try {
