@@ -1271,7 +1271,8 @@ function route(){
   if(!h){ renderHome(); return; }
   const sid = h.split('-')[0];
   if(SESSIONS.some(s => s.id === sid && s.ready)){
-    if(document.getElementById('back') && document.getElementById(h)){ document.getElementById(h).scrollIntoView(); return; }
+    const inView = h.includes('-') && document.querySelector('#view #' + h);
+    if(inView){ inView.scrollIntoView(); return; }
     renderSession(sid, h.includes('-') ? h : null);
   } else renderHome();
 }
