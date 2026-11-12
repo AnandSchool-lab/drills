@@ -85,7 +85,7 @@ the score, shown on their own line).
 
 **Bumping the version is a three-line ritual.** `APP_VERSION` in `app.js`,
 `CACHE` in `sw.js`, and the file list in `app.js` (~line 2116) that the Update
-button fetches. Currently 31 / `drills-v31`. A new file that is not in that list
+button fetches. Currently 32 / `drills-v32`. A new file that is not in that list
 never reaches the iPads — `ink.js` was missing once and the handwriting fixes
 silently did not ship.
 

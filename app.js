@@ -8,7 +8,7 @@
 
 /* ---------- configuration you may want to change ---------- */
 var START_DATE = "2026-10-27";   // Monday the programme begins. Week 1 starts here.
-var APP_VERSION = "31";          // shown on the home screen; keep in step with CACHE in sw.js
+var APP_VERSION = "32";          // shown on the home screen; keep in step with CACHE in sw.js
 
 /* Google Apps Script web-app URL. Blank = results stay on the iPad only.
    Paste the /exec URL from Deploy → New deployment → Web app. */
@@ -1413,10 +1413,19 @@ function recapRow(m, i){
   if(m.opts){
     input = '<div class="opts" data-ans="'+m.opts.indexOf(m.want)+'" data-q="'+esc(m.q)+'">' +
       m.opts.map(function(t, oi){ return '<label class="opt"><input type="radio" name="rc'+i+'" value="'+oi+'"><span>'+esc(t)+'</span></label>'; }).join("") + '</div>';
-  } else input = m.kind === "word"
-    ? '<input class="ans word" type="text" autocomplete="off" autocapitalize="off" spellcheck="false"' +
-        ' data-a="'+esc(m.want)+'" data-q="'+esc(m.q)+'" aria-label="'+esc(label)+'">'
-    : numInput(m.want, label, m.q);
+  } else {
+    /* Free text, always: the number keypad has no space or slash, so a
+       missed fraction like 2 5/6 could not be typed back in. Nothing
+       corrects, capitalises or suggests - what she types is what is kept. */
+    var fracQ = /\d\/\d/.test(m.q) || /\//.test(String(m.want));
+    var den = String(m.q).match(/=\s*\?\/(\d+)/);
+    input = '<input class="ans' + (m.kind === "word" ? " word" : "") + '" type="text" inputmode="text"' +
+      ' autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"' +
+      (fracQ ? ' placeholder="like 2 5/6"' : '') +
+      (/simplif|simplest/i.test(m.q) ? ' data-simp="1"' : '') +
+      (den ? ' data-den="' + den[1] + '"' : '') +
+      ' data-a="'+esc(m.want)+'" data-q="'+esc(m.q)+'" aria-label="'+esc(label)+'">';
+  }
   var ago = m.age === 1 ? "yesterday" : m.age + " days ago";
   return '<div class="prob" data-rc="'+i+'"><p class="pq"><b>'+(i+1)+'.</b> '+esc(m.q)+
     ' <span class="again" hidden></span></p>' +
@@ -1619,7 +1628,7 @@ function wireLiveClear(){
 function numInput(ans, label, qtext, kind){
   var clock = kind === "clock";
   return '<input class="ans' + (clock ? " clock" : "") + '" type="text" ' +
-    'inputmode="' + (clock ? "text" : "numeric") + '" autocomplete="off" data-a="'+esc(ans)+'"' +
+    'inputmode="' + (clock ? "text" : "numeric") + '" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-a="'+esc(ans)+'"' +
     (clock ? ' placeholder="6:00 pm"' : "") +
     (qtext ? ' data-q="'+esc(qtext)+'"' : "") + ' aria-label="'+esc(label)+'">';
 }
@@ -2120,10 +2129,38 @@ function clearScope(root, alsoText){
 
 /* ---------- grading ---------- */
 function norm(v){ return String(v==null?"":v).trim().toLowerCase().replace(/,/g,""); }
+/* "2 5/6", "17/6", "5/6", "3", "2.5" -> { w, n, d, v } or null.
+   Before v32 a typed fraction went through parseFloat, which reads
+   "2 5/6" as 2 - so "2 1/6" was marked right as well. */
+function fracParse(s){
+  var t = String(s == null ? "" : s).trim().replace(/\s+/g, " ").replace(/\s*\/\s*/g, "/");
+  var m = t.match(/^(\d+)(?: (\d+)\/(\d+))?$/) || t.match(/^()(\d+)\/(\d+)$/);
+  if(m){
+    var w = +(m[1] || 0), n = +(m[2] || 0), d = m[3] ? +m[3] : 1;
+    if(!d) return null;
+    return { w: w, n: n, d: d, v: w + n / d };
+  }
+  if(/^\d*\.\d+$|^\d+\.?$/.test(t)) return { w: 0, n: 0, d: 1, v: +t };
+  return null;
+}
 function sameNum(a,b){
+  if(/\//.test(String(a)) || /\//.test(String(b))){
+    var fa = fracParse(a), fb = fracParse(b);
+    return !!(fa && fb) && Math.abs(fa.v - fb.v) < 1e-9;
+  }
   var x = parseFloat(a), y = parseFloat(b);
   if(isNaN(x) || isNaN(y)) return norm(a) === norm(b);
   return Math.abs(x-y) < 1e-6;
+}
+/* A typed fraction answer where the question asks for a particular form:
+   "simplify" wants the pieces cut down; "= ?/8" wants eighths. */
+function fracForm(have, el){
+  var f = fracParse(have);
+  if(!f) return true;
+  if(el.dataset.simp === "1" && f.n && gcd(f.n, f.d) !== 1) return false;
+  if(el.dataset.simp === "1" && f.n >= f.d && f.d > 1) return false;
+  if(el.dataset.den && f.n && f.d !== +el.dataset.den) return false;
+  return true;
 }
 
 /* A time written any of the ways a nine-year-old writes one:
@@ -2219,7 +2256,7 @@ function gradeSheet(block){
     if(el.dataset.opt === "1" && want === "0" && norm(have) === "") have = "0";
     var right = el.classList.contains("clock") ? sameClock(have, want)
               : el.classList.contains("word")  ? norm(have) === norm(want)
-              : sameNum(have, want);
+              : sameNum(have, want) && fracForm(have, el);
     el.classList.toggle("ok", right); el.classList.toggle("no", !right);
     record(el.dataset.q || el.getAttribute("aria-label") || "",
            el.value.trim() || "(blank)", want, right,
