@@ -8,7 +8,7 @@
 
 /* ---------- configuration you may want to change ---------- */
 var START_DATE = "2026-10-27";   // Monday the programme begins. Week 1 starts here.
-var APP_VERSION = "32";          // shown on the home screen; keep in step with CACHE in sw.js
+var APP_VERSION = "33";          // shown on the home screen; keep in step with CACHE in sw.js
 
 /* Google Apps Script web-app URL. Blank = results stay on the iPad only.
    Paste the /exec URL from Deploy → New deployment → Web app. */
@@ -1628,7 +1628,9 @@ function wireLiveClear(){
 function numInput(ans, label, qtext, kind){
   var clock = kind === "clock";
   return '<input class="ans' + (clock ? " clock" : "") + '" type="text" ' +
-    'inputmode="' + (clock ? "text" : "numeric") + '" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-a="'+esc(ans)+'"' +
+    /* The full keyboard, never the number pad: on the iPad that is a small
+       phone-style pad with no space, slash or minus (v33). */
+    'inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-a="'+esc(ans)+'"' +
     (clock ? ' placeholder="6:00 pm"' : "") +
     (qtext ? ' data-q="'+esc(qtext)+'"' : "") + ' aria-label="'+esc(label)+'">';
 }
@@ -1815,7 +1817,7 @@ function sectionHTML(sec, idPrefix){
       return '<div class="tile'+pc+'"><span class="q">'+q+' =</span>' +
         '<span class="slot">'+numInput(it.a, it.q)+'</span>' +
         '<span class="rlab">R</span><span class="slot sm">' +
-        '<input class="ans" type="text" inputmode="numeric" data-a="'+it.r+'" data-opt="1"'+
+        '<input class="ans" type="text" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-a="'+it.r+'" data-opt="1"'+
           ' data-q="'+q+' (remainder)" aria-label="remainder"></span>' +
         work + '</div>';
     }
@@ -1825,9 +1827,9 @@ function sectionHTML(sec, idPrefix){
         '<span class="fracbox" data-w="'+it.w+'" data-n="'+it.n+'" data-d="'+it.d+'"' +
           (/simplif|simplest/i.test(it.q) ? ' data-simp="1"' : '') +
           (it.exact ? ' data-exact="1"' : '') + '>' +
-          ((it.noWhole || (it.exact && !it.w)) ? "" : '<input class="fw" type="text" inputmode="numeric" placeholder="whole" aria-label="whole number">') +
-          '<span class="stack"><input class="fn" type="text" inputmode="numeric" aria-label="numerator">' +
-          '<span class="bar2"></span><input class="fd" type="text" inputmode="numeric" aria-label="denominator"></span>' +
+          ((it.noWhole || (it.exact && !it.w)) ? "" : '<input class="fw" type="text" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="whole" aria-label="whole number">') +
+          '<span class="stack"><input class="fn" type="text" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="numerator">' +
+          '<span class="bar2"></span><input class="fd" type="text" inputmode="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="denominator"></span>' +
         '</span>' + work + '</div>';
     }
     return '<div class="tile'+pc+'"><span class="q">'+q+' =</span>' +
