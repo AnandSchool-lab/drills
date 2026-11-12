@@ -167,8 +167,9 @@ footer{margin:40px 0 30px;font-size:13px;color:var(--muted)}
     <a href="#s1-items">3. Page items<span>10m</span></a>
     <a href="#s1-choose">4. JS vs jQuery vs PL/SQL<span>10m</span></a>
     <a href="#s1-exc">5. Exceptions<span>10m</span></a>
-    <a href="#s1-practice">6. Practice<span>15m</span></a>
-    <a href="#s1-summary">7. Summary</a>
+    <a href="#s1-html">6. HTML &amp; CSS<span>10m</span></a>
+    <a href="#s1-practice">7. Practice<span>15m</span></a>
+    <a href="#s1-summary">8. Summary</a>
   </nav>
 
   <!-- 1 -->
@@ -286,6 +287,17 @@ apex.item('P1_COMM').setFocus();
 apex.item('P1_DEPTNO').setValue('10', 'ACCOUNTING');   <span class="c">// value + display (popup LOV)</span>
 apex.item('P1_COMM').setValue('0', null, true);        <span class="c">// true = do NOT fire Change event</span></pre>
 
+    <h3>The same jobs done the PL/SQL (server) way</h3>
+    <div class="tablewrap"><table class="dt">
+      <tr><th>Job</th><th>PL/SQL / declarative (on page render or submit)</th><th>JavaScript (instantly in the browser)</th></tr>
+      <tr><td>Set a value</td><td><code>:P1_SAL := 5000;</code> in a Before Header process or Computation</td><td><code>apex.item('P1_SAL').setValue(5000)</code></td></tr>
+      <tr><td>Read a value</td><td><code>l_sal := :P1_SAL;</code> (needs the page submitted, or the item in "Items to Submit")</td><td><code>apex.item('P1_SAL').getValue()</code></td></tr>
+      <tr><td>Hide an item</td><td>Item → Server-side Condition (item isn't even sent to the browser)</td><td><code>apex.item('P1_COMM').hide()</code> (still on the page, just hidden)</td></tr>
+      <tr><td>Make it read-only</td><td>Item → Read Only condition</td><td><code>apex.item('P1_COMM').disable()</code></td></tr>
+      <tr><td>Is it empty?</td><td><code>IF :P1_COMM IS NULL THEN</code></td><td><code>apex.item('P1_COMM').isEmpty()</code></td></tr>
+      <tr><td>Debug output</td><td><code>apex_debug.message('sal=%s', :P1_SAL);</code></td><td><code>console.log('sal=', $v('P1_SAL'))</code></td></tr>
+    </table></div>
+    <div class="note yellow"><b class="tag">Note to remember: server vs browser</b>PL/SQL runs <b>before</b> the page is drawn or <b>after</b> Submit. JavaScript runs <b>while</b> the user is on the page. A Server-side Condition removes the item completely; <code>.hide()</code> only hides it, so it's still there and its value can still be submitted.</div>
     <div class="note red"><b class="tag">Trap: the string + number bug</b><code>$v('P1_SAL') + 100</code> gives <code>'5000100'</code>, not <code>5100</code>. <code>+</code> joins strings. Always wrap item values in <code>Number(…)</code> before doing maths.</div>
     <div class="note red"><b class="tag">Trap: endless Dynamic Action loops</b><code>setValue</code> fires a <b>Change</b> event. If a DA on P1_SAL changes P1_SAL, it fires itself again. Pass <code>true</code> as the third argument to stop that: <code>setValue(v, null, true)</code>.</div>
     <div class="note yellow"><b class="tag">Note to remember</b>Use <code>apex.item()</code> for items, <b>not</b> jQuery <code>$('#P1_SAL').val()</code>. Popup LOVs, shuttles, switches and date pickers store their values in different HTML, and <code>apex.item</code> knows each one; jQuery doesn't.</div>
@@ -411,16 +423,63 @@ try {
     <div class="note red"><b class="tag">Trap</b>An error you don't catch stops the rest of that JavaScript, and the user sees nothing. Only the console (F12) shows it in red. If "nothing happens", open the console first.</div>
   </section>
 
+  <!-- 5b -->
+  <section class="part" id="s1-html">
+    <h2><span class="n">06</span>The HTML behind your page, plus your first CSS<span class="time">10 min</span></h2>
+    <div class="prose"><p>Everything APEX draws becomes <b>HTML</b>, and <b>CSS</b> decides how it looks. You don't need to write whole pages. You need to <b>read</b> what APEX makes so you can target it with jQuery and CSS. Right-click anything on a running page → <b>Inspect</b> to see it.</p></div>
+    <div class="compare">
+      <div><span class="h pl">What you build in APEX</span>
+<pre>Region "Employees"
+  Static ID:   emp_region
+  CSS Classes: emp-box
+
+Item P1_SAL
+  Type:  Number Field
+  Label: Salary</pre></div>
+      <div><span class="h js">The HTML APEX makes (simplified)</span>
+<pre>&lt;div id="emp_region" class="t-Region emp-box"&gt;
+  &lt;h2 class="t-Region-title"&gt;Employees&lt;/h2&gt;
+  &lt;div class="t-Region-body"&gt;
+    &lt;label for="P1_SAL"&gt;Salary&lt;/label&gt;
+    &lt;input id="P1_SAL" name="P1_SAL" type="text"&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</pre></div>
+    </div>
+    <div class="tablewrap"><table class="dt">
+      <tr><th>HTML piece</th><th>Means</th><th>CSS / jQuery selector</th></tr>
+      <tr><td><code>id="emp_region"</code></td><td>One unique element (your Static ID)</td><td><code>#emp_region</code></td></tr>
+      <tr><td><code>class="emp-box"</code></td><td>A label you can put on many elements</td><td><code>.emp-box</code></td></tr>
+      <tr><td><code>&lt;div&gt;</code> <code>&lt;h2&gt;</code> <code>&lt;label&gt;</code> <code>&lt;input&gt;</code></td><td>Tags: box, heading, label, input field</td><td><code>div</code>, <code>h2</code>, <code>input</code></td></tr>
+      <tr><td>Space between selectors</td><td>"inside of"</td><td><code>#emp_region input</code> = every input inside that region</td></tr>
+    </table></div>
+    <div class="codehead"><span>Paste into <span class="where">Page → CSS → Inline</span> (needs a region with CSS Classes = <code>emp-box</code>)</span></div>
+<pre><span class="c">/* selector { property: value; }  - like  UPDATE look SET ... WHERE selector */</span>
+.emp-box {
+  border-left: 4px solid #3550c8;    <span class="c">/* coloured bar on the left */</span>
+  border-radius: 8px;                <span class="c">/* rounded corners */</span>
+}
+.emp-box .t-Region-title {
+  color: #3550c8;                    <span class="c">/* blue region title */</span>
+  font-weight: 700;
+}
+#P1_SAL {
+  text-align: right;                 <span class="c">/* numbers line up on the right */</span>
+  font-family: monospace;
+}</pre>
+    <div class="note yellow"><b class="tag">Note to remember</b>CSS reads like SQL: <b>selector</b> = <code>WHERE</code>, <b>properties</b> = <code>SET</code>. <code>#</code> is for an id (one element), <code>.</code> is for a class (many). Put your own class on a region (<b>Appearance → CSS Classes</b>) and style that. Don't style APEX's <code>t-…</code> classes globally, or every region changes.</div>
+    <div class="note red"><b class="tag">Trap</b>Inline CSS on one page is fine for practice. For real apps, put CSS in a static file (<code>#APP_FILES#css/app#MIN#.css</code> in User Interface Attributes → CSS File URLs) or use <b>Theme Roller</b>, so every page looks the same and the browser caches it.</div>
+  </section>
+
   <!-- 6 -->
   <section class="part" id="s1-practice">
-    <h2><span class="n">06</span>Practice: try it in your workspace<span class="time">15 min</span></h2>
+    <h2><span class="n">07</span>Practice: try it in your workspace<span class="time">15 min</span></h2>
     <div class="prose"><p>Use any app (your office APEX or <b>ANAND_DEV</b>). For each task: do it, run the page, then press <b>I got it</b> or <b>I didn't get it</b>. If you didn't, the answer opens step by step. You can also paste your code into the box to keep it.</p></div>
     <div id="s1-tasks"></div>
   </section>
 
   <!-- 7 -->
   <section class="part" id="s1-summary">
-    <h2><span class="n">07</span>One-page summary<span class="time">read tomorrow</span></h2>
+    <h2><span class="n">08</span>One-page summary<span class="time">read tomorrow</span></h2>
     <div class="noprint" style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" id="print">Print / save as PDF</button><span class="muted" style="font-size:13px">Prints only this summary on one page.</span></div>
     <div class="sheet" id="sheet">
       <div class="label">APEX Expert Drills · Session 1</div>
@@ -468,11 +527,358 @@ apex.message.showPageSuccess('OK');</pre></div>
           <li><code>setValue</code> fires Change, so DAs can loop. Pass <code>true</code> as the 3rd argument</li>
           <li>Never <code>.html(userText)</code>. Use <code>.text()</code> or <code>apex.util.escapeHTML</code></li>
           <li>"Nothing happens" → open the console (F12): the error is in red</li></ul></div>
+        <div class="box"><h3>6. HTML &amp; CSS</h3>
+<pre>#emp_region   /* Static ID (one)   */
+.emp-box      /* CSS class (many)  */
+#emp_region input  /* inside of   */
+.emp-box { border-radius: 8px; }</pre><ul><li>Right-click → <b>Inspect</b> to see the HTML</li><li>Page → CSS → Inline for practice; static file / Theme Roller for real apps</li></ul></div>
+        <div class="box"><h3>PL/SQL twins</h3>
+<pre>:P1_SAL := 5000;        → $s('P1_SAL', 5000)
+l := :P1_SAL;           → $v('P1_SAL')
+RAISE_APPLICATION_ERROR → throw new Error()
+EXCEPTION WHEN OTHERS   → catch (err)
+SQLERRM                 → err.message
+apex_error.add_error    → apex.message.showErrors
+apex_debug.message      → apex.debug.info</pre></div>
         <div class="box"><h3>Console = DBMS_OUTPUT</h3><ul>
           <li>F12 (Mac ⌥⌘I) → <b>Console</b></li>
           <li><code>console.log(x)</code>, <code>console.table(rows)</code></li>
           <li><code>apex.debug.info(x)</code>: shows only in Debug mode</li>
           <li>Type <code>$v('P1_SAL')</code> in the console to test live</li></ul></div>
+      </div>
+    </div>
+  </section>
+</template>
+
+<!-- ======================= SESSION 2 ======================= -->
+<template id="s2">
+  <nav class="toc noprint">
+    <a href="#s2-why">1. Submit vs AJAX<span>5m</span></a>
+    <a href="#s2-plsql">2. The PL/SQL side<span>10m</span></a>
+    <a href="#s2-js">3. The JavaScript side<span>15m</span></a>
+    <a href="#s2-html">4. HTML from data<span>10m</span></a>
+    <a href="#s2-css">5. CSS to make it neat<span>10m</span></a>
+    <a href="#s2-fast">6. Fast with the database<span>5m</span></a>
+    <a href="#s2-practice">7. Practice<span>15m</span></a>
+    <a href="#s2-summary">8. Summary</a>
+  </nav>
+
+  <section class="part" id="s2-setup">
+    <div class="note yellow"><b class="tag">Before you start (2 min)</b>You need an <b>EMP</b> table. At the office, use your own. On oracleapex.com: <b>SQL Workshop → Utilities → Sample Datasets → EMP / DEPT → Install</b>. Then create a blank page (Page 2) with an item <b>P2_DEPTNO</b> (Select List: <code>select dname d, deptno r from dept</code>) and a Static Content region with Static ID <b>emp_cards</b>.</div>
+  </section>
+
+  <!-- 1 -->
+  <section class="part" id="s2-why">
+    <h2><span class="n">01</span>Submit vs AJAX: two ways to reach the database<span class="time">5 min</span></h2>
+    <div class="tablewrap"><table class="dt">
+      <tr><th></th><th>Page Submit (what you know)</th><th>AJAX (new)</th></tr>
+      <tr><td>What happens</td><td>The whole page goes to the server, PL/SQL runs, and the <b>whole page reloads</b></td><td>JavaScript sends a small request, PL/SQL runs, and <b>only the data comes back</b></td></tr>
+      <tr><td>User sees</td><td>A flash/reload, scroll position lost</td><td>Nothing moves except the part you update</td></tr>
+      <tr><td>Speed</td><td>Renders the full page again</td><td>Sends only the data (a few KB of JSON)</td></tr>
+      <tr><td>APEX pieces</td><td>Button → Submit → Processes → Branch</td><td>JS <code>apex.server.process</code> → <b>Ajax Callback</b> process</td></tr>
+      <tr><td>Declarative version</td><td>Just a Submit button</td><td>DA <b>Execute Server-side Code</b> + "Items to Submit/Return", or <b>Refresh</b> a region</td></tr>
+    </table></div>
+    <div class="note yellow"><b class="tag">Note to remember</b>Try the declarative options first: <b>Refresh</b> a report with "Page Items to Submit", or a DA <b>Execute Server-side Code</b> that sets items. Write <code>apex.server.process</code> yourself when you need <b>data back as JSON</b> to build your own HTML, or full control over the response.</div>
+  </section>
+
+  <!-- 2 -->
+  <section class="part" id="s2-plsql">
+    <h2><span class="n">02</span>The PL/SQL side: an Ajax Callback that returns JSON<span class="time">10 min</span></h2>
+    <div class="prose"><p>Page Designer → left tree → <b>Processing</b> tab (the arrows icon) → right-click <b>Ajax Callback</b> → Create Process. Name it <b>GET_EMPS</b> (JavaScript calls it by this name). Type: <b>Execute Code</b>.</p></div>
+    <div class="compare">
+      <div><span class="h pl">What you'd write today: a procedure with a cursor</span>
+<pre>PROCEDURE get_emps (p_deptno IN NUMBER,
+                    p_rc OUT SYS_REFCURSOR) IS
+BEGIN
+  OPEN p_rc FOR
+    SELECT empno, ename, job, sal
+      FROM emp
+     WHERE deptno = p_deptno
+     ORDER BY sal DESC;
+END;</pre></div>
+      <div><span class="h js">Ajax Callback GET_EMPS: same query, JSON out</span>
+<pre>BEGIN
+  apex_json.open_object;                 <span class="c">-- {</span>
+  apex_json.open_array('rows');          <span class="c">--   "rows": [</span>
+  FOR r IN (SELECT empno, ename, job, sal
+              FROM emp
+             WHERE deptno = :P2_DEPTNO   <span class="c">-- sent by JS</span>
+             ORDER BY sal DESC) LOOP
+    apex_json.open_object;               <span class="c">--   {</span>
+    apex_json.write('empno', r.empno);
+    apex_json.write('ename', r.ename);
+    apex_json.write('job',   r.job);
+    apex_json.write('sal',   r.sal);
+    apex_json.close_object;              <span class="c">--   }</span>
+  END LOOP;
+  apex_json.close_array;                 <span class="c">--   ]</span>
+  apex_json.close_object;                <span class="c">-- }</span>
+END;</pre></div>
+    </div>
+    <h3>What JavaScript receives (JSON)</h3>
+<pre>{ "rows": [
+    { "empno": 7839, "ename": "KING",  "job": "PRESIDENT", "sal": 5000 },
+    { "empno": 7782, "ename": "CLARK", "job": "MANAGER",   "sal": 2450 }
+] }</pre>
+    <div class="prose" style="margin-top:10px"><p>JSON is a JavaScript object written as text: <code>{ }</code> is a record and <code>[ ]</code> is a collection. Numbers stay numbers, which is nicer than item values.</p></div>
+    <h3>Shorter: let SQL build the JSON (Oracle 12.2+)</h3>
+<pre>DECLARE
+  l_json CLOB;
+BEGIN
+  SELECT JSON_OBJECT('rows' VALUE
+           JSON_ARRAYAGG(
+             JSON_OBJECT('empno' VALUE empno, 'ename' VALUE ename,
+                         'job'   VALUE job,   'sal'   VALUE sal)
+             ORDER BY sal DESC RETURNING CLOB)
+         RETURNING CLOB)
+    INTO l_json
+    FROM emp
+   WHERE deptno = :P2_DEPTNO;
+  apex_util.prn(l_json, FALSE);        <span class="c">-- writes the CLOB to the response</span>
+END;</pre>
+    <h3>Errors: EXCEPTION on the server</h3>
+<pre>BEGIN
+  IF :P2_DEPTNO IS NULL THEN
+    RAISE_APPLICATION_ERROR(-20001, 'Choose a department first');
+  END IF;
+  <span class="c">-- … the apex_json code above …</span>
+EXCEPTION
+  WHEN OTHERS THEN
+    apex_json.open_object;
+    apex_json.write('error', SQLERRM);   <span class="c">-- send the message back as JSON</span>
+    apex_json.close_object;
+END;</pre>
+    <div class="note yellow"><b class="tag">Note to remember</b>Inside an Ajax Callback, <code>:P2_DEPTNO</code> only has the browser's current value if JavaScript <b>sends it</b> (<code>pageItems</code>, in section 3). Otherwise you get the old session value. Extra values arrive as <code>apex_application.g_x01</code> … <code>g_x10</code>.</div>
+    <div class="note red"><b class="tag">Trap</b>Never build SQL by concatenating what the browser sent (<code>'… WHERE ename = ''' || apex_application.g_x01 || ''''</code>). That's SQL injection. Use bind variables (<code>:P2_DEPTNO</code>) or PL/SQL variables, exactly as in your normal code.</div>
+  </section>
+
+  <!-- 3 -->
+  <section class="part" id="s2-js">
+    <h2><span class="n">03</span>The JavaScript side: apex.server.process<span class="time">15 min</span></h2>
+    <div class="compare">
+      <div><span class="h pl">PL/SQL: calling the procedure</span>
+<pre>DECLARE
+  l_rc SYS_REFCURSOR;
+BEGIN
+  get_emps(p_deptno =&gt; 10, p_rc =&gt; l_rc);
+  <span class="c">-- loop over l_rc …</span>
+EXCEPTION
+  WHEN OTHERS THEN
+    DBMS_OUTPUT.PUT_LINE(SQLERRM);
+END;</pre></div>
+      <div><span class="h js">JavaScript: calling the Ajax Callback</span>
+<pre>apex.server.process('GET_EMPS', {      <span class="c">// process name</span>
+  pageItems: '#P2_DEPTNO'              <span class="c">// send current value</span>
+}).then(data =&gt; {                      <span class="c">// success</span>
+  console.log(data.rows);              <span class="c">// the array</span>
+}).catch(err =&gt; {                      <span class="c">// EXCEPTION</span>
+  console.error(err);
+});</pre></div>
+    </div>
+    <div class="prose" style="margin-top:12px"><p>The call does <b>not wait</b>. JavaScript carries on and runs <code>.then(…)</code> later, when the answer arrives. That's the biggest difference from PL/SQL, where every line waits for the one before. The modern way to write it, which reads almost like PL/SQL, is <b>async / await</b>:</p></div>
+    <div class="codehead"><span>Paste into <span class="where">Function and Global Variable Declaration</span></span></div>
+<pre><span class="c">// async function = "this function contains waits"</span>
+async function loadEmps() {
+  try {                                                    <span class="c">// BEGIN</span>
+    const data = await apex.server.process('GET_EMPS', {  <span class="c">// wait for PL/SQL</span>
+      pageItems: '#P2_DEPTNO'
+    });
+    if (data.error) throw new Error(data.error);           <span class="c">// error sent as JSON</span>
+    console.table(data.rows);                              <span class="c">// see the rows</span>
+    return data.rows;
+  } catch (err) {                                          <span class="c">// EXCEPTION WHEN OTHERS</span>
+    apex.message.clearErrors();
+    apex.message.showErrors([{ type: 'error', location: 'page',
+      message: err.message || 'Could not load employees', unsafe: false }]);
+    return [];
+  }                                                        <span class="c">// END</span>
+}</pre>
+    <div class="codehead"><span><span class="where">Dynamic Action · Change on P2_DEPTNO · Execute JavaScript Code</span></span></div>
+<pre>loadEmps();      <span class="c">// open F12 → Console, change the department, and watch the table appear</span></pre>
+    <h3>Sending extra values (like procedure parameters)</h3>
+<pre>apex.server.process('GET_EMPS', {
+  x01: 'SAL',                   <span class="c">// → apex_application.g_x01 in PL/SQL</span>
+  x02: 'DESC',                  <span class="c">// → apex_application.g_x02</span>
+  pageItems: '#P2_DEPTNO,#P2_JOB'   <span class="c">// several items, comma-separated</span>
+});</pre>
+    <div class="note yellow"><b class="tag">Note to remember</b><code>await</code> only works inside a function marked <code>async</code>. Put the <code>try/catch</code> around the <code>await</code>, just like <code>BEGIN … EXCEPTION … END</code> around a procedure call.</div>
+    <div class="note red"><b class="tag">Trap: using data before it arrives</b><pre style="margin-top:6px">let rows;
+apex.server.process('GET_EMPS', {pageItems:'#P2_DEPTNO'}).then(d =&gt; rows = d.rows);
+console.log(rows);   // undefined! The answer has not arrived yet.</pre>Use the data <b>inside</b> <code>.then(…)</code>, or after <code>await</code>.</div>
+  </section>
+
+  <!-- 4 -->
+  <section class="part" id="s2-html">
+    <h2><span class="n">04</span>HTML: turn the JSON rows into cards<span class="time">10 min</span></h2>
+    <div class="compare">
+      <div><span class="h pl">The PL/SQL way: htp.p in a PL/SQL Dynamic Content region</span>
+<pre>BEGIN
+  htp.p('&lt;div class="emp-cards"&gt;');
+  FOR r IN (SELECT ename, job, sal FROM emp
+             WHERE deptno = :P2_DEPTNO) LOOP
+    htp.p('&lt;div class="emp-card"&gt;'
+       || '&lt;h4&gt;' || apex_escape.html(r.ename) || '&lt;/h4&gt;'
+       || '&lt;p&gt;'  || apex_escape.html(r.job)   || '&lt;/p&gt;'
+       || '&lt;b&gt;'  || r.sal || '&lt;/b&gt;&lt;/div&gt;');
+  END LOOP;
+  htp.p('&lt;/div&gt;');
+END;
+<span class="c">-- needs a region refresh to update</span></pre></div>
+      <div><span class="h js">The JavaScript way: build it from the JSON</span>
+<pre>function renderCards(rows) {
+  const esc = apex.util.escapeHTML;      <span class="c">// = apex_escape.html</span>
+  const html = rows.map(r =&gt; `
+    &lt;div class="emp-card ${r.sal &gt;= 3000 ? 'is-high' : ''}"&gt;
+      &lt;h4&gt;${esc(r.ename)}&lt;/h4&gt;
+      &lt;p&gt;${esc(r.job)}&lt;/p&gt;
+      &lt;b&gt;${r.sal.toLocaleString()}&lt;/b&gt;
+    &lt;/div&gt;`).join('');
+  $('#emp_cards .t-Region-body').html(
+    `&lt;div class="emp-cards"&gt;${html}&lt;/div&gt;`);
+}</pre></div>
+    </div>
+    <div class="codehead"><span>Change the DA code to:</span></div>
+<pre>loadEmps().then(rows =&gt; renderCards(rows));
+<span class="c">// or, inside an async function:  renderCards(await loadEmps());</span></pre>
+    <h3>The HTML tags you need</h3>
+    <div class="tablewrap"><table class="dt">
+      <tr><th>Tag</th><th>Means</th><th>Like in a report</th></tr>
+      <tr><td><code>&lt;div&gt;</code></td><td>A box (no meaning, just grouping)</td><td>A region or a row</td></tr>
+      <tr><td><code>&lt;h4&gt;</code> … <code>&lt;h1&gt;</code></td><td>Headings (h1 biggest)</td><td>Column heading / title</td></tr>
+      <tr><td><code>&lt;p&gt;</code> <code>&lt;span&gt;</code> <code>&lt;b&gt;</code></td><td>Paragraph, inline text, bold</td><td>Cell text</td></tr>
+      <tr><td><code>&lt;table&gt;&lt;tr&gt;&lt;td&gt;</code></td><td>Table, row, cell</td><td>Classic report</td></tr>
+      <tr><td><code>&lt;a href="…"&gt;</code></td><td>Link</td><td>Link column</td></tr>
+      <tr><td><code>class="…"</code> <code>id="…"</code></td><td>Labels for CSS and jQuery</td><td>CSS Classes / Static ID</td></tr>
+    </table></div>
+    <div class="note red"><b class="tag">Trap: XSS</b>Any text that came from the database or the user must be escaped before it goes into HTML: <code>apex.util.escapeHTML(text)</code> in JS, <code>apex_escape.html(text)</code> in PL/SQL. A name like <code>&lt;img src=x onerror=alert(1)&gt;</code> would otherwise run as code.</div>
+  </section>
+
+  <!-- 5 -->
+  <section class="part" id="s2-css">
+    <h2><span class="n">05</span>CSS: make the cards neat<span class="time">10 min</span></h2>
+    <div class="codehead"><span>Paste into <span class="where">Page → CSS → Inline</span></span></div>
+<pre><span class="c">/* The container: a responsive grid - as many 200px columns as fit */</span>
+.emp-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;                              <span class="c">/* space between cards */</span>
+}
+
+<span class="c">/* One card */</span>
+.emp-card {
+  padding: 12px 14px;                     <span class="c">/* space inside */</span>
+  border: 1px solid #dde1ec;
+  border-radius: 10px;
+  background: #fff;
+  transition: transform .15s;             <span class="c">/* smooth hover */</span>
+}
+.emp-card:hover { transform: translateY(-2px); }
+
+.emp-card h4 { margin: 0; font-size: 15px; }
+.emp-card p  { margin: 2px 0 8px; color: #5d6478; font-size: 13px; }
+.emp-card b  { font-size: 18px; font-variant-numeric: tabular-nums; }
+
+<span class="c">/* State class added by JavaScript for sal &gt;= 3000 */</span>
+.emp-card.is-high { border-color: #d33; background: #fff5f5; }</pre>
+    <h3>The CSS words, in database terms</h3>
+    <div class="tablewrap"><table class="dt">
+      <tr><th>CSS</th><th>Think of it as</th></tr>
+      <tr><td><code>.emp-card { … }</code></td><td><code>UPDATE look SET … WHERE class = 'emp-card'</code></td></tr>
+      <tr><td><code>.emp-card.is-high</code> (no space)</td><td><code>WHERE class = 'emp-card' AND class = 'is-high'</code></td></tr>
+      <tr><td><code>.emp-card h4</code> (space)</td><td>An h4 <b>inside</b> an emp-card (like a join to the child)</td></tr>
+      <tr><td><code>padding</code> / <code>margin</code></td><td>Space inside the box / space outside the box</td></tr>
+      <tr><td><code>display: grid</code> + <code>grid-template-columns</code></td><td>Lay the children out in columns, and wrap automatically on a phone</td></tr>
+      <tr><td><code>display: flex</code></td><td>Put children in one row (or column) and align them</td></tr>
+      <tr><td><code>:hover</code></td><td>Only while the mouse is over it</td></tr>
+    </table></div>
+    <div class="note yellow"><b class="tag">Note to remember</b>Let JavaScript add or remove a <b>class</b> (<code>is-high</code>) and let CSS decide how that class looks. Don't set colours from JavaScript with <code>.css('color', …)</code>, so design changes stay in one place.</div>
+    <div class="note yellow"><b class="tag">Universal Theme classes you get for free</b><code>u-success-text</code>, <code>u-danger-text</code>, <code>u-warning-text</code> (coloured text) and <code>u-color-1</code> … <code>u-color-45</code> (colour sets). Try these before writing your own colours, because they follow the app's theme and Theme Roller.</div>
+  </section>
+
+  <!-- 6 -->
+  <section class="part" id="s2-fast">
+    <h2><span class="n">06</span>Fast with the database: 6 rules<span class="time">5 min</span></h2>
+    <div class="tablewrap"><table class="dt">
+      <tr><th>Rule</th><th>Why</th></tr>
+      <tr><td><b>One call, all the data.</b> Return all rows in one JSON, not one call per row.</td><td>Each AJAX call costs a round trip to the server (often 50–200 ms).</td></tr>
+      <tr><td><b>Filter and sort in SQL</b>, not in JavaScript.</td><td>The database is built for it, and fewer rows travel.</td></tr>
+      <tr><td><b>Limit rows</b> (<code>FETCH FIRST 50 ROWS ONLY</code>), with paging or search for more.</td><td>Drawing 5,000 cards freezes the browser.</td></tr>
+      <tr><td><b>Return only the columns you show.</b></td><td>Smaller JSON, faster transfer.</td></tr>
+      <tr><td><b>Show a spinner</b> while waiting: <code>loadingIndicator: '#emp_cards'</code></td><td>The user knows something is happening.</td></tr>
+      <tr><td><b>Wait for typing to stop</b> before searching (debounce, ~300 ms).</td><td>Avoids one database call per key press.</td></tr>
+    </table></div>
+<pre>apex.server.process('GET_EMPS',
+  { pageItems: '#P2_DEPTNO' },
+  { loadingIndicator: '#emp_cards', loadingIndicatorPosition: 'centered' });</pre>
+  </section>
+
+  <!-- 7 -->
+  <section class="part" id="s2-practice">
+    <h2><span class="n">07</span>Practice: try it in your workspace<span class="time">15 min</span></h2>
+    <div class="prose"><p>Build on the Page 2 you set up at the start. For each task: do it, run the page, then press <b>I got it</b> or <b>I didn't get it</b>.</p></div>
+    <div id="s2-tasks"></div>
+  </section>
+
+  <!-- 8 -->
+  <section class="part" id="s2-summary">
+    <h2><span class="n">08</span>One-page summary<span class="time">read tomorrow</span></h2>
+    <div class="noprint" style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" id="print">Print / save as PDF</button><span class="muted" style="font-size:13px">Prints only this summary on one page.</span></div>
+    <div class="sheet">
+      <div class="label">APEX Expert Drills · Session 2</div>
+      <h1>AJAX: JavaScript calling your PL/SQL, shown with HTML &amp; CSS</h1>
+      <div class="cols">
+        <div class="box"><h3>1. Submit vs AJAX</h3><ul>
+          <li><b>Submit</b>: whole page to the server and back, full reload</li>
+          <li><b>AJAX</b>: JS sends a small request, PL/SQL returns JSON, and only one part of the page changes</li>
+          <li>Declarative first: Refresh region / DA Execute Server-side Code</li></ul></div>
+        <div class="box"><h3>2. PL/SQL: Ajax Callback</h3>
+<pre>apex_json.open_object;
+apex_json.open_array('rows');
+FOR r IN (… WHERE deptno = :P2_DEPTNO) LOOP
+  apex_json.open_object;
+  apex_json.write('ename', r.ename);
+  apex_json.close_object;
+END LOOP;
+apex_json.close_array; apex_json.close_object;</pre></div>
+        <div class="box"><h3>3. JS: call it</h3>
+<pre>async function loadEmps() {
+  try {
+    const d = await apex.server.process(
+      'GET_EMPS', { pageItems:'#P2_DEPTNO',
+                    x01:'extra' });
+    return d.rows;
+  } catch (err) { /* show error */ }
+}</pre></div>
+        <div class="box"><h3>4. HTML from data</h3>
+<pre>const esc = apex.util.escapeHTML;
+rows.map(r =&gt; `&lt;div class="emp-card"&gt;
+  &lt;h4&gt;${esc(r.ename)}&lt;/h4&gt;&lt;/div&gt;`).join('')
+$('#emp_cards .t-Region-body').html(html);</pre></div>
+        <div class="box"><h3>5. CSS</h3>
+<pre>.emp-cards { display:grid; gap:12px;
+  grid-template-columns:
+    repeat(auto-fill, minmax(200px,1fr)); }
+.emp-card { padding:12px; border-radius:10px;
+  border:1px solid #dde1ec; }
+.emp-card.is-high { border-color:#d33; }</pre></div>
+        <div class="box"><h3>PL/SQL twins</h3>
+<pre>PROCEDURE + cursor   → Ajax Callback + JSON
+p_deptno parameter   → pageItems / x01..x10
+:P2_DEPTNO           → sent with pageItems
+apex_escape.html     → apex.util.escapeHTML
+htp.p('&lt;div&gt;')        → template literal `&lt;div&gt;`
+EXCEPTION … SQLERRM  → catch (err) err.message</pre></div>
+        <div class="box y"><h3>Notes to remember</h3><ul>
+          <li>Send items with <code>pageItems</code>, or PL/SQL sees old values</li>
+          <li><code>await</code> only inside an <code>async</code> function; wrap it in try/catch</li>
+          <li>JS adds a <b>class</b>, CSS decides the look</li>
+          <li>One call, filtered in SQL, limited rows, spinner on</li>
+          <li>Try UT classes (<code>u-success-text</code>, <code>u-color-N</code>) first</li></ul></div>
+        <div class="box r"><h3>Traps</h3><ul>
+          <li>Data used before it arrives → <code>undefined</code>. Use it in <code>.then</code> / after <code>await</code></li>
+          <li>Unescaped data in HTML → XSS. Always escape</li>
+          <li>Concatenating browser input into SQL → injection. Bind it</li>
+          <li>One AJAX call per row, or per key press → slow. Batch and debounce</li></ul></div>
       </div>
     </div>
   </section>
@@ -490,7 +896,10 @@ const TASKS = {
 apex.item('P1_SAL').setValue('2850');</pre>`,
         `Read the salary back and <b>convert it</b>. getValue always returns a string:<pre>const sal = Number(apex.item('P1_SAL').getValue());   // 2850</pre>`,
         `Write the result:<pre>apex.item('P1_ANNUAL').setValue(sal * 12);   // 34200</pre>`,
-        `Save → Run. P1_ANNUAL shows <b>34200</b>. If it's empty, press F12 and read the red error. A misspelled item name is the usual cause.`
+        `Save → Run. P1_ANNUAL shows <b>34200</b>. If it's empty, press F12 and read the red error. A misspelled item name is the usual cause.`,
+        `<b>The PL/SQL way to do the same:</b> Pre-Rendering → <b>Before Header</b> → create a Process (Execute Code):<pre>:P1_ENAME  := 'BLAKE';
+:P1_SAL    := 2850;
+:P1_ANNUAL := :P1_SAL * 12;</pre>The difference: PL/SQL sets the values on the <b>server before the page is drawn</b>; JavaScript sets them in the <b>browser after</b>. The result looks the same, but only JavaScript can react later, without reloading the page.`
       ]},
     { id:'s1-q2', title:'Find the bug: 2850100',
       task:`<p>A colleague wrote this in <b>Execute when Page Loads</b>, and P1_ANNUAL shows <code>2850100</code> instead of <code>2950</code>. Fix it.</p><pre>var raise = $v('P1_SAL') + 100;
@@ -500,7 +909,9 @@ $s('P1_ANNUAL', raise);</pre>`,
         `<code>'2850' + 100</code> joins the text, like <code>'2850' || '100'</code> in PL/SQL, so you get <code>'2850100'</code>.`,
         `Convert first with <code>Number()</code>, your <code>TO_NUMBER</code>. Also change <code>var</code> to <code>const</code>, because the value never changes:<pre>const raise = Number($v('P1_SAL')) + 100;
 $s('P1_ANNUAL', raise);   // 2950</pre>`,
-        `Rule: <b>every</b> item value is a string. Wrap it in <code>Number()</code> before any maths.`
+        `Rule: <b>every</b> item value is a string. Wrap it in <code>Number()</code> before any maths.`,
+        `<b>Why PL/SQL never had this bug:</b><pre>:P1_ANNUAL := :P1_SAL + 100;            -- Oracle converts '2850' to 2850 for you: 2950
+:P1_ANNUAL := TO_NUMBER(:P1_SAL) + 100; -- the explicit, safer version</pre>Oracle does an <b>implicit conversion</b> to a number, and string joining has its own operator, <code>||</code>. JavaScript uses the same <code>+</code> for both, and if either side is a string, it joins.`
       ]},
     { id:'s1-q3', title:'Validate salary with try/catch',
       task:`<p>Create a Dynamic Action: <b>Change</b> on <code>P1_SAL</code> → <b>Execute JavaScript Code</b>. If the salary is empty, not a number, or outside 800–5000, show an <b>inline + page error</b>. Otherwise set P1_ANNUAL and show "Salary OK". Test with <code>abc</code>, <code>9000</code> and <code>1250</code>.</p>`,
@@ -515,7 +926,22 @@ if (sal < 800 || sal > 5000) throw new Error('Salary must be between 800 and 500
 apex.message.showPageSuccess('Salary OK');</pre>`,
         `In <code>catch (err)</code>, show the message the APEX way:<pre>apex.message.showErrors([{ type:'error', location:['page','inline'],
   pageItem:'P1_SAL', message: err.message, unsafe:false }]);</pre>`,
-        `Test: <code>abc</code> → "'abc' is not a number"; <code>9000</code> → range error under the field and at the top; <code>1250</code> → green "Salary OK" and annual 15000.`
+        `Test: <code>abc</code> → "'abc' is not a number"; <code>9000</code> → range error under the field and at the top; <code>1250</code> → green "Salary OK" and annual 15000.`,
+        `<b>The PL/SQL twin, which you must keep too:</b> P1_SAL → Validations → Create. Type <b>Function Body (returning Error Text)</b>:<pre>DECLARE
+  l_sal NUMBER;
+BEGIN
+  IF :P1_SAL IS NULL THEN
+    RETURN 'Salary is required';
+  END IF;
+  l_sal := TO_NUMBER(:P1_SAL);              -- may raise VALUE_ERROR
+  IF l_sal NOT BETWEEN 800 AND 5000 THEN
+    RETURN 'Salary must be between 800 and 5000';
+  END IF;
+  RETURN NULL;                              -- NULL = no error
+EXCEPTION
+  WHEN VALUE_ERROR THEN
+    RETURN :P1_SAL || ' is not a number';   -- the catch block
+END;</pre>Read them side by side: <code>throw</code> = <code>RETURN 'message'</code> or <code>RAISE</code>, <code>catch</code> = <code>EXCEPTION WHEN …</code>, <code>Number.isNaN</code> = <code>VALUE_ERROR</code>. JavaScript shows the error instantly; PL/SQL shows it after Submit and can't be bypassed.`
       ]},
     { id:'s1-q4', title:'jQuery: highlight a region',
       task:`<p>Give a region the <b>Static ID</b> <code>emp_region</code>. Add a Switch item <code>P1_HIGHLIGHT</code>. When it's switched on, add the CSS class <code>u-color-9</code> to the region; when it's off, remove it. Then answer: why jQuery here and not <code>apex.item</code>?</p>`,
@@ -524,7 +950,8 @@ apex.message.showPageSuccess('Salary OK');</pre>`,
         `Dynamic Action: <b>Change</b> on <code>P1_HIGHLIGHT</code> → Execute JavaScript Code. A Switch returns <code>'Y'</code> or <code>'N'</code> by default:<pre>const on = $v('P1_HIGHLIGHT') === 'Y';</pre>`,
         `jQuery's <code>toggleClass(name, true/false)</code> adds or removes the class in one line:<pre>$('#emp_region').toggleClass('u-color-9', on);</pre>`,
         `Why jQuery? A region is <b>not a page item</b>, so <code>apex.item</code> doesn't apply. Adding a CSS class to plain HTML is exactly the job jQuery is for.`,
-        `Bonus: with no code at all, a declarative DA <b>Add Class</b> / <b>Remove Class</b> with a client-side condition does the same thing. Always check the declarative actions first.`
+        `Bonus: with no code at all, a declarative DA <b>Add Class</b> / <b>Remove Class</b> with a client-side condition does the same thing. Always check the declarative actions first.`,
+        `<b>The PL/SQL way:</b> Region → Appearance → <b>CSS Classes</b> = <code>&amp;P1_REGION_CLASS.</code> (a substitution string), plus a Before Header Computation:<pre>:P1_REGION_CLASS := CASE :P1_HIGHLIGHT WHEN 'Y' THEN 'u-color-9' END;</pre>That works, but only when the page is <b>reloaded</b>. The jQuery version changes it the moment you flip the switch. Use the server way when the class depends on data that doesn't change while the user is on the page.`
       ]},
     { id:'s1-q5', title:'Choose the right tool',
       task:`<p>Write <b>PL/SQL</b>, <b>Declarative DA</b>, <b>apex.* JS</b> or <b>jQuery</b> for each:</p><ol type="a"><li>Save a new employee row</li><li>Hide P1_COMM unless JOB = SALESMAN</li><li>Show "Salary OK" instantly while typing</li><li>Stop a clerk from approving his own leave</li><li>Turn every negative number in a report red</li><li>Refresh the report after a modal dialog closes</li></ol>`,
@@ -537,13 +964,64 @@ apex.message.showPageSuccess('Salary OK');</pre>`,
         `<b>f) Declarative DA:</b> event <b>Dialog Closed</b> → action <b>Refresh</b> on the report region. In code, the same thing is <code>apex.region('emp_report').refresh()</code>.`
       ]}
   ]
+  ,s2: [
+    { id:'s2-q1', title:'Your first Ajax Callback',
+      task:`<p>Create the Ajax Callback <b>GET_EMPS</b> (apex_json version) and the <code>loadEmps()</code> function. Add a Dynamic Action on <b>Change of P2_DEPTNO</b> that calls <code>loadEmps()</code>. Open the console (F12), change the department, and confirm a table of employees appears.</p>`,
+      steps:[
+        `Page Designer → <b>Processing</b> tab → right-click <b>Ajax Callback</b> → Create Process. Name it exactly <b>GET_EMPS</b>; JavaScript finds it by this name. Paste the apex_json code from section 2.`,
+        `Page → <b>Function and Global Variable Declaration</b>: paste <code>loadEmps()</code> from section 3.`,
+        `Right-click <b>P2_DEPTNO</b> → Create Dynamic Action → Event <b>Change</b> → action <b>Execute JavaScript Code</b>: <code>loadEmps();</code>`,
+        `Run, press F12 → Console, and pick a department. <code>console.table</code> prints the rows.`,
+        `Nothing printed? 1) Check the process name matches exactly (case matters). 2) Make sure the process point is <b>Ajax Callback</b>, not After Submit. 3) Open the <b>Network</b> tab, click the <code>wwv_flow.ajax</code> request, and read the response. A PL/SQL error message appears there.`,
+        `<b>PL/SQL comparison:</b> it's the same as calling <code>get_emps(p_deptno =&gt; :P2_DEPTNO, …)</code> from a page process, except the page doesn't reload and you get JSON back instead of a cursor.`
+      ]},
+    { id:'s2-q2', title:'Why is PL/SQL seeing the old department?',
+      task:`<p>A colleague's callback always returns the employees of the department chosen <b>when the page opened</b>, not the one just picked. Their JS is:</p><pre>apex.server.process('GET_EMPS').then(d =&gt; console.table(d.rows));</pre><p>Fix it, and explain why.</p>`,
+      steps:[
+        `In PL/SQL, <code>:P2_DEPTNO</code> reads the value stored in the <b>session on the server</b>.`,
+        `Picking a value in the browser does <b>not</b> update the server session. Only Submit, or sending the item with the request, does that.`,
+        `Send it: <pre>apex.server.process('GET_EMPS', { pageItems: '#P2_DEPTNO' })
+  .then(d =&gt; console.table(d.rows));</pre>`,
+        `The declarative equivalent of the same idea: a report's <b>Page Items to Submit</b> property, which you've used when refreshing a report on an item change.`
+      ]},
+    { id:'s2-q3', title:'Render the cards with HTML + CSS',
+      task:`<p>Add <code>renderCards(rows)</code> (section 4) and the CSS (section 5). Change the DA to <code>loadEmps().then(renderCards);</code>. Employees earning 3000 or more must have a red border. Make the cards look good at phone width too (resize your browser).</p>`,
+      steps:[
+        `Region with Static ID <b>emp_cards</b> (Static Content, the body can be empty). The JS writes into <code>#emp_cards .t-Region-body</code>.`,
+        `Paste <code>renderCards</code> into Function and Global Variable Declaration, below <code>loadEmps</code>.`,
+        `Paste the CSS into <b>Page → CSS → Inline</b>.`,
+        `DA code: <code>loadEmps().then(renderCards);</code> passes the rows array straight into renderCards.`,
+        `The red border comes from this part of the template: <code>\${r.sal &gt;= 3000 ? 'is-high' : ''}</code>. JavaScript adds the class, and the CSS rule <code>.emp-card.is-high</code> colours it.`,
+        `Phone width: <code>repeat(auto-fill, minmax(200px, 1fr))</code> fits as many 200px columns as there's room for. On a phone that's one column, with no media query needed.`,
+        `<b>PL/SQL comparison:</b> the same cards from a PL/SQL Dynamic Content region with <code>htp.p</code> (section 4, left), or the built-in <b>Cards</b> region. Those render on the server and need a region refresh; the AJAX version updates without one.`
+      ]},
+    { id:'s2-q4', title:'Errors end to end',
+      task:`<p>Make the callback raise <code>RAISE_APPLICATION_ERROR(-20001, 'Choose a department first')</code> when P2_DEPTNO is null, catch it, and send it back as <code>{"error": "…"}</code>. In JavaScript, show it as an APEX page error. Test by selecting the empty "- Select -" value.</p>`,
+      steps:[
+        `PL/SQL: put <code>IF :P2_DEPTNO IS NULL THEN RAISE_APPLICATION_ERROR(…); END IF;</code> at the top, and the <code>EXCEPTION WHEN OTHERS</code> block from section 2 at the bottom. It writes <code>{"error": SQLERRM}</code>.`,
+        `Notice <code>SQLERRM</code> contains <code>ORA-20001: Choose a department first</code>. To show the clean text, use <code>apex_json.write('error', REGEXP_REPLACE(SQLERRM, '^ORA-\\d+: '));</code>`,
+        `JS: in <code>loadEmps</code>, the line <code>if (data.error) throw new Error(data.error);</code> turns the JSON error into a JavaScript exception, like re-raising.`,
+        `The <code>catch</code> shows it with <code>apex.message.showErrors</code>, the same pattern as Session 1.`,
+        `Why catch in PL/SQL at all? Without the EXCEPTION block, APEX returns its own error response, and JavaScript lands in <code>catch</code> with a less friendly message. Handling it yourself gives you control, just like in normal PL/SQL APIs.`
+      ]},
+    { id:'s2-q5', title:'Make it fast',
+      task:`<p>Your callback returns all 14 employees of a department, but the real table at the office has 80,000 rows. List 3 changes (PL/SQL and JS) that keep it fast, and add a loading spinner.</p>`,
+      steps:[
+        `SQL: add <code>FETCH FIRST 50 ROWS ONLY</code> and an index on <code>emp(deptno)</code>, so only what you show travels.`,
+        `SQL: select only the 4 columns the cards use, not <code>*</code>.`,
+        `JS: one call per department change, never one per row. If you add a search box, debounce it (wait ~300 ms after typing stops).`,
+        `Spinner: a third argument, <code>{ loadingIndicator: '#emp_cards', loadingIndicatorPosition: 'centered' }</code>.`,
+        `Measure: F12 → <b>Network</b>. Click the request to see its size (KB) and time (ms). In PL/SQL terms, it's like reading the execution plan and elapsed time.`
+      ]}
+  ]
 };
 const SESSIONS = [
-  { id:'s1', n:1, title:'JavaScript in APEX, the PL/SQL way', sub:'Where JS lives · variables & types · page items · JS vs jQuery vs PL/SQL · exceptions · 5 practice tasks', ready:true },
-  { id:'s2', n:2, title:'AJAX: JavaScript calling your PL/SQL', sub:'apex.server.process · Ajax Callback processes · JSON · promises/async-await · error handling', ready:false },
+  { id:'s1', n:1, title:'JavaScript in APEX, the PL/SQL way', sub:'Where JS lives · variables & types · page items · JS vs jQuery vs PL/SQL · exceptions · first HTML & CSS · 5 practice tasks', ready:true },
+  { id:'s2', n:2, title:'AJAX: JavaScript calling your PL/SQL, shown with HTML & CSS', sub:'Ajax Callback + apex_json · apex.server.process · async/await · cards from JSON · CSS grid · speed rules · 5 practice tasks', ready:true },
   { id:'s3', n:3, title:'Functions, arrays and objects for APEX data', sub:'arrow functions · records/collections · filter/map/reduce as SQL', ready:false },
   { id:'s4', n:4, title:'Interactive Grid with JavaScript', sub:'IG model, view, toolbar actions, selected rows', ready:false },
-  { id:'s5', n:5, title:'CSS for APEX developers', sub:'selectors, specificity, Universal Theme classes, Theme Roller', ready:false }
+  { id:'s5', n:5, title:'CSS & HTML for APEX pages', sub:'selectors, specificity, flexbox/grid layouts, Universal Theme, Theme Roller', ready:false },
+  { id:'s6', n:6, title:'Templates & Template Components', sub:'your own reusable HTML pieces, filled by SQL', ready:false }
 ];
 
 /* ===================== STATE + SAVING ===================== */
