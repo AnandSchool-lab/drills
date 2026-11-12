@@ -884,6 +884,948 @@ EXCEPTION … SQLERRM  → catch (err) err.message</pre></div>
   </section>
 </template>
 
+<!-- ======================= SESSION 3 ======================= -->
+<template id="s3">
+  <nav class="toc noprint">
+    <a href="#s3-fn">1. Functions<span>10m</span></a>
+    <a href="#s3-obj">2. Objects = records<span>10m</span></a>
+    <a href="#s3-arr">3. Arrays = collections<span>10m</span></a>
+    <a href="#s3-sql">4. SQL thinking on arrays<span>10m</span></a>
+    <a href="#s3-table">5. HTML table + CSS<span>5m</span></a>
+    <a href="#s3-practice">6. Practice<span>15m</span></a>
+    <a href="#s3-summary">7. Summary</a>
+  </nav>
+
+  <section class="part" id="s3-fn">
+    <h2><span class="n">01</span>Functions: three ways to write one<span class="time">10 min</span></h2>
+    <div class="compare">
+      <div><span class="h pl">PL/SQL</span>
+<pre>FUNCTION annual_pay (p_sal  NUMBER,
+                     p_comm NUMBER DEFAULT 0)
+RETURN NUMBER IS
+BEGIN
+  RETURN p_sal * 12 + NVL(p_comm, 0);
+END;
+
+<span class="c">-- named notation</span>
+l := annual_pay(p_sal =&gt; 1600, p_comm =&gt; 300);</pre></div>
+      <div><span class="h js">JavaScript</span>
+<pre><span class="c">// 1. declaration - like a stored function</span>
+function annualPay(sal, comm = 0) {
+  return sal * 12 + (comm ?? 0);
+}
+<span class="c">// 2. expression - a function kept in a variable</span>
+const annualPay2 = function (sal, comm = 0) { return sal * 12 + comm; };
+<span class="c">// 3. arrow - short form, used everywhere</span>
+const annualPay3 = (sal, comm = 0) =&gt; sal * 12 + comm;
+
+<span class="c">// "named notation": pass an object</span>
+function pay({ sal, comm = 0 }) { return sal * 12 + comm; }
+pay({ sal: 1600, comm: 300 });</pre></div>
+    </div>
+    <h3>Returning several values (PL/SQL OUT parameters)</h3>
+    <div class="compare">
+      <div><span class="h pl">PL/SQL</span>
+<pre>PROCEDURE stats (p_deptno IN  NUMBER,
+                 p_total  OUT NUMBER,
+                 p_count  OUT NUMBER) IS
+BEGIN
+  SELECT SUM(sal), COUNT(*)
+    INTO p_total, p_count
+    FROM emp WHERE deptno = p_deptno;
+END;</pre></div>
+      <div><span class="h js">JavaScript: return an object</span>
+<pre>function stats(rows) {
+  return {
+    total: rows.reduce((s, r) =&gt; s + r.sal, 0),
+    count: rows.length
+  };
+}
+const { total, count } = stats(rows);  <span class="c">// like INTO</span></pre></div>
+    </div>
+    <div class="note yellow"><b class="tag">Note to remember</b>Arrow functions <code>(a, b) =&gt; a + b</code> are the normal style in modern code and in APEX examples. With <b>one expression</b>, the result is returned automatically. With <code>{ }</code> braces, you must write <code>return</code>.</div>
+    <div class="note red"><b class="tag">Trap</b>Returning an object from a one-line arrow needs brackets: <code>r =&gt; ({ name: r.ename })</code>. Without them, <code>{ }</code> is read as a code block and you get <code>undefined</code>.</div>
+  </section>
+
+  <section class="part" id="s3-obj">
+    <h2><span class="n">02</span>Objects are records<span class="time">10 min</span></h2>
+    <div class="compare">
+      <div><span class="h pl">PL/SQL record</span>
+<pre>DECLARE
+  r emp%ROWTYPE;
+BEGIN
+  SELECT * INTO r FROM emp WHERE empno = 7788;
+  r.sal := r.sal * 1.1;
+  DBMS_OUTPUT.PUT_LINE(r.ename || ' ' || r.sal);
+END;</pre></div>
+      <div><span class="h js">JavaScript object</span>
+<pre>const r = { empno: 7788, ename: 'SCOTT', sal: 3000 };
+r.sal = r.sal * 1.1;                 <span class="c">// change a field</span>
+console.log(`${r.ename} ${r.sal}`);
+
+r.job = 'ANALYST';                   <span class="c">// add a field anytime</span>
+const col = 'sal';
+console.log(r[col]);                 <span class="c">// field name from a variable</span>
+console.log('comm' in r);            <span class="c">// does the field exist? false</span></pre></div>
+    </div>
+    <h3>Copy, merge, unpack</h3>
+<pre>const raised = { ...r, sal: 3300 };          <span class="c">// copy with one change - r is untouched</span>
+const merged = { ...defaults, ...userPrefs }; <span class="c">// later ones win (like NVL in reverse)</span>
+const { ename, sal } = r;                     <span class="c">// SELECT ename, sal INTO ename, sal</span>
+const { comm = 0 } = r;                       <span class="c">// with a default if missing</span></pre>
+    <h3>JSON: objects as text (you met it in Session 2)</h3>
+    <div class="compare">
+      <div><span class="h pl">PL/SQL</span>
+<pre>apex_json.parse(l_text);
+l_name := apex_json.get_varchar2('ename');
+
+SELECT JSON_OBJECT('ename' VALUE ename) FROM emp;</pre></div>
+      <div><span class="h js">JavaScript</span>
+<pre>const obj  = JSON.parse('{"ename":"KING"}');  <span class="c">// text → object</span>
+const name = obj.ename;
+
+const text = JSON.stringify({ ename: 'KING' }); <span class="c">// object → text</span></pre></div>
+    </div>
+    <div class="note red"><b class="tag">Trap: const objects can still change</b><code>const r = {sal: 1}; r.sal = 2;</code> works. <code>const</code> only stops <code>r = somethingElse</code>. And <code>const b = r;</code> does <b>not</b> copy: <code>b</code> and <code>r</code> are the <b>same</b> record, so changing <code>b.sal</code> changes <code>r.sal</code>. Copy with <code>{ ...r }</code>.</div>
+  </section>
+
+  <section class="part" id="s3-arr">
+    <h2><span class="n">03</span>Arrays are collections<span class="time">10 min</span></h2>
+    <div class="compare">
+      <div><span class="h pl">PL/SQL nested table</span>
+<pre>DECLARE
+  TYPE t_names IS TABLE OF VARCHAR2(30);
+  l t_names := t_names('KING','BLAKE');
+BEGIN
+  l.EXTEND; l(l.LAST) := 'CLARK';
+  DBMS_OUTPUT.PUT_LINE(l.COUNT);    <span class="c">-- 3</span>
+  DBMS_OUTPUT.PUT_LINE(l(1));       <span class="c">-- KING</span>
+  FOR i IN 1 .. l.COUNT LOOP
+    DBMS_OUTPUT.PUT_LINE(l(i));
+  END LOOP;
+END;</pre></div>
+      <div><span class="h js">JavaScript array</span>
+<pre>const l = ['KING', 'BLAKE'];
+
+l.push('CLARK');              <span class="c">// EXTEND + assign</span>
+console.log(l.length);        <span class="c">// COUNT → 3</span>
+console.log(l[0]);            <span class="c">// FIRST element is [0]!</span>
+
+for (const name of l) {       <span class="c">// FOR r IN … LOOP</span>
+  console.log(name);
+}
+l.forEach((name, i) =&gt; console.log(i, name));</pre></div>
+    </div>
+    <div class="tablewrap"><table class="dt">
+      <tr><th>PL/SQL</th><th>JavaScript</th></tr>
+      <tr><td><code>l.COUNT</code></td><td><code>l.length</code></td></tr>
+      <tr><td><code>l(1)</code> / <code>l(l.LAST)</code></td><td><code>l[0]</code> / <code>l[l.length - 1]</code> or <code>l.at(-1)</code></td></tr>
+      <tr><td><code>l.EXTEND; l(l.LAST) := x</code></td><td><code>l.push(x)</code></td></tr>
+      <tr><td><code>l.DELETE(i)</code></td><td><code>l.splice(i, 1)</code></td></tr>
+      <tr><td><code>x MEMBER OF l</code></td><td><code>l.includes(x)</code></td></tr>
+      <tr><td><code>l.DELETE</code> (all)</td><td><code>l.length = 0</code></td></tr>
+    </table></div>
+    <div class="note red"><b class="tag">Trap: index starts at 0</b>The first element is <code>l[0]</code>, and the last is <code>l[l.length - 1]</code>. Looping <code>for (let i = 1; i &lt;= l.length; i++)</code> skips the first element and reads one past the end (<code>undefined</code>).</div>
+  </section>
+
+  <section class="part" id="s3-sql">
+    <h2><span class="n">04</span>SQL thinking on arrays<span class="time">10 min</span></h2>
+<pre>const emps = [
+  { empno: 7839, ename: 'KING',  job: 'PRESIDENT', deptno: 10, sal: 5000 },
+  { empno: 7566, ename: 'JONES', job: 'MANAGER',   deptno: 20, sal: 2975 },
+  { empno: 7788, ename: 'SCOTT', job: 'ANALYST',   deptno: 20, sal: 3000 },
+  { empno: 7369, ename: 'SMITH', job: 'CLERK',     deptno: 20, sal: 800  },
+  { empno: 7499, ename: 'ALLEN', job: 'SALESMAN',  deptno: 30, sal: 1600 }
+];</pre>
+    <div class="tablewrap"><table class="dt">
+      <tr><th>SQL</th><th>JavaScript</th><th>Result</th></tr>
+      <tr><td><code>WHERE deptno = 20</code></td><td><code>emps.filter(e =&gt; e.deptno === 20)</code></td><td>3 rows</td></tr>
+      <tr><td><code>SELECT ename</code></td><td><code>emps.map(e =&gt; e.ename)</code></td><td>['KING', …]</td></tr>
+      <tr><td><code>SELECT ename, sal*12 annual</code></td><td><code>emps.map(e =&gt; ({ ename: e.ename, annual: e.sal * 12 }))</code></td><td>new rows</td></tr>
+      <tr><td><code>SUM(sal)</code></td><td><code>emps.reduce((s, e) =&gt; s + e.sal, 0)</code></td><td>13375</td></tr>
+      <tr><td><code>MAX(sal)</code></td><td><code>Math.max(...emps.map(e =&gt; e.sal))</code></td><td>5000</td></tr>
+      <tr><td><code>WHERE empno = 7788</code> (one row)</td><td><code>emps.find(e =&gt; e.empno === 7788)</code></td><td>SCOTT's object</td></tr>
+      <tr><td><code>EXISTS (… sal &gt; 4000)</code></td><td><code>emps.some(e =&gt; e.sal &gt; 4000)</code></td><td>true</td></tr>
+      <tr><td><code>NOT EXISTS (… sal &lt;= 0)</code></td><td><code>emps.every(e =&gt; e.sal &gt; 0)</code></td><td>true</td></tr>
+      <tr><td><code>ORDER BY sal DESC</code></td><td><code>[...emps].sort((a, b) =&gt; b.sal - a.sal)</code></td><td>sorted copy</td></tr>
+      <tr><td><code>ORDER BY ename</code></td><td><code>[...emps].sort((a, b) =&gt; a.ename.localeCompare(b.ename))</code></td><td>A→Z</td></tr>
+      <tr><td><code>FETCH FIRST 3 ROWS ONLY</code></td><td><code>emps.slice(0, 3)</code></td><td>3 rows</td></tr>
+      <tr><td><code>SELECT DISTINCT deptno</code></td><td><code>[...new Set(emps.map(e =&gt; e.deptno))]</code></td><td>[10, 20, 30]</td></tr>
+      <tr><td><code>LISTAGG(ename, ', ')</code></td><td><code>emps.map(e =&gt; e.ename).join(', ')</code></td><td>'KING, JONES, …'</td></tr>
+    </table></div>
+    <h3>GROUP BY with reduce</h3>
+    <div class="compare">
+      <div><span class="h pl">SQL</span>
+<pre>SELECT deptno,
+       COUNT(*)  cnt,
+       SUM(sal)  total
+  FROM emp
+ GROUP BY deptno;</pre></div>
+      <div><span class="h js">JavaScript</span>
+<pre>const byDept = emps.reduce((acc, e) =&gt; {
+  acc[e.deptno] ??= { cnt: 0, total: 0 };  <span class="c">// first time: create</span>
+  acc[e.deptno].cnt   += 1;
+  acc[e.deptno].total += e.sal;
+  return acc;
+}, {});
+<span class="c">// { 10:{cnt:1,total:5000}, 20:{cnt:3,total:6775}, 30:{…} }</span></pre></div>
+    </div>
+    <div class="note yellow"><b class="tag">Note to remember</b>Chain them like a query, read top to bottom: <code>emps.filter(…).map(…).sort(…)</code> = WHERE → SELECT → ORDER BY. But if the data is still in the database, <b>do it in SQL</b>. Use array methods on data you already have in the browser, like an AJAX result or Interactive Grid rows.</div>
+    <div class="note red"><b class="tag">Trap: sort changes the original</b><code>emps.sort(…)</code> re-orders <code>emps</code> itself. Copy first with <code>[...emps].sort(…)</code>. Also, without a compare function, <code>[10, 9, 100].sort()</code> gives <code>[10, 100, 9]</code>, because it sorts as text.</div>
+  </section>
+
+  <section class="part" id="s3-table">
+    <h2><span class="n">05</span>HTML table from an array, with CSS<span class="time">5 min</span></h2>
+    <div class="codehead"><span><span class="where">Execute when Page Loads</span> (region Static ID <code>emp_tbl</code>), with <code>emps</code> declared in Function and Global Variable Declaration</span></div>
+<pre>const esc = apex.util.escapeHTML;
+const rows = [...emps].sort((a, b) =&gt; b.sal - a.sal);
+const total = rows.reduce((s, e) =&gt; s + e.sal, 0);
+
+const html = `
+&lt;table class="emp-tbl"&gt;
+  &lt;thead&gt;&lt;tr&gt;&lt;th&gt;Name&lt;/th&gt;&lt;th&gt;Job&lt;/th&gt;&lt;th class="num"&gt;Salary&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;
+  &lt;tbody&gt;
+    ${rows.map(e =&gt; `&lt;tr&gt;&lt;td&gt;${esc(e.ename)}&lt;/td&gt;&lt;td&gt;${esc(e.job)}&lt;/td&gt;&lt;td class="num"&gt;${e.sal}&lt;/td&gt;&lt;/tr&gt;`).join('')}
+  &lt;/tbody&gt;
+  &lt;tfoot&gt;&lt;tr&gt;&lt;td colspan="2"&gt;Total&lt;/td&gt;&lt;td class="num"&gt;${total}&lt;/td&gt;&lt;/tr&gt;&lt;/tfoot&gt;
+&lt;/table&gt;`;
+$('#emp_tbl .t-Region-body').html(html);</pre>
+    <div class="codehead"><span><span class="where">Page → CSS → Inline</span></span></div>
+<pre>.emp-tbl { width: 100%; border-collapse: collapse; }
+.emp-tbl th, .emp-tbl td { padding: 6px 10px; border-bottom: 1px solid #e3e6ee; text-align: left; }
+.emp-tbl th { font-size: 12px; text-transform: uppercase; color: #5d6478; }
+.emp-tbl .num { text-align: right; font-variant-numeric: tabular-nums; }  <span class="c">/* numbers line up */</span>
+.emp-tbl tbody tr:nth-child(even) { background: #f6f7fb; }              <span class="c">/* zebra rows */</span>
+.emp-tbl tfoot td { font-weight: 700; border-top: 2px solid #1b2030; }</pre>
+    <div class="note yellow"><b class="tag">Note to remember</b>A Classic Report does all of this for you, on the server. Build your own HTML only when you need a layout APEX doesn't offer, or data that's already in the browser. That's the same rule as PL/SQL vs <code>htp.p</code>.</div>
+  </section>
+
+  <section class="part" id="s3-practice">
+    <h2><span class="n">06</span>Practice<span class="time">15 min</span></h2>
+    <div class="prose"><p>Put the <code>emps</code> array from section 4 in <b>Function and Global Variable Declaration</b> on any page, and write your answers in <b>Execute when Page Loads</b>. Check them in the console (F12).</p></div>
+    <div id="s3-tasks"></div>
+  </section>
+
+  <section class="part" id="s3-summary">
+    <h2><span class="n">07</span>One-page summary<span class="time">read tomorrow</span></h2>
+    <div class="noprint" style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" id="print">Print / save as PDF</button></div>
+    <div class="sheet">
+      <div class="label">APEX Expert Drills · Session 3</div>
+      <h1>Functions, objects and arrays: SQL thinking in JavaScript</h1>
+      <div class="cols">
+        <div class="box"><h3>Functions</h3>
+<pre>function f(a, b = 0) { return a + b; }
+const g = (a, b = 0) =&gt; a + b;
+const h = r =&gt; ({ name: r.ename }); // object
+function pay({ sal, comm = 0 }) {…} // named
+return { total, count };            // OUT params</pre></div>
+        <div class="box"><h3>Objects = records</h3>
+<pre>r.sal  r['sal']  'comm' in r
+{ ...r, sal: 3300 }        // copy + change
+const { ename, sal } = r;  // INTO
+JSON.parse(text)  JSON.stringify(obj)</pre></div>
+        <div class="box"><h3>Arrays = collections</h3>
+<pre>l.length   l[0]   l.at(-1)
+l.push(x)  l.splice(i,1)  l.includes(x)
+for (const x of l) { … }
+l.forEach((x, i) =&gt; …)</pre></div>
+        <div class="box"><h3>SQL → array</h3>
+<pre>WHERE      filter(e =&gt; …)
+SELECT     map(e =&gt; …)
+SUM/COUNT  reduce((s,e) =&gt; s+e.sal, 0)
+one row    find(e =&gt; …)
+EXISTS     some(…)   ALL  every(…)
+ORDER BY   [...l].sort((a,b) =&gt; b.sal-a.sal)
+DISTINCT   [...new Set(l.map(…))]
+LISTAGG    map(…).join(', ')</pre></div>
+        <div class="box"><h3>HTML + CSS table</h3>
+<pre>rows.map(e =&gt; `&lt;tr&gt;&lt;td&gt;${esc(e.ename)}&lt;/td&gt;&lt;/tr&gt;`).join('')
+.num { text-align:right;
+       font-variant-numeric:tabular-nums }
+tr:nth-child(even) { background:#f6f7fb }</pre></div>
+        <div class="box y"><h3>Notes to remember</h3><ul>
+          <li>Arrow functions are the normal style; one expression returns automatically</li>
+          <li>Chain filter → map → sort, like WHERE → SELECT → ORDER BY</li>
+          <li>Data still in the DB? Do it in SQL. Arrays are for browser data</li>
+          <li>Classic Report first; your own HTML only for custom layouts</li></ul></div>
+        <div class="box r"><h3>Traps</h3><ul>
+          <li>Arrays start at <b>0</b></li>
+          <li><code>const b = r</code> is not a copy. Use <code>{...r}</code> / <code>[...l]</code></li>
+          <li><code>sort()</code> changes the original, and sorts numbers as text without a compare function</li>
+          <li><code>r =&gt; { name: x }</code> returns undefined. Use <code>({ … })</code></li></ul></div>
+      </div>
+    </div>
+  </section>
+</template>
+
+<!-- ======================= SESSION 4 ======================= -->
+<template id="s4">
+  <nav class="toc noprint">
+    <a href="#s4-setup">0. Set up<span>3m</span></a>
+    <a href="#s4-parts">1. The IG's three parts<span>7m</span></a>
+    <a href="#s4-read">2. Read rows<span>10m</span></a>
+    <a href="#s4-write">3. Change rows &amp; save<span>10m</span></a>
+    <a href="#s4-toolbar">4. Your own toolbar button<span>10m</span></a>
+    <a href="#s4-look">5. Make it look right<span>5m</span></a>
+    <a href="#s4-practice">6. Practice<span>15m</span></a>
+    <a href="#s4-summary">7. Summary</a>
+  </nav>
+
+  <section class="part" id="s4-setup">
+    <h2><span class="n">00</span>Set up<span class="time">3 min</span></h2>
+    <ol class="steps" style="margin:0;padding-left:22px">
+      <li>Create a page with an <b>Interactive Grid</b> on <code>EMP</code> (Create Page → Interactive Grid → table EMP, <b>Editing enabled</b>, primary key EMPNO).</li>
+      <li>Region → <b>Advanced → Static ID</b> = <code>emp_ig</code>. Every line of JavaScript below starts from this name.</li>
+      <li>Add a Display Only item <code>P3_INFO</code> above the grid, for showing results.</li>
+    </ol>
+  </section>
+
+  <section class="part" id="s4-parts">
+    <h2><span class="n">01</span>The Interactive Grid's three parts<span class="time">7 min</span></h2>
+    <div class="prose"><p>An IG is a small application inside your page. To work with it in JavaScript you get hold of three objects. In database terms:</p></div>
+    <div class="tablewrap"><table class="dt">
+      <tr><th>Part</th><th>Like in the database</th><th>How to get it</th></tr>
+      <tr><td><b>widget</b> (the whole IG)</td><td>The application/form</td><td><code>apex.region('emp_ig').widget()</code></td></tr>
+      <tr><td><b>view</b> (grid, or single row view)</td><td>The screen/report layout</td><td><code>widget.interactiveGrid('getViews', 'grid')</code></td></tr>
+      <tr><td><b>model</b> (the rows in the browser)</td><td>A <b>cursor / collection in memory</b>, with changes not yet committed</td><td><code>view.model</code></td></tr>
+      <tr><td><b>record</b></td><td>One row</td><td>from the model or the selection</td></tr>
+    </table></div>
+    <div class="codehead"><span>The 3 lines you'll start almost every IG script with</span></div>
+<pre>const ig$   = apex.region('emp_ig').widget();                  <span class="c">// the IG</span>
+const grid  = ig$.interactiveGrid('getViews', 'grid');         <span class="c">// the grid view</span>
+const model = grid.model;                                      <span class="c">// the rows</span></pre>
+    <div class="note yellow"><b class="tag">Note to remember</b>Think of the <b>model</b> as an uncommitted transaction. <code>setValue</code> changes rows in the browser (like DML before COMMIT). Nothing reaches the table until <b>Save</b> runs the IG's process on the server (the COMMIT).</div>
+  </section>
+
+  <section class="part" id="s4-read">
+    <h2><span class="n">02</span>Read rows: all of them, or the selected ones<span class="time">10 min</span></h2>
+    <div class="compare">
+      <div><span class="h pl">PL/SQL</span>
+<pre>FOR r IN (SELECT ename, sal FROM emp) LOOP
+  DBMS_OUTPUT.PUT_LINE(r.ename || ' ' || r.sal);
+END LOOP;
+
+SELECT SUM(sal) INTO l_total FROM emp
+ WHERE empno IN (… selected …);</pre></div>
+      <div><span class="h js">JavaScript (IG model)</span>
+<pre><span class="c">// every row currently loaded in the grid</span>
+model.forEach(function (record) {
+  console.log(model.getValue(record, 'ENAME'),
+              model.getValue(record, 'SAL'));
+});
+
+<span class="c">// only the rows the user selected</span>
+const sel = grid.getSelectedRecords();
+const total = sel.reduce((s, rec) =&gt;
+  s + Number(model.getValue(rec, 'SAL')), 0);</pre></div>
+    </div>
+    <div class="codehead"><span><span class="where">Dynamic Action · Event: Selection Change [Interactive Grid] · Region: emp_ig · Execute JavaScript Code</span></span></div>
+<pre><span class="c">// APEX passes the selection in this.data - no need to look it up</span>
+const model = this.data.model;
+const sel   = this.data.selectedRecords;
+
+const names = sel.map(rec =&gt; model.getValue(rec, 'ENAME'));
+const total = sel.reduce((s, rec) =&gt; s + Number(model.getValue(rec, 'SAL')), 0);
+
+apex.item('P3_INFO').setValue(
+  sel.length ? `${sel.length} selected: ${names.join(', ')} · total ${total}` : 'Nothing selected');</pre>
+    <div class="note red"><b class="tag">Trap: column names</b><code>getValue(record, 'SAL')</code> uses the IG <b>column name</b> (usually upper case, like in SQL), not the heading text. Values often come back as <b>strings</b>, so wrap them in <code>Number()</code> before adding. Same trap as page items.</div>
+    <div class="note red"><b class="tag">Trap: only loaded rows</b>The model holds the rows the grid has <b>fetched</b>, by default about one page as you scroll. To total the <b>whole table</b>, do it in SQL (an Ajax Callback, Session 2), not with <code>model.forEach</code>.</div>
+  </section>
+
+  <section class="part" id="s4-write">
+    <h2><span class="n">03</span>Change rows, then save<span class="time">10 min</span></h2>
+    <div class="compare">
+      <div><span class="h pl">PL/SQL</span>
+<pre>UPDATE emp
+   SET sal = sal * 1.10
+ WHERE empno IN (… selected …);
+COMMIT;</pre></div>
+      <div><span class="h js">JavaScript</span>
+<pre>const ig$   = apex.region('emp_ig').widget();
+const grid  = ig$.interactiveGrid('getViews', 'grid');
+const model = grid.model;
+
+grid.getSelectedRecords().forEach(rec =&gt; {
+  const sal = Number(model.getValue(rec, 'SAL'));
+  model.setValue(rec, 'SAL', String(Math.round(sal * 1.10)));  <span class="c">// "UPDATE" in memory</span>
+});
+
+ig$.interactiveGrid('getActions').invoke('save');               <span class="c">// "COMMIT"</span></pre></div>
+    </div>
+    <h3>What runs on the server when you Save</h3>
+    <div class="prose"><p>The page has an <b>Interactive Grid - Automatic Row Processing (DML)</b> process, created by the wizard. It does the INSERT/UPDATE/DELETE for you. To write it yourself, change its <b>Target Type</b> to <b>PL/SQL Code</b>. APEX runs your code <b>once per changed row</b> and tells you which DML with <code>:APEX$ROW_STATUS</code>:</p></div>
+<pre>BEGIN
+  CASE :APEX$ROW_STATUS
+    WHEN 'C' THEN                                   <span class="c">-- Created</span>
+      INSERT INTO emp (empno, ename, sal) VALUES (:EMPNO, :ENAME, :SAL);
+    WHEN 'U' THEN                                   <span class="c">-- Updated</span>
+      IF :SAL &gt; 10000 THEN
+        RAISE_APPLICATION_ERROR(-20001, 'Salary over 10000 needs approval');
+      END IF;
+      UPDATE emp SET ename = :ENAME, sal = :SAL WHERE empno = :EMPNO;
+    WHEN 'D' THEN                                   <span class="c">-- Deleted</span>
+      DELETE FROM emp WHERE empno = :EMPNO;
+  END CASE;
+END;</pre>
+    <div class="note yellow"><b class="tag">Note to remember</b>Inside the IG process, columns are bind variables by <b>column name</b>: <code>:SAL</code>, <code>:ENAME</code>. Not page items. An exception raised there shows as an error in the grid, and the save is rolled back, as you'd expect.</div>
+    <div class="note red"><b class="tag">Trap</b>Don't skip the server check because JavaScript "already validated". Users can type into the grid directly, so the PL/SQL process is the real gate.</div>
+  </section>
+
+  <section class="part" id="s4-toolbar">
+    <h2><span class="n">04</span>Your own toolbar button<span class="time">10 min</span></h2>
+    <div class="prose"><p>Region → <b>Attributes</b> (the IG's own properties) → <b>Advanced → JavaScript Initialization Code</b>. This function receives the IG settings (<code>config</code>) before the grid is built. You change them and return them.</p></div>
+    <div class="codehead"><span><span class="where">Interactive Grid → Attributes → JavaScript Initialization Code</span></span></div>
+<pre>function (config) {
+  const $ = apex.jQuery;
+  const toolbar = $.apex.interactiveGrid.copyDefaultToolbar();  <span class="c">// start from the normal toolbar</span>
+  const group   = toolbar.toolbarFind('actions3');               <span class="c">// the group next to Save</span>
+
+  group.controls.push({                                          <span class="c">// add a button</span>
+    type: 'BUTTON',
+    action: 'raise-10',                                          <span class="c">// links to the action below</span>
+    label: 'Raise 10%',
+    icon: 'fa fa-arrow-up',
+    iconBeforeLabel: true
+  });
+  config.toolbarData = toolbar;
+
+  config.initActions = function (actions) {                      <span class="c">// what the button does</span>
+    actions.add({
+      name: 'raise-10',
+      action: function () {
+        const grid  = apex.region('emp_ig').widget().interactiveGrid('getViews', 'grid');
+        const model = grid.model;
+        const sel   = grid.getSelectedRecords();
+        if (!sel.length) { apex.message.alert('Select rows first'); return; }
+        sel.forEach(rec =&gt; model.setValue(rec, 'SAL',
+          String(Math.round(Number(model.getValue(rec, 'SAL')) * 1.1))));
+      }
+    });
+  };
+  return config;
+}</pre>
+    <div class="note yellow"><b class="tag">Note to remember</b>A <b>declarative</b> alternative: a normal APEX button above the grid with a Dynamic Action running the Section 3 code. Start there; use the toolbar code when you want the button <b>inside</b> the grid's own toolbar.</div>
+  </section>
+
+  <section class="part" id="s4-look">
+    <h2><span class="n">05</span>Make it look right: decide in SQL, colour with CSS<span class="time">5 min</span></h2>
+    <div class="compare">
+      <div><span class="h pl">SQL (the IG source query)</span>
+<pre>SELECT empno, ename, job, sal,
+       CASE WHEN sal &gt;= 3000 THEN 'sal-high'
+            WHEN sal &lt; 1000  THEN 'sal-low'
+       END AS sal_css
+  FROM emp</pre></div>
+      <div><span class="h js">Column SAL_DISPLAY (Display Only, HTML Expression) + CSS</span>
+<pre><span class="c">&lt;!-- HTML Expression of a display column --&gt;</span>
+&lt;span class="sal-chip &amp;SAL_CSS."&gt;&amp;SAL.&lt;/span&gt;
+
+<span class="c">/* Page → CSS → Inline */</span>
+.sal-chip { padding: 2px 8px; border-radius: 999px; }
+.sal-high { background: #fde4e4; color: #a32020; }
+.sal-low  { background: #e2f3ea; color: #2f855a; }</pre></div>
+    </div>
+    <div class="note yellow"><b class="tag">Note to remember</b>Hide the helper column <code>SAL_CSS</code> (type Hidden). The <b>decision</b> belongs in SQL, where your data is, and the <b>look</b> belongs in CSS. No JavaScript is needed, and it stays right after every refresh.</div>
+  </section>
+
+  <section class="part" id="s4-practice">
+    <h2><span class="n">06</span>Practice<span class="time">15 min</span></h2>
+    <div id="s4-tasks"></div>
+  </section>
+
+  <section class="part" id="s4-summary">
+    <h2><span class="n">07</span>One-page summary<span class="time">read tomorrow</span></h2>
+    <div class="noprint" style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" id="print">Print / save as PDF</button></div>
+    <div class="sheet">
+      <div class="label">APEX Expert Drills · Session 4</div>
+      <h1>Interactive Grid with JavaScript</h1>
+      <div class="cols">
+        <div class="box"><h3>Get the parts</h3>
+<pre>const ig$   = apex.region('emp_ig').widget();
+const grid  = ig$.interactiveGrid('getViews','grid');
+const model = grid.model;</pre></div>
+        <div class="box"><h3>Read</h3>
+<pre>model.forEach(rec =&gt; model.getValue(rec,'SAL'));
+grid.getSelectedRecords()
+// in a Selection Change DA:
+this.data.model  this.data.selectedRecords</pre></div>
+        <div class="box"><h3>Write + save</h3>
+<pre>model.setValue(rec, 'SAL', '3300');
+ig$.interactiveGrid('getActions').invoke('save');
+apex.region('emp_ig').refresh();</pre></div>
+        <div class="box"><h3>Server side (PL/SQL process)</h3>
+<pre>CASE :APEX$ROW_STATUS
+  WHEN 'C' THEN INSERT …
+  WHEN 'U' THEN UPDATE … WHERE empno = :EMPNO;
+  WHEN 'D' THEN DELETE …
+END CASE;</pre></div>
+        <div class="box"><h3>Toolbar button</h3>
+<pre>JavaScript Initialization Code:
+function (config) {
+  toolbar = $.apex.interactiveGrid.copyDefaultToolbar();
+  toolbar.toolbarFind('actions3').controls.push({
+    type:'BUTTON', action:'raise-10', label:'…' });
+  config.toolbarData = toolbar;
+  config.initActions = a =&gt; a.add({name:'raise-10',
+    action(){ … } });
+  return config; }</pre></div>
+        <div class="box"><h3>Look</h3><ul>
+          <li>SQL decides: <code>CASE … END AS sal_css</code></li>
+          <li>HTML Expression: <code>&lt;span class="&amp;SAL_CSS."&gt;&amp;SAL.&lt;/span&gt;</code></li>
+          <li>CSS colours the class</li></ul></div>
+        <div class="box y"><h3>Notes to remember</h3><ul>
+          <li>Model = uncommitted transaction; Save = COMMIT</li>
+          <li>Static ID on the IG region, always</li>
+          <li>Process binds use column names: <code>:SAL</code></li>
+          <li>Declarative button + DA first, toolbar code second</li></ul></div>
+        <div class="box r"><h3>Traps</h3><ul>
+          <li>Values are strings, so use <code>Number()</code></li>
+          <li>The model has only loaded rows; totals for the whole table → SQL</li>
+          <li>Column <b>name</b>, not heading, in getValue</li>
+          <li>Keep the PL/SQL validation in the save process</li></ul></div>
+      </div>
+    </div>
+  </section>
+</template>
+
+<!-- ======================= SESSION 5 ======================= -->
+<template id="s5">
+  <nav class="toc noprint">
+    <a href="#s5-html">1. HTML that's easy to style<span>7m</span></a>
+    <a href="#s5-sel">2. Selectors &amp; who wins<span>10m</span></a>
+    <a href="#s5-box">3. The box model<span>8m</span></a>
+    <a href="#s5-flex">4. Flexbox &amp; Grid layouts<span>12m</span></a>
+    <a href="#s5-ut">5. Universal Theme &amp; where CSS lives<span>8m</span></a>
+    <a href="#s5-practice">6. Practice<span>15m</span></a>
+    <a href="#s5-summary">7. Summary</a>
+  </nav>
+
+  <section class="part" id="s5-html">
+    <h2><span class="n">01</span>HTML that's easy to style<span class="time">7 min</span></h2>
+    <div class="prose"><p>You'll write HTML in four places in APEX: <b>Static Content</b> regions, <b>HTML Expressions</b> in report columns, <b>Template Components</b> (Session 6) and JavaScript template literals. Good HTML is like a good table design: clear structure, meaningful names.</p></div>
+    <div class="codehead"><span>A KPI strip: paste into a <span class="where">Static Content</span> region (Source → HTML Code)</span></div>
+<pre>&lt;div class="kpis"&gt;
+  &lt;div class="kpi"&gt;
+    &lt;span class="kpi-label"&gt;Employees&lt;/span&gt;
+    &lt;span class="kpi-value"&gt;&amp;P5_EMP_COUNT.&lt;/span&gt;    <span class="c">&lt;!-- page item value --&gt;</span>
+  &lt;/div&gt;
+  &lt;div class="kpi"&gt;
+    &lt;span class="kpi-label"&gt;Total salary&lt;/span&gt;
+    &lt;span class="kpi-value"&gt;&amp;P5_TOTAL_SAL.&lt;/span&gt;
+  &lt;/div&gt;
+  &lt;div class="kpi is-alert"&gt;
+    &lt;span class="kpi-label"&gt;Over budget&lt;/span&gt;
+    &lt;span class="kpi-value"&gt;&amp;P5_OVER.&lt;/span&gt;
+  &lt;/div&gt;
+&lt;/div&gt;</pre>
+    <div class="compare">
+      <div><span class="h pl">The PL/SQL that fills it (Before Header computation/process)</span>
+<pre>SELECT COUNT(*),
+       TO_CHAR(SUM(sal), 'FM999G999'),
+       COUNT(CASE WHEN sal &gt; 3000 THEN 1 END)
+  INTO :P5_EMP_COUNT, :P5_TOTAL_SAL, :P5_OVER
+  FROM emp;</pre></div>
+      <div><span class="h js">How it substitutes</span>
+<pre>&amp;P5_EMP_COUNT.   → 14       <span class="c">(escaped for you)</span>
+&amp;P5_TOTAL_SAL.   → 29,025
+
+<span class="c">/* &amp;ITEM. is APEX's substitution string:
+   item value inserted when the page renders */</span></pre></div>
+    </div>
+    <div class="note yellow"><b class="tag">Note to remember</b>Name classes by <b>what the thing is</b> (<code>kpi</code>, <code>kpi-value</code>), not how it looks (<code>big-red-text</code>). Then you can change the look later without touching the HTML. It's the same idea as column names describing data, not formatting.</div>
+  </section>
+
+  <section class="part" id="s5-sel">
+    <h2><span class="n">02</span>Selectors, and which rule wins<span class="time">10 min</span></h2>
+    <div class="tablewrap"><table class="dt">
+      <tr><th>Selector</th><th>Matches</th><th>SQL feeling</th></tr>
+      <tr><td><code>.kpi</code></td><td>every element with class kpi</td><td><code>WHERE class = 'kpi'</code></td></tr>
+      <tr><td><code>#emp_region</code></td><td>the one element with that id (Static ID)</td><td><code>WHERE id = …</code> (primary key)</td></tr>
+      <tr><td><code>.kpi.is-alert</code></td><td>both classes on the same element</td><td><code>AND</code></td></tr>
+      <tr><td><code>.kpis .kpi-value</code></td><td>kpi-value <b>inside</b> kpis (any depth)</td><td>a join to a child row</td></tr>
+      <tr><td><code>.kpi, .card</code></td><td>either one</td><td><code>OR</code> / UNION</td></tr>
+      <tr><td><code>.kpi:hover</code>, <code>tr:nth-child(even)</code></td><td>a state, or a position</td><td>a condition on state/rownum</td></tr>
+    </table></div>
+    <h3>When two rules disagree: specificity</h3>
+<pre>.kpi-value            { color: black; }   <span class="c">/* 1 class            → weight 0-1-0 */</span>
+.kpi.is-alert .kpi-value { color: red; }  <span class="c">/* 3 classes          → weight 0-3-0  WINS */</span>
+#emp_region .kpi-value { color: blue; }  <span class="c">/* 1 id + 1 class     → weight 1-1-0  WINS over both */</span></pre>
+    <div class="prose" style="margin-top:10px"><p>Count <b>ids</b>, then <b>classes</b>, then <b>tags</b>; the bigger number wins, compared left to right like <code>ORDER BY ids DESC, classes DESC, tags DESC</code>. If they're equal, the rule written <b>last</b> wins.</p></div>
+    <div class="note yellow"><b class="tag">Note to remember</b>Keep selectors short: one or two classes. Then your rule only needs one extra class to win over Universal Theme's rules.</div>
+    <div class="note red"><b class="tag">Trap: !important</b><code>color: red !important;</code> beats everything, and then the next fix needs another <code>!important</code>. Treat it like a hint in SQL: a last resort, with a comment saying why.</div>
+  </section>
+
+  <section class="part" id="s5-box">
+    <h2><span class="n">03</span>The box model: every element is a box<span class="time">8 min</span></h2>
+<pre>┌──────────── margin (space OUTSIDE, between boxes) ────────────┐
+│ ┌────────── border ──────────────────────────────────────┐    │
+│ │ ┌──────── padding (space INSIDE, around content) ────┐ │    │
+│ │ │                content (width × height)            │ │    │
+│ │ └────────────────────────────────────────────────────┘ │    │
+│ └────────────────────────────────────────────────────────┘    │
+└───────────────────────────────────────────────────────────────┘</pre>
+<pre>.kpi {
+  padding: 12px 16px;         <span class="c">/* inside: top/bottom 12, left/right 16 */</span>
+  border: 1px solid #dde1ec;
+  border-radius: 10px;
+  margin: 0;                  <span class="c">/* use gap on the parent instead (next section) */</span>
+  box-sizing: border-box;     <span class="c">/* width includes padding + border - predictable */</span>
+}</pre>
+    <div class="tablewrap"><table class="dt">
+      <tr><th>Unit</th><th>Means</th><th>Use for</th></tr>
+      <tr><td><code>px</code></td><td>fixed pixels</td><td>borders, small spacing</td></tr>
+      <tr><td><code>rem</code></td><td>× the root font size (usually 16px)</td><td>font sizes, spacing that scales with text</td></tr>
+      <tr><td><code>%</code></td><td>of the parent's width</td><td>widths</td></tr>
+      <tr><td><code>fr</code></td><td>a share of the free space (in Grid)</td><td>columns</td></tr>
+    </table></div>
+    <div class="note yellow"><b class="tag">Note to remember</b>Not sure why something is mis-placed? Right-click → <b>Inspect</b>. DevTools draws the margin (orange), padding (green) and content (blue) for the element you pick. It's like the execution plan of your layout.</div>
+  </section>
+
+  <section class="part" id="s5-flex">
+    <h2><span class="n">04</span>Layouts: Flexbox for a row, Grid for a table of boxes<span class="time">12 min</span></h2>
+    <div class="compare">
+      <div><span class="h js">Flexbox: one row (or column)</span>
+<pre>.kpis {
+  display: flex;               <span class="c">/* children side by side */</span>
+  gap: 12px;                   <span class="c">/* space between them */</span>
+  flex-wrap: wrap;             <span class="c">/* wrap on a phone */</span>
+  align-items: stretch;        <span class="c">/* same height */</span>
+}
+.kpi { flex: 1 1 160px; }      <span class="c">/* grow, shrink, start at 160px */</span>
+
+<span class="c">/* a toolbar: title left, buttons right */</span>
+.bar { display: flex; justify-content: space-between;
+       align-items: center; }</pre></div>
+      <div><span class="h js">Grid: rows and columns</span>
+<pre>.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+<span class="c">/* a fixed form layout: label | field */</span>
+.form-2col {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 8px 12px;
+}</pre></div>
+    </div>
+    <div class="tablewrap"><table class="dt">
+      <tr><th>Property</th><th>Does</th></tr>
+      <tr><td><code>justify-content</code></td><td>Spacing along the row: <code>flex-start</code>, <code>center</code>, <code>space-between</code></td></tr>
+      <tr><td><code>align-items</code></td><td>Lining up across the row (vertically): <code>center</code>, <code>stretch</code></td></tr>
+      <tr><td><code>gap</code></td><td>Space between children (works in Flex and Grid)</td></tr>
+      <tr><td><code>flex: 1</code></td><td>"Take an equal share of the space"</td></tr>
+      <tr><td><code>repeat(auto-fill, minmax(220px, 1fr))</code></td><td>"As many columns of at least 220px as fit." Responsive with no media query</td></tr>
+    </table></div>
+    <h3>Responsive: change the layout on small screens</h3>
+<pre>@media (max-width: 640px) {        <span class="c">/* only when the screen is 640px or narrower */</span>
+  .form-2col { grid-template-columns: 1fr; }   <span class="c">/* label above field */</span>
+  .kpi-value { font-size: 1.25rem; }
+}</pre>
+    <div class="codehead"><span>The full KPI strip CSS: <span class="where">Page → CSS → Inline</span></span></div>
+<pre>.kpis { display: flex; flex-wrap: wrap; gap: 12px; }
+.kpi  { flex: 1 1 160px; display: flex; flex-direction: column; gap: 2px;
+        padding: 12px 16px; border: 1px solid #dde1ec; border-radius: 10px; background: #fff; }
+.kpi-label { font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: #5d6478; }
+.kpi-value { font-size: 1.75rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.kpi.is-alert { border-color: #d33; }
+.kpi.is-alert .kpi-value { color: #a32020; }</pre>
+    <div class="note yellow"><b class="tag">Note to remember</b><b>Flex</b> = one line of things (KPI strip, toolbar, label + value). <b>Grid</b> = rows and columns (cards, form layout). Use <code>gap</code> instead of margins on every child.</div>
+  </section>
+
+  <section class="part" id="s5-ut">
+    <h2><span class="n">05</span>Universal Theme, and where your CSS should live<span class="time">8 min</span></h2>
+    <div class="tablewrap"><table class="dt">
+      <tr><th>Need</th><th>Best place</th></tr>
+      <tr><td>Change colours/fonts for the whole app</td><td><b>Theme Roller</b> (runtime Developer Toolbar → Customize → Theme Roller), then save as a new style</td></tr>
+      <tr><td>A region/button looks a bit different</td><td><b>Template Options</b> on the component (no CSS at all)</td></tr>
+      <tr><td>Your own classes used on many pages</td><td>Static file <code>css/app.css</code> → User Interface Attributes → <b>CSS File URLs</b>: <code>#APP_FILES#css/app#MIN#.css</code></td></tr>
+      <tr><td>Small tweak used on one page</td><td>Page → <b>CSS → Inline</b></td></tr>
+      <tr><td>Small app-wide tweak with no file</td><td>Theme Roller → <b>Custom CSS</b> box</td></tr>
+    </table></div>
+    <h3>Free classes from Universal Theme</h3>
+<pre>u-success-text   u-danger-text   u-warning-text    <span class="c">/* coloured text */</span>
+u-success        u-danger        u-warning         <span class="c">/* coloured background */</span>
+u-color-1 … u-color-45                              <span class="c">/* theme colour sets */</span></pre>
+    <div class="prose" style="margin-top:8px"><p>Put them in a region's or column's <b>CSS Classes</b>, or return them from SQL (<code>CASE … THEN 'u-danger-text' END</code>). They follow Theme Roller, so they stay right when the app's colours change.</p></div>
+    <div class="note yellow"><b class="tag">Note to remember: fast pages</b>CSS in a static file is downloaded <b>once</b> and cached for every page. Inline CSS is sent again with every page view. For speed, move anything you reuse into the file.</div>
+    <div class="note red"><b class="tag">Trap</b>Don't restyle APEX's own classes globally (<code>.t-Region { … }</code>). Every region in the app changes, and an APEX upgrade can rename them. Add <b>your</b> class to the component and style that.</div>
+  </section>
+
+  <section class="part" id="s5-practice">
+    <h2><span class="n">06</span>Practice<span class="time">15 min</span></h2>
+    <div id="s5-tasks"></div>
+  </section>
+
+  <section class="part" id="s5-summary">
+    <h2><span class="n">07</span>One-page summary<span class="time">read tomorrow</span></h2>
+    <div class="noprint" style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" id="print">Print / save as PDF</button></div>
+    <div class="sheet">
+      <div class="label">APEX Expert Drills · Session 5</div>
+      <h1>CSS &amp; HTML for APEX pages</h1>
+      <div class="cols">
+        <div class="box"><h3>HTML</h3>
+<pre>&lt;div class="kpi"&gt;
+  &lt;span class="kpi-value"&gt;&amp;P5_TOTAL.&lt;/span&gt;
+&lt;/div&gt;</pre><ul><li>Name classes by meaning, not look</li><li><code>&amp;ITEM.</code> = item value at render</li></ul></div>
+        <div class="box"><h3>Selectors</h3>
+<pre>.cls  #id  .a.b (AND)  .a .b (inside)
+.a, .b (OR)  :hover  tr:nth-child(even)</pre><ul><li>Winner: more ids → more classes → more tags → last written</li></ul></div>
+        <div class="box"><h3>Box model</h3>
+<pre>padding = inside   margin = outside
+border  box-sizing: border-box
+units: px  rem  %  fr</pre></div>
+        <div class="box"><h3>Layout</h3>
+<pre>.row  { display:flex; gap:12px; flex-wrap:wrap;
+        justify-content:space-between;
+        align-items:center; }
+.grid { display:grid; gap:16px;
+  grid-template-columns:
+    repeat(auto-fill, minmax(220px,1fr)); }
+@media (max-width:640px) { … }</pre></div>
+        <div class="box"><h3>Where CSS lives</h3><ul>
+          <li>App look → <b>Theme Roller</b></li>
+          <li>One component → <b>Template Options</b></li>
+          <li>Reused classes → <code>#APP_FILES#css/app#MIN#.css</code></li>
+          <li>One page → Page → CSS → Inline</li></ul></div>
+        <div class="box"><h3>UT classes</h3>
+<pre>u-success-text u-danger-text u-warning-text
+u-success u-danger u-warning
+u-color-1 … u-color-45</pre></div>
+        <div class="box y"><h3>Notes to remember</h3><ul>
+          <li>Flex = one line; Grid = rows × columns; use <code>gap</code></li>
+          <li>Inspect (right-click) shows the box model</li>
+          <li>Static CSS file = cached = faster</li>
+          <li>SQL decides the class, CSS decides the look</li></ul></div>
+        <div class="box r"><h3>Traps</h3><ul>
+          <li><code>!important</code> wars, so keep selectors short instead</li>
+          <li>Restyling <code>.t-…</code> APEX classes globally</li>
+          <li>Fixed widths in px break on phones; use <code>%</code>, <code>fr</code>, <code>minmax</code></li></ul></div>
+      </div>
+    </div>
+  </section>
+</template>
+
+<!-- ======================= SESSION 6 ======================= -->
+<template id="s6">
+  <nav class="toc noprint">
+    <a href="#s6-why">1. Why templates<span>5m</span></a>
+    <a href="#s6-dir">2. Template directives<span>12m</span></a>
+    <a href="#s6-builtin">3. Built-in components<span>8m</span></a>
+    <a href="#s6-build">4. Build your own<span>15m</span></a>
+    <a href="#s6-use">5. Use it with SQL<span>5m</span></a>
+    <a href="#s6-practice">6. Practice<span>15m</span></a>
+    <a href="#s6-summary">7. Summary</a>
+  </nav>
+
+  <section class="part" id="s6-why">
+    <h2><span class="n">01</span>Why templates: from htp.p to "HTML with holes"<span class="time">5 min</span></h2>
+    <div class="compare">
+      <div><span class="h pl">The old way: HTML glued together in PL/SQL</span>
+<pre>FOR r IN (SELECT ename, job, sal FROM emp) LOOP
+  htp.p('&lt;div class="emp-card'
+     || CASE WHEN r.sal &gt;= 3000 THEN ' is-high' END
+     || '"&gt;&lt;h4&gt;' || apex_escape.html(r.ename)
+     || '&lt;/h4&gt;&lt;p&gt;' || apex_escape.html(r.job)
+     || '&lt;/p&gt;&lt;/div&gt;');
+END LOOP;
+<span class="c">-- hard to read, easy to forget escaping,
+-- copy-pasted to every page that needs it</span></pre></div>
+      <div><span class="h js">A Template Component: write the HTML once</span>
+<pre>&lt;div class="emp-card {if IS_HIGH/}is-high{endif/}"&gt;
+  &lt;h4&gt;#ENAME#&lt;/h4&gt;
+  &lt;p&gt;#JOB#&lt;/p&gt;
+&lt;/div&gt;
+
+<span class="c">-- SQL feeds the holes (#ENAME#, #JOB#, IS_HIGH)
+-- values are escaped for you
+-- reuse it on any page, as a region or a column</span></pre></div>
+    </div>
+    <div class="note yellow"><b class="tag">Note to remember</b><b>Template Components</b> (APEX 23.1 and later) are reusable HTML pieces stored under <b>Shared Components → Plug-ins</b>. You write the HTML once with placeholders, and APEX fills them from your SQL. They're the modern replacement for many custom plug-ins and <code>htp.p</code> loops.</div>
+  </section>
+
+  <section class="part" id="s6-dir">
+    <h2><span class="n">02</span>Template directives: IF, CASE and LOOP inside HTML<span class="time">12 min</span></h2>
+    <div class="tablewrap"><table class="dt">
+      <tr><th>PL/SQL</th><th>Template directive</th></tr>
+      <tr><td><code>r.ename</code></td><td><code>#ENAME#</code> (placeholder, escaped)</td></tr>
+      <tr><td><code>IF … THEN … ELSIF … ELSE … END IF;</code></td><td><code>{if A/} … {elsif B/} … {else/} … {endif/}</code></td></tr>
+      <tr><td><code>CASE status WHEN 'OPEN' THEN … ELSE … END</code></td><td><code>{case STATUS/}{when OPEN/} … {otherwise/} … {endcase/}</code></td></tr>
+      <tr><td><code>FOR t IN (… split tags …) LOOP</code></td><td><code>{loop "," TAGS/} &amp;APEX$ITEM. {endloop/}</code></td></tr>
+      <tr><td>Calling another procedure with parameters</td><td><code>{with/} NAME:=value {apply COMPONENT/}</code></td></tr>
+    </table></div>
+    <div class="codehead"><span>Examples (the HTML part of a template component)</span></div>
+<pre><span class="c">&lt;!-- IF: a value is "true" when it's not empty, and not N / false --&gt;</span>
+{if COMM/}
+  &lt;span class="comm"&gt;Commission: #COMM#&lt;/span&gt;
+{else/}
+  &lt;span class="comm none"&gt;No commission&lt;/span&gt;
+{endif/}
+
+<span class="c">&lt;!-- CASE on a value --&gt;</span>
+{case STATUS/}
+  {when ACTIVE/}  &lt;span class="u-success-text"&gt;Active&lt;/span&gt;
+  {when LEAVE/}   &lt;span class="u-warning-text"&gt;On leave&lt;/span&gt;
+  {otherwise/}    &lt;span class="u-danger-text"&gt;#STATUS#&lt;/span&gt;
+{endcase/}
+
+<span class="c">&lt;!-- LOOP over a comma-separated value, e.g. 'SQL,PLSQL,APEX' --&gt;</span>
+&lt;ul class="skills"&gt;
+  {loop "," SKILLS/}&lt;li&gt;&amp;APEX$ITEM.&lt;/li&gt;{endloop/}
+&lt;/ul&gt;</pre>
+    <div class="compare">
+      <div><span class="h pl">SQL decides the values…</span>
+<pre>SELECT ename, job, sal, comm,
+       CASE WHEN sal &gt;= 3000 THEN 'Y' END  AS is_high,
+       CASE WHEN hiredate &lt; DATE '1982-01-01'
+            THEN 'ACTIVE' ELSE 'LEAVE' END  AS status,
+       'SQL,PLSQL,APEX'                     AS skills
+  FROM emp</pre></div>
+      <div><span class="h js">…the template only shows them</span>
+<pre>&lt;div class="emp-card {if IS_HIGH/}is-high{endif/}"&gt;
+  &lt;h4&gt;#ENAME#&lt;/h4&gt;
+  &lt;p&gt;#JOB# · #SAL#&lt;/p&gt;
+  {case STATUS/}{when ACTIVE/}&lt;b class="u-success-text"&gt;Active&lt;/b&gt;
+  {otherwise/}&lt;b class="u-warning-text"&gt;#STATUS#&lt;/b&gt;{endcase/}
+&lt;/div&gt;</pre></div>
+    </div>
+    <div class="note yellow"><b class="tag">Note to remember</b>Keep logic in <b>SQL</b> (<code>CASE … AS is_high</code>) and keep the template <b>simple</b>: if, case, loop on ready-made values. It's the same rule as before: SQL decides, CSS styles.</div>
+    <div class="note red"><b class="tag">Trap</b>Directive names refer to <b>attribute/column names</b> (<code>{if IS_HIGH/}</code>), with <b>no</b> # signs. Placeholders in the HTML use <b>#…#</b>. Mixing them up (<code>{if #IS_HIGH#/}</code>) silently fails.</div>
+  </section>
+
+  <section class="part" id="s6-builtin">
+    <h2><span class="n">03</span>Built-in template components: use before you build<span class="time">8 min</span></h2>
+    <div class="prose"><p>Universal Theme ships ready-made template components, such as <b>Badge</b>, <b>Avatar</b>, <b>Content Row</b> and <b>Comments</b>. You'll see them in the Page Designer region gallery and as report <b>column types</b>.</p></div>
+    <div class="codehead"><span>A status <b>Badge</b> in a Classic or Interactive Report column</span></div>
+<pre><span class="c">-- 1. Query: return a label and a state for each row</span>
+SELECT ename, job, sal,
+       CASE WHEN sal &gt;= 3000 THEN 'High' WHEN sal &lt; 1000 THEN 'Low' ELSE 'Normal' END AS sal_band,
+       CASE WHEN sal &gt;= 3000 THEN 'danger' WHEN sal &lt; 1000 THEN 'success' ELSE 'info' END AS sal_state
+  FROM emp
+
+<span class="c">-- 2. Column SAL_BAND → Type: Badge (a template component)
+--    Settings: Label = SAL_BAND, Value = SAL_BAND, State = SAL_STATE
+-- 3. Column SAL_STATE → Type: Hidden</span></pre>
+    <div class="compare">
+      <div><span class="h pl">Before: HTML Expression on the column</span>
+<pre>&lt;span class="badge &amp;SAL_STATE."&gt;&amp;SAL_BAND.&lt;/span&gt;
+<span class="c">+ your own CSS for .badge, .danger …</span></pre></div>
+      <div><span class="h js">Now: Badge template component</span>
+<pre><span class="c">Column type Badge + settings
+→ themed, accessible markup,
+  colours follow Theme Roller,
+  no CSS to write</span></pre></div>
+    </div>
+    <div class="note yellow"><b class="tag">Note to remember</b>Order of choice: <b>built-in region or column type</b> (Cards, Badge, Content Row…) → <b>your own Template Component</b> → JavaScript-built HTML (Session 2). Each step down is more work to maintain.</div>
+  </section>
+
+  <section class="part" id="s6-build">
+    <h2><span class="n">04</span>Build your own: an "Employee Card" component<span class="time">15 min</span></h2>
+    <ol>
+      <li><b>Shared Components → Plug-ins → Create → From Scratch.</b> Name: <code>Employee Card</code>. Type: <b>Template Component</b>.</li>
+      <li><b>Available As</b>: tick <b>Single (Partial)</b> and <b>Multiple (Report)</b>, so it can show one record or a list.</li>
+      <li><b>Custom Attributes</b> → Add attribute, one per hole: <code>ENAME</code>, <code>JOB</code>, <code>SAL</code>, <code>IS_HIGH</code>, <code>STATUS</code> (Type: Session State Value, which is mapped to a column later). Like the parameters of a procedure.</li>
+      <li><b>Partial template</b>: paste the HTML below.</li>
+      <li><b>CSS</b>: add it under the plug-in's <b>Files</b> (as a file) or, for practice, in the page's CSS → Inline.</li>
+    </ol>
+    <div class="codehead"><span><span class="where">Plug-in → Templates → Partial</span></span></div>
+<pre>&lt;div class="emp-card {if IS_HIGH/}is-high{endif/}"&gt;
+  &lt;div class="emp-card-top"&gt;
+    &lt;h4&gt;#ENAME#&lt;/h4&gt;
+    {case STATUS/}
+      {when ACTIVE/}&lt;span class="pill pill-ok"&gt;Active&lt;/span&gt;
+      {otherwise/}&lt;span class="pill pill-warn"&gt;#STATUS#&lt;/span&gt;
+    {endcase/}
+  &lt;/div&gt;
+  &lt;p class="emp-job"&gt;#JOB#&lt;/p&gt;
+  &lt;p class="emp-sal"&gt;#SAL#&lt;/p&gt;
+&lt;/div&gt;</pre>
+    <div class="codehead"><span>CSS for the component</span></div>
+<pre>.emp-card { padding: 12px 14px; border: 1px solid #dde1ec; border-radius: 10px; background: #fff; }
+.emp-card.is-high { border-color: #d33; }
+.emp-card-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.emp-card h4 { margin: 0; font-size: 1rem; }
+.emp-job { margin: 2px 0 6px; color: #5d6478; font-size: .85rem; }
+.emp-sal { margin: 0; font-size: 1.4rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.pill { font-size: .7rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
+.pill-ok { background: #e2f3ea; color: #2f855a; }
+.pill-warn { background: #fff4c7; color: #8a6400; }</pre>
+    <div class="note yellow"><b class="tag">Note to remember</b>A Template Component is like a <b>package</b> for HTML: the attributes are the spec (parameters), the template is the body, and every page calls it with its own SQL. Fix it once and every page updates.</div>
+    <div class="note red"><b class="tag">Trap</b>Placeholders are <b>escaped by default</b>, which protects you from XSS. Don't switch escaping off to "make HTML work". Return plain values from SQL and put the HTML in the template.</div>
+  </section>
+
+  <section class="part" id="s6-use">
+    <h2><span class="n">05</span>Use it: a region fed by SQL<span class="time">5 min</span></h2>
+    <ol>
+      <li>Create a region → <b>Type: Employee Card</b> (your component appears in the list).</li>
+      <li><b>Source</b>: SQL Query, with the query from section 2 (it returns ename, job, sal, is_high, status).</li>
+      <li><b>Attributes</b>: map each component attribute to a column: ENAME → ENAME, IS_HIGH → IS_HIGH, and so on.</li>
+      <li>To lay the cards out side by side, add a region CSS class like <code>emp-grid</code> and the Grid CSS from Session 5: <code>.emp-grid .t-Region-body &gt; * { … }</code>, or set the component's <b>Report body</b> template to wrap rows in <code>&lt;div class="emp-cards"&gt;</code>.</li>
+    </ol>
+    <div class="compare">
+      <div><span class="h pl">PL/SQL Dynamic Content (before)</span>
+<pre>RETURN render_cards(:P6_DEPTNO);
+<span class="c">-- your function builds a CLOB of HTML</span></pre></div>
+      <div><span class="h js">Template Component region (now)</span>
+<pre>SELECT … FROM emp WHERE deptno = :P6_DEPTNO
+<span class="c">-- + attribute mapping, no HTML in PL/SQL
+-- Refresh on P6_DEPTNO change: DA Refresh,
+-- Page Items to Submit = P6_DEPTNO</span></pre></div>
+    </div>
+  </section>
+
+  <section class="part" id="s6-practice">
+    <h2><span class="n">06</span>Practice<span class="time">15 min</span></h2>
+    <div id="s6-tasks"></div>
+  </section>
+
+  <section class="part" id="s6-summary">
+    <h2><span class="n">07</span>One-page summary<span class="time">read tomorrow</span></h2>
+    <div class="noprint" style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" id="print">Print / save as PDF</button></div>
+    <div class="sheet">
+      <div class="label">APEX Expert Drills · Session 6</div>
+      <h1>Templates &amp; Template Components</h1>
+      <div class="cols">
+        <div class="box"><h3>What</h3><ul>
+          <li>Reusable HTML with placeholders, under Shared Components → Plug-ins → Type <b>Template Component</b> (23.1+)</li>
+          <li>Attributes = parameters; template = body; SQL fills it</li>
+          <li>Use as a region (Multiple) or a report column (Single)</li></ul></div>
+        <div class="box"><h3>Placeholders</h3>
+<pre>#ENAME#            column/attribute (escaped)
+&amp;P6_DEPTNO.        page item
+&amp;APEX$ITEM.        current item in a loop</pre></div>
+        <div class="box"><h3>Directives</h3>
+<pre>{if A/} … {elsif B/} … {else/} … {endif/}
+{case S/}{when X/} … {otherwise/} … {endcase/}
+{loop "," TAGS/}&amp;APEX$ITEM.{endloop/}
+{with/} NAME:=val {apply COMPONENT/}</pre></div>
+        <div class="box"><h3>Built-in</h3><ul>
+          <li>Badge, Avatar, Content Row, Comments, Cards…</li>
+          <li>Badge column: Label, Value, State (success / info / warning / danger)</li></ul></div>
+        <div class="box"><h3>PL/SQL twins</h3>
+<pre>htp.p('&lt;h4&gt;'||apex_escape.html(x)||'&lt;/h4&gt;')
+   → &lt;h4&gt;#ENAME#&lt;/h4&gt;
+IF … END IF       → {if …/} … {endif/}
+CASE … END        → {case …/}{when …/}{endcase/}
+FOR … LOOP        → {loop …/}{endloop/}
+package spec/body → attributes/template</pre></div>
+        <div class="box"><h3>Order of choice</h3><ol style="margin:0;padding-left:18px;font-size:13.5px">
+          <li>Built-in region/column type</li><li>Your own Template Component</li><li>JS-built HTML (AJAX data)</li><li>PL/SQL <code>htp.p</code> (legacy)</li></ol></div>
+        <div class="box y"><h3>Notes to remember</h3><ul>
+          <li>SQL decides (<code>CASE … AS is_high</code>), the template shows, CSS styles</li>
+          <li>Fix the component once, and every page updates</li>
+          <li>Keep component CSS with the plug-in (its Files)</li></ul></div>
+        <div class="box r"><h3>Traps</h3><ul>
+          <li>Directives use bare names <code>{if IS_HIGH/}</code>; HTML uses <code>#IS_HIGH#</code></li>
+          <li>Don't turn off escaping to pass HTML in. Put the HTML in the template</li>
+          <li>Too much logic in the template means it belongs in SQL</li></ul></div>
+      </div>
+    </div>
+  </section>
+</template>
+
 <script>
 /* ======================= PRACTICE TASKS ======================= */
 const TASKS = {
@@ -1014,14 +1956,232 @@ END;</pre>Read them side by side: <code>throw</code> = <code>RETURN 'message'</c
         `Measure: F12 → <b>Network</b>. Click the request to see its size (KB) and time (ms). In PL/SQL terms, it's like reading the execution plan and elapsed time.`
       ]}
   ]
+  ,s3: [
+    { id:'s3-q1', title:'Functions three ways',
+      task:`<p>Write <code>bonus(sal, pct = 10)</code> that returns sal × pct / 100, in all three styles (declaration, expression, arrow). Log <code>bonus(3000)</code> and <code>bonus(3000, 15)</code>. Then write the PL/SQL function.</p>`,
+      steps:[
+        `Declaration: <pre>function bonus(sal, pct = 10) { return sal * pct / 100; }</pre>`,
+        `Expression: <pre>const bonus2 = function (sal, pct = 10) { return sal * pct / 100; };</pre>`,
+        `Arrow, one expression so no <code>return</code> needed: <pre>const bonus3 = (sal, pct = 10) =&gt; sal * pct / 100;</pre>`,
+        `<code>console.log(bonus(3000), bonus(3000, 15));</code> → <b>300 450</b>`,
+        `<b>PL/SQL:</b><pre>FUNCTION bonus (p_sal NUMBER, p_pct NUMBER DEFAULT 10) RETURN NUMBER IS
+BEGIN
+  RETURN p_sal * p_pct / 100;
+END;</pre>A default parameter works the same in both.`
+      ]},
+    { id:'s3-q2', title:'SELECT … WHERE … ORDER BY on an array',
+      task:`<p>Using <code>emps</code>: list the <b>names</b> of employees earning more than 1500, <b>highest salary first</b>, as one string joined by commas. Write the SQL first, then the JavaScript.</p>`,
+      steps:[
+        `SQL: <pre>SELECT LISTAGG(ename, ', ') WITHIN GROUP (ORDER BY sal DESC)
+  FROM emp WHERE sal &gt; 1500;</pre>`,
+        `JS, step by step in the same order as SQL. WHERE → <code>filter</code>: <pre>emps.filter(e =&gt; e.sal &gt; 1500)</pre>`,
+        `ORDER BY → <code>sort</code> (the filter already made a new array, so sorting it is safe): <pre>.sort((a, b) =&gt; b.sal - a.sal)</pre><code>b - a</code> gives highest first; <code>a - b</code> lowest first.`,
+        `SELECT ename + LISTAGG → <code>map</code> + <code>join</code>: <pre>.map(e =&gt; e.ename).join(', ')</pre>`,
+        `Together: <pre>console.log(emps.filter(e =&gt; e.sal &gt; 1500).sort((a, b) =&gt; b.sal - a.sal).map(e =&gt; e.ename).join(', '));
+// KING, SCOTT, JONES, ALLEN</pre>`
+      ]},
+    { id:'s3-q3', title:'GROUP BY job',
+      task:`<p>Build an object with the <b>number of employees per job</b>: <code>{PRESIDENT:1, MANAGER:1, ANALYST:1, CLERK:1, SALESMAN:1}</code>. Then the <b>highest-paid employee per department</b> (deptno → ename).</p>`,
+      steps:[
+        `SQL first: <code>SELECT job, COUNT(*) FROM emp GROUP BY job</code>.`,
+        `JS: <code>reduce</code> into an object, with the job as the key: <pre>const byJob = emps.reduce((acc, e) =&gt; {
+  acc[e.job] = (acc[e.job] ?? 0) + 1;   // NVL(count, 0) + 1
+  return acc;
+}, {});</pre>`,
+        `Highest per department, SQL: <code>… KEEP (DENSE_RANK LAST ORDER BY sal)</code>, or <code>ROW_NUMBER()</code>.`,
+        `JS: keep the row if it's the first one for that dept, or has a bigger salary: <pre>const top = emps.reduce((acc, e) =&gt; {
+  if (!acc[e.deptno] || e.sal &gt; acc[e.deptno].sal) acc[e.deptno] = e;
+  return acc;
+}, {});
+Object.entries(top).forEach(([d, e]) =&gt; console.log(d, e.ename));
+// 10 KING · 20 SCOTT · 30 ALLEN</pre>`,
+        `Note: <code>Object.entries(obj)</code> turns an object into <code>[key, value]</code> pairs, so you can loop it like rows.`
+      ]},
+    { id:'s3-q4', title:'The copy trap',
+      task:`<p>Predict what this logs, then fix it so <code>emps[0]</code> is not changed:</p><pre>const king = emps[0];
+king.sal = 9999;
+console.log(emps[0].sal);</pre>`,
+      steps:[
+        `It logs <b>9999</b>. <code>king</code> is not a copy; it <b>points to the same object</b> as <code>emps[0]</code>.`,
+        `PL/SQL feeling: it's like two cursor variables pointing at the same row in memory, not like <code>r2 := r1;</code> (which copies a record).`,
+        `Fix with spread to copy: <pre>const king = { ...emps[0] };
+king.sal = 9999;
+console.log(emps[0].sal);   // 5000 - untouched</pre>`,
+        `For arrays, <code>[...emps]</code> copies the list. The rows inside are still shared, so copy them too if you'll change them: <code>emps.map(e =&gt; ({ ...e }))</code>.`
+      ]},
+    { id:'s3-q5', title:'Render a sorted table',
+      task:`<p>Use section 5's code to show the employees of <b>dept 20</b> only, with a <b>total</b> row and zebra stripes. Make salaries of 3000 or more bold using a CSS class.</p>`,
+      steps:[
+        `Filter first: <code>const rows = emps.filter(e =&gt; e.deptno === 20).sort((a, b) =&gt; b.sal - a.sal);</code>`,
+        `In the row template, add a class: <code>&lt;tr class="\${e.sal &gt;= 3000 ? 'is-high' : ''}"&gt;</code>`,
+        `CSS: <code>.emp-tbl tr.is-high td { font-weight: 700; }</code>, so JS sets the class and CSS decides the look.`,
+        `Total: <code>rows.reduce((s, e) =&gt; s + e.sal, 0)</code> → <b>6775</b>.`,
+        `<b>The declarative way</b> to compare: a Classic Report with <code>WHERE deptno = 20</code>, a column Aggregate = Sum, and a column CSS Classes from a <code>CASE</code>. No JavaScript, so prefer it when the data is in the database.`
+      ]}
+  ]
+  ,s4: [
+    { id:'s4-q1', title:'Show the selection',
+      task:`<p>On your EMP Interactive Grid (Static ID <code>emp_ig</code>), show "<i>n selected: names · total salary</i>" in <code>P3_INFO</code> whenever the selection changes.</p>`,
+      steps:[
+        `Create a Dynamic Action. Event: <b>Selection Change [Interactive Grid]</b>. Selection Type: Region → <b>emp_ig</b>.`,
+        `Action: Execute JavaScript Code, and paste the code from section 2. <code>this.data.model</code> and <code>this.data.selectedRecords</code> are handed to you.`,
+        `Each record's value: <code>model.getValue(rec, 'SAL')</code>, using the column <b>name</b>.`,
+        `Sum with <code>Number()</code> around every value, because they come back as strings.`,
+        `<b>PL/SQL feeling:</b> <code>SELECT COUNT(*), LISTAGG(ename, ', '), SUM(sal) FROM emp WHERE empno IN (:selected)</code>. The selection lives in the browser, though, so JS is the right tool here.`
+      ]},
+    { id:'s4-q2', title:'Raise the selected salaries, then save',
+      task:`<p>Add a normal button <b>Raise 10%</b> above the grid (Action: Defined by Dynamic Action). On click, add 10% to SAL for the selected rows, then save.</p>`,
+      steps:[
+        `Button → DA on Click → Execute JavaScript Code.`,
+        `Get the parts: <pre>const ig$ = apex.region('emp_ig').widget();
+const grid = ig$.interactiveGrid('getViews', 'grid');
+const model = grid.model;</pre>`,
+        `Check something is selected: <pre>const sel = grid.getSelectedRecords();
+if (!sel.length) { apex.message.alert('Select rows first'); return; }</pre>`,
+        `Change the values (the "UPDATE"): <pre>sel.forEach(rec =&gt; model.setValue(rec, 'SAL',
+  String(Math.round(Number(model.getValue(rec, 'SAL')) * 1.1))));</pre>`,
+        `Save (the "COMMIT"): <code>ig$.interactiveGrid('getActions').invoke('save');</code>. The IG's DML process runs on the server.`,
+        `<b>PL/SQL equivalent:</b> <code>UPDATE emp SET sal = ROUND(sal*1.1) WHERE empno IN (…); COMMIT;</code>. The JS version lets the user see the new values and undo them before saving.`
+      ]},
+    { id:'s4-q3', title:'Server rule in the save process',
+      task:`<p>Change the IG save process to <b>PL/SQL Code</b> so any salary above 10,000 is refused with a clear message. Test by typing 12000 in the grid and saving.</p>`,
+      steps:[
+        `Processing → the <b>… - Save Interactive Grid Data</b> process → Settings → Target Type: <b>PL/SQL Code</b>.`,
+        `Paste the <code>CASE :APEX$ROW_STATUS</code> code from section 3. <code>'C'</code> / <code>'U'</code> / <code>'D'</code> = insert / update / delete.`,
+        `The rule sits in the <code>'U'</code> branch: <code>IF :SAL &gt; 10000 THEN RAISE_APPLICATION_ERROR(-20001, '…'); END IF;</code>`,
+        `Save in the grid → the message appears, and nothing is committed. That's normal PL/SQL behaviour.`,
+        `Why here and not only in JS? Users can type straight into cells, paste, or call the page another way. The server process is the gate.`
+      ]},
+    { id:'s4-q4', title:'A toolbar button inside the grid',
+      task:`<p>Move <b>Raise 10%</b> into the IG's own toolbar, using the JavaScript Initialization Code from section 4.</p>`,
+      steps:[
+        `IG region → <b>Attributes</b> tab → Advanced → <b>JavaScript Initialization Code</b>, and paste the function.`,
+        `<code>copyDefaultToolbar()</code> gives you the standard toolbar as data; <code>toolbarFind('actions3')</code> finds the group next to Save.`,
+        `<code>controls.push({type:'BUTTON', action:'raise-10', …})</code> adds the button; the <code>action</code> name links it to the action.`,
+        `<code>config.initActions</code> registers what the action does. Same code as Task 2, without the save, so the user reviews first.`,
+        `If the grid disappears after your change, there's a JS error in this function. Open F12 → Console. The most common causes are a missing <code>return config;</code> or a typo.`
+      ]},
+    { id:'s4-q5', title:'Colour salaries with SQL + CSS',
+      task:`<p>Show salaries ≥ 3000 as a red chip and &lt; 1000 as a green chip, without JavaScript (section 5).</p>`,
+      steps:[
+        `Add to the IG query: <code>CASE WHEN sal &gt;= 3000 THEN 'sal-high' WHEN sal &lt; 1000 THEN 'sal-low' END AS sal_css</code>.`,
+        `Column SAL_CSS → Type <b>Hidden</b>.`,
+        `Add a display column (or change SAL to Display Only for this test) → <b>HTML Expression</b>: <code>&lt;span class="sal-chip &amp;SAL_CSS."&gt;&amp;SAL.&lt;/span&gt;</code>`,
+        `CSS in Page → CSS → Inline (section 5).`,
+        `Why no JS? The decision is data (SQL), and the look is CSS. It stays correct after sorting, filtering and refreshing, which JS code applied once would not.`
+      ]}
+  ]
+  ,s5: [
+    { id:'s5-q1', title:'KPI strip from SQL',
+      task:`<p>Build the KPI strip from section 1: 3 hidden items, a Before Header process filling them from EMP, the HTML in a Static Content region, and the CSS from section 4. Mark "Over budget" red when it's above 0.</p>`,
+      steps:[
+        `Items <code>P5_EMP_COUNT</code>, <code>P5_TOTAL_SAL</code>, <code>P5_OVER</code> → Type <b>Hidden</b>.`,
+        `Process (Pre-Rendering, Before Header): the <code>SELECT … INTO :P5_…</code> from section 1.`,
+        `Static Content region → HTML Code: the <code>.kpis</code> HTML. <code>&amp;P5_TOTAL_SAL.</code> is replaced when the page renders.`,
+        `To make the red border conditional, decide in SQL: add <code>:P5_ALERT := CASE WHEN :P5_OVER &gt; 0 THEN 'is-alert' END;</code> and write <code>&lt;div class="kpi &amp;P5_ALERT."&gt;</code> in the HTML.`,
+        `Paste the KPI CSS from section 4. Resize the browser: the boxes wrap because of <code>flex-wrap: wrap</code> and <code>flex: 1 1 160px</code>.`
+      ]},
+    { id:'s5-q2', title:'Who wins?',
+      task:`<p>All three rules match the same element. Which colour shows? Why?</p><pre>.kpi-value { color: black; }
+.kpis .kpi-value { color: green; }
+#dash .kpi-value { color: blue; }</pre>`,
+      steps:[
+        `Count the weights (ids-classes-tags): <code>.kpi-value</code> = 0-1-0; <code>.kpis .kpi-value</code> = 0-2-0; <code>#dash .kpi-value</code> = 1-1-0.`,
+        `Compare like <code>ORDER BY ids DESC, classes DESC</code>. The rule with 1 id beats any number of classes.`,
+        `Answer: <b>blue</b>.`,
+        `If two rules had the same weight, the one written <b>later</b> would win.`,
+        `Lesson: ids win easily, so avoid styling by id. Use classes, and you can override with one extra class.`
+      ]},
+    { id:'s5-q3', title:'Two-column form that stacks on a phone',
+      task:`<p>In a Static Content region, build a small read-only "employee details" block: label | value on desktop, label above value on a phone. Use CSS Grid and a media query.</p>`,
+      steps:[
+        `HTML: <pre>&lt;dl class="form-2col"&gt;
+  &lt;dt&gt;Name&lt;/dt&gt;&lt;dd&gt;&amp;P5_ENAME.&lt;/dd&gt;
+  &lt;dt&gt;Job&lt;/dt&gt;&lt;dd&gt;&amp;P5_JOB.&lt;/dd&gt;
+&lt;/dl&gt;</pre><code>dl/dt/dd</code> = a definition list, made for label/value pairs.`,
+        `CSS: <pre>.form-2col { display: grid; grid-template-columns: 140px 1fr; gap: 6px 12px; margin: 0; }
+.form-2col dt { color: #5d6478; }
+.form-2col dd { margin: 0; font-weight: 600; }</pre>`,
+        `Phone: <pre>@media (max-width: 640px) { .form-2col { grid-template-columns: 1fr; } }</pre>`,
+        `Test: drag your browser window narrow, or F12 → device toolbar (the phone icon).`
+      ]},
+    { id:'s5-q4', title:'Move CSS into a cached file',
+      task:`<p>Move your KPI and form CSS out of Page → CSS → Inline into a static file loaded on every page.</p>`,
+      steps:[
+        `Shared Components → <b>Static Application Files</b> → Create File → Directory <code>css</code>, name <code>app.css</code> → paste the CSS → Save. APEX also makes a minified copy.`,
+        `Copy the Reference: <code>#APP_FILES#css/app#MIN#.css</code>.`,
+        `Shared Components → <b>User Interface Attributes</b> → CSS → <b>File URLs</b> → paste it.`,
+        `Remove the inline CSS from the page and run it. It looks the same, but now the browser caches the file.`,
+        `PL/SQL feeling: like moving a piece of code repeated in many page processes into one package everyone calls.`
+      ]},
+    { id:'s5-q5', title:'Theme Roller vs your CSS',
+      task:`<p>Make the app's primary colour dark green without writing CSS, then add one small custom rule through Theme Roller.</p>`,
+      steps:[
+        `Run the app → Developer Toolbar (bottom) → <b>Customize → Theme Roller</b>.`,
+        `Change the <b>Primary</b> colour and watch the whole app update live.`,
+        `Open the <b>Custom CSS</b> section in Theme Roller and add, for example, <code>.kpi { border-radius: 14px; }</code>.`,
+        `<b>Save As</b> a new style (e.g. "Anand Green") and set it as current. Theme Roller saves into the theme style, with no page edits.`,
+        `Rule: app-wide colours/fonts → Theme Roller; your own components → a static CSS file; one page → inline.`
+      ]}
+  ]
+  ,s6: [
+    { id:'s6-q1', title:'Badge column in a report',
+      task:`<p>On a Classic Report of EMP, add a <b>Badge</b> column showing High / Normal / Low with matching colours (section 3).</p>`,
+      steps:[
+        `Add <code>sal_band</code> and <code>sal_state</code> to the report query with two <code>CASE</code> expressions.`,
+        `Column SAL_BAND → Type: <b>Badge</b>. In its settings, map Label/Value to SAL_BAND and State to SAL_STATE.`,
+        `Column SAL_STATE → Hidden.`,
+        `Run. You get themed badges with no HTML or CSS written.`,
+        `<b>PL/SQL comparison:</b> before, you'd write <code>CASE … END</code> returning HTML in the query, or an HTML Expression plus your own CSS. Now SQL returns plain values and the component does the markup.`
+      ]},
+    { id:'s6-q2', title:'Directives on paper',
+      task:`<p>Write the template HTML (no APEX needed) for: show <code>#ENAME#</code>; if COMM has a value show "Comm: #COMM#", otherwise "No commission"; and for STATUS: ACTIVE → green "Active", LEAVE → yellow "On leave", anything else → red with the raw status.</p>`,
+      steps:[
+        `Name: <code>&lt;h4&gt;#ENAME#&lt;/h4&gt;</code>`,
+        `IF: <pre>{if COMM/}&lt;span&gt;Comm: #COMM#&lt;/span&gt;{else/}&lt;span&gt;No commission&lt;/span&gt;{endif/}</pre>`,
+        `CASE: <pre>{case STATUS/}
+  {when ACTIVE/}&lt;b class="u-success-text"&gt;Active&lt;/b&gt;
+  {when LEAVE/}&lt;b class="u-warning-text"&gt;On leave&lt;/b&gt;
+  {otherwise/}&lt;b class="u-danger-text"&gt;#STATUS#&lt;/b&gt;
+{endcase/}</pre>`,
+        `Check: directive names have <b>no</b> # (<code>{if COMM/}</code>); placeholders in the HTML do (<code>#COMM#</code>).`,
+        `PL/SQL twin: <code>CASE status WHEN 'ACTIVE' THEN … WHEN 'LEAVE' THEN … ELSE … END</code>.`
+      ]},
+    { id:'s6-q3', title:'Build the Employee Card component',
+      task:`<p>Follow section 4: create the <b>Employee Card</b> Template Component plug-in with attributes ENAME, JOB, SAL, IS_HIGH, STATUS, and paste in the Partial template.</p>`,
+      steps:[
+        `Shared Components → Plug-ins → Create → From Scratch → Type <b>Template Component</b>.`,
+        `Available As: Single (Partial) + Multiple (Report).`,
+        `Custom Attributes: one per placeholder. The names must match exactly what the template uses (<code>#ENAME#</code> → attribute ENAME).`,
+        `Partial template: paste the HTML. CSS: add it to the plug-in's Files and reference it, or use page inline CSS for now.`,
+        `If the plug-in won't save, read the error. It's usually a directive without its end (<code>{if …/}</code> without <code>{endif/}</code>), like a missing <code>END IF;</code>.`
+      ]},
+    { id:'s6-q4', title:'Use it with SQL and a filter',
+      task:`<p>Create a region of type <b>Employee Card</b> on a page with a P6_DEPTNO select list. Show only that department's employees and refresh when the department changes.</p>`,
+      steps:[
+        `Region → Type: Employee Card → Source SQL: the section 2 query plus <code>WHERE deptno = :P6_DEPTNO</code>.`,
+        `Region → <b>Page Items to Submit</b>: P6_DEPTNO. This is the same idea as <code>pageItems</code> in Session 2.`,
+        `Attributes: map ENAME→ENAME, JOB→JOB, SAL→SAL, IS_HIGH→IS_HIGH, STATUS→STATUS.`,
+        `DA: Change on P6_DEPTNO → <b>Refresh</b> the region. No JavaScript.`,
+        `Compare with Session 2, where you did the same with an Ajax Callback + JS + HTML: the template component is less code and is reusable on any page.`
+      ]},
+    { id:'s6-q5', title:'Which approach?',
+      task:`<p>Choose: built-in component, your own Template Component, JS-built HTML, or PL/SQL htp.p.</p><ol type="a"><li>Status pill in 12 reports across the app</li><li>Avatar with initials next to each name</li><li>Live search showing cards as you type</li><li>A legacy page you're not allowed to change much</li></ol>`,
+      steps:[
+        `<b>a)</b> Built-in <b>Badge</b> if it fits; otherwise <b>your own Template Component</b>. Reused 12 times, it must live in one place.`,
+        `<b>b)</b> Built-in <b>Avatar</b> template component (initials, image or icon), with no code.`,
+        `<b>c)</b> <b>JS-built HTML</b> from AJAX JSON (Session 2), because it updates per keystroke (debounced). Alternatively, a Template Component region refreshed with a debounced DA.`,
+        `<b>d)</b> Leave the <b>htp.p</b> as it is if it works; refactor to a template component when you next touch it.`
+      ]}
+  ]
 };
 const SESSIONS = [
   { id:'s1', n:1, title:'JavaScript in APEX, the PL/SQL way', sub:'Where JS lives · variables & types · page items · JS vs jQuery vs PL/SQL · exceptions · first HTML & CSS · 5 practice tasks', ready:true },
   { id:'s2', n:2, title:'AJAX: JavaScript calling your PL/SQL, shown with HTML & CSS', sub:'Ajax Callback + apex_json · apex.server.process · async/await · cards from JSON · CSS grid · speed rules · 5 practice tasks', ready:true },
-  { id:'s3', n:3, title:'Functions, arrays and objects for APEX data', sub:'arrow functions · records/collections · filter/map/reduce as SQL', ready:false },
-  { id:'s4', n:4, title:'Interactive Grid with JavaScript', sub:'IG model, view, toolbar actions, selected rows', ready:false },
-  { id:'s5', n:5, title:'CSS & HTML for APEX pages', sub:'selectors, specificity, flexbox/grid layouts, Universal Theme, Theme Roller', ready:false },
-  { id:'s6', n:6, title:'Templates & Template Components', sub:'your own reusable HTML pieces, filled by SQL', ready:false }
+  { id:'s3', n:3, title:'Functions, arrays and objects for APEX data', sub:'arrow functions · records/collections · filter/map/reduce as SQL', ready:true },
+  { id:'s4', n:4, title:'Interactive Grid with JavaScript', sub:'IG model, view, toolbar actions, selected rows', ready:true },
+  { id:'s5', n:5, title:'CSS & HTML for APEX pages', sub:'selectors, specificity, flexbox/grid layouts, Universal Theme, Theme Roller', ready:true },
+  { id:'s6', n:6, title:'Templates & Template Components', sub:'your own reusable HTML pieces, filled by SQL', ready:true }
 ];
 
 /* ===================== STATE + SAVING ===================== */
