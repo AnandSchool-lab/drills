@@ -7,12 +7,14 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
-/* Layout: sticky workspace bar, topic list, then one topic at a time: PL/SQL vs JS, APEX steps with real screenshots, practice. */
+/* Layout: workspace bar, session list, then one session as a long lesson; a one-page summary that prints. */
 :root{
-  --bg:#f6f7fb; --surface:#ffffff; --sunk:#eef0f6; --fg:#1b2030; --muted:#5d6478; --line:#dde1ec;
-  --accent:#3550c8; --accent-ink:#ffffff; --accent-soft:#e6eaff;
-  --plsql:#b4441c; --plsql-soft:#fbe9e1; --js:#9a6a12; --js-soft:#fbf1df; --apex:#2f855a; --apex-soft:#e2f3ea; --new:#805ad5; --new-soft:#efe9fb;
-  --good:#2f855a; --bad:#c53030; --code-bg:#161a26; --code-fg:#e4e7f2; --bar:#1d2233; --bar-fg:#e9ecf6;
+  --bg:#f6f7fb; --surface:#fff; --sunk:#eef0f6; --fg:#1b2030; --muted:#5d6478; --line:#dde1ec;
+  --accent:#3550c8; --accent-ink:#fff; --accent-soft:#e6eaff;
+  --pl:#b4441c; --pl-soft:#fbe9e1; --js:#9a6a12; --js-soft:#fbf1df; --jq:#1f6f8b; --jq-soft:#e0f0f6;
+  --yellow:#8a6400; --yellow-bg:#fff4c7; --yellow-line:#e9b500;
+  --red:#a32020; --red-bg:#fde4e4; --red-line:#d33;
+  --good:#2f855a; --good-bg:#e2f3ea; --code-bg:#161a26; --code-fg:#e4e7f2; --bar:#1d2233; --bar-fg:#e9ecf6;
   --f-display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
   --f-body:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
   --f-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
@@ -21,143 +23,128 @@
 @media (prefers-color-scheme: dark){:root{
   --bg:#10131c; --surface:#181c28; --sunk:#202536; --fg:#e6e9f3; --muted:#9aa2b8; --line:#2c3347;
   --accent:#8299ff; --accent-ink:#0f1320; --accent-soft:#232c52;
-  --plsql:#f0a080; --plsql-soft:#3a2219; --js:#e7b45a; --js-soft:#352a17; --apex:#6fcf9a; --apex-soft:#17321f; --new:#b69cf2; --new-soft:#2a2242;
-  --good:#6fcf9a; --bad:#f08080; --code-bg:#0b0d14; --bar:#0b0e16; color-scheme:dark}}
+  --pl:#f0a080; --pl-soft:#3a2219; --js:#e7b45a; --js-soft:#352a17; --jq:#7cc6e0; --jq-soft:#16303a;
+  --yellow:#f5d067; --yellow-bg:#3a3110; --yellow-line:#c99a00; --red:#ff9b9b; --red-bg:#3d1818; --red-line:#e05555;
+  --good:#6fcf9a; --good-bg:#17321f; --code-bg:#0b0d14; --bar:#0b0e16; color-scheme:dark}}
 *{box-sizing:border-box}
 html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.6 var(--f-body)}
-img{max-width:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font:15.5px/1.65 var(--f-body)}
 [hidden]{display:none!important}
 .gutter{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
-.wrap{max-width:1100px;margin:0 auto}
+.wrap{max-width:980px;margin:0 auto}
 h1,h2,h3{font-family:var(--f-display);text-wrap:balance;line-height:1.2;margin:0}
-h1{font-size:clamp(26px,4vw,36px);font-weight:700}
-h2{font-size:22px;font-weight:700}
-h3{font-size:16px;font-weight:700}
-p{margin:0}
+h1{font-size:clamp(26px,4vw,36px)} h2{font-size:23px} h3{font-size:17px}
+p{margin:0} p+p{margin-top:10px}
 a{color:var(--accent)}
-code{font-family:var(--f-mono);font-size:.88em;background:var(--sunk);padding:1px 5px;border-radius:4px}
+code{font-family:var(--f-mono);font-size:.87em;background:var(--sunk);padding:1px 5px;border-radius:4px;font-variant-ligatures:none}
 .muted{color:var(--muted)}
 .label{font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:600;color:var(--muted)}
 button{font:inherit;cursor:pointer}
-button:focus-visible,summary:focus-visible,textarea:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button:focus-visible,a:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
-/* workspace bar - always on top */
-.wsbar{position:sticky;top:0;z-index:20;background:var(--bar);color:var(--bar-fg);font-size:13px}
-.wsbar .wrap{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center;padding-block:8px}
-.wsbar b{font-weight:600}
+.wsbar{background:var(--bar);color:var(--bar-fg);font-size:13px}
+.wsbar .wrap{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;padding-block:8px}
 .wsbar a{color:#aebcff;text-decoration:none;font-weight:600}
-.wsbar a:hover{text-decoration:underline}
 .wsbar .sep{opacity:.35}
 .wsbar .sync{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .wsbar .btn{background:transparent;color:var(--bar-fg);border-color:#3a4260}
 .wsbar .btn.primary{background:#5b74e6;border-color:#5b74e6;color:#fff}
 .wsbar input{font:inherit;padding:3px 6px;border:1px solid #3a4260;border-radius:5px;background:#252b3f;color:var(--bar-fg);width:140px}
 
-/* header */
-.head{padding-block:26px 8px}
-.head .sub{max-width:68ch;color:var(--muted);margin-top:6px}
-.stats{display:flex;gap:22px;margin-top:14px}
-.stat b{display:block;font-family:var(--f-display);font-size:24px;font-variant-numeric:tabular-nums}
-
-/* topic list */
-.topics{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;margin:18px 0 8px}
-.tcard{display:flex;gap:12px;align-items:flex-start;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px;color:var(--fg)}
-.tcard:hover{border-color:var(--accent)}
-.tcard .num{flex:none;width:30px;height:30px;border-radius:8px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-family:var(--f-display);font-weight:700}
-.tcard.done .num{background:var(--apex-soft);color:var(--good)}
-.tcard .t{font-weight:600;font-size:14px;line-height:1.3}
-.tcard .s{font-size:12.5px;color:var(--muted);line-height:1.35;margin-top:2px}
-.week-title{display:flex;gap:10px;align-items:baseline;margin-top:22px}
-.upcoming{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px;margin-top:10px}
-.upcoming div{background:var(--sunk);border-radius:8px;padding:9px 11px;font-size:13px}
-.upcoming b{display:block;font-size:12px;color:var(--muted);font-weight:600}
-
-/* topic page */
-.back{background:none;border:0;color:var(--accent);padding:0;font-weight:600;margin:18px 0 10px}
-.topic-head{display:flex;flex-wrap:wrap;gap:12px 24px;justify-content:space-between;align-items:flex-end;margin-bottom:6px}
-.oneline{font-size:17px;max-width:70ch;margin-top:8px}
-.actions{display:flex;flex-wrap:wrap;gap:8px}
-.btn{border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:6px;padding:6px 12px;font-size:13px;font-weight:600;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+.btn{border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:6px;padding:6px 12px;font-size:13.5px;font-weight:600;text-decoration:none;display:inline-flex;gap:6px;align-items:center}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
-.btn.done{background:var(--apex-soft);color:var(--good);border-color:transparent}
-.btn:disabled{opacity:.5;cursor:not-allowed}
-section.part{margin-top:26px}
+.btn.good{background:var(--good-bg);color:var(--good);border-color:transparent}
+.btn.bad{background:var(--red-bg);color:var(--red);border-color:transparent}
+
+/* home */
+.head{padding-block:26px 6px}
+.head .sub{max-width:68ch;color:var(--muted);margin-top:6px}
+.sessions{display:grid;gap:10px;margin:20px 0}
+.scard{display:flex;gap:14px;align-items:flex-start;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;color:var(--fg)}
+.scard:hover{border-color:var(--accent)}
+.scard.soon{opacity:.6;cursor:default}
+.scard .num{flex:none;width:38px;height:38px;border-radius:10px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font:700 17px var(--f-display)}
+.scard .t{font-weight:600}
+.scard .s{font-size:13.5px;color:var(--muted)}
+
+/* lesson */
+.back{background:none;border:0;color:var(--accent);padding:0;font-weight:600;margin:18px 0 8px}
+.toc{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 4px}
+.toc a{font-size:12.5px;text-decoration:none;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:3px 10px;color:var(--fg)}
+.toc a span{color:var(--muted);font-family:var(--f-mono);font-size:11px;margin-left:4px}
+section.part{margin-top:34px;scroll-margin-top:12px}
 section.part>h2{display:flex;gap:10px;align-items:baseline;margin-bottom:12px}
 section.part>h2 .n{font-family:var(--f-mono);font-size:12px;color:var(--muted);font-weight:500}
-.prose{max-width:74ch}
-.prose p+p{margin-top:8px}
+section.part>h2 .time{margin-left:auto;font:500 12px var(--f-mono);color:var(--muted)}
+.prose{max-width:76ch}
+h3{margin:22px 0 8px}
 
-/* compare table */
-.compare{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface)}
+pre{margin:10px 0 0;font:13px/1.6 var(--f-mono);background:var(--code-bg);color:var(--code-fg);padding:14px 16px;overflow-x:auto;white-space:pre;border-radius:10px;font-variant-ligatures:none}
+pre .c{color:#8a93ad}
+pre .k{color:#ffd479}
+.codehead{display:flex;justify-content:space-between;align-items:center;margin-top:12px;font-size:12px;font-weight:600;color:var(--muted)}
+.codehead + pre{margin-top:4px}
+.where{font:600 11.5px var(--f-body);background:var(--accent-soft);color:var(--accent);padding:2px 8px;border-radius:4px}
+
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
 .compare>div{min-width:0}
-.compare .h{padding:8px 12px;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
-.compare .h.pl{background:var(--plsql-soft);color:var(--plsql)}
-.compare .h.js{background:var(--js-soft);color:var(--js)}
-.compare pre{border-radius:0;margin:0;height:100%}
-.compare .row{display:contents}
-.compare .note{grid-column:1/-1;padding:8px 12px;font-size:13.5px;border-top:1px solid var(--line);background:var(--surface)}
-@media (max-width:720px){.compare{grid-template-columns:1fr}.compare .h.pl{order:1}.compare pre:nth-of-type(1){order:2}.compare .h.js{order:3}.compare pre:nth-of-type(2){order:4}.compare .note{order:5}.wsbar{position:static}}
-pre,textarea,code{font-variant-ligatures:none}
-pre{margin:0;font:12.8px/1.55 var(--f-mono);background:var(--code-bg);color:var(--code-fg);padding:12px 14px;overflow-x:auto;white-space:pre;border-radius:8px}
-.c{color:#8a93ad}
+.compare .h{font-size:11.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:4px 10px;border-radius:6px 6px 0 0;display:inline-block}
+.compare .h.pl{background:var(--pl-soft);color:var(--pl)} .compare .h.js{background:var(--js-soft);color:var(--js)} .compare .h.jq{background:var(--jq-soft);color:var(--jq)}
+.compare pre{margin-top:0;border-top-left-radius:0;height:calc(100% - 26px)}
+@media (max-width:720px){.compare{grid-template-columns:1fr}}
 
-/* steps + shots */
-ol.steps{margin:0;padding-left:22px;display:grid;gap:7px;max-width:78ch}
-ol.steps li::marker{font-family:var(--f-mono);color:var(--muted);font-size:12px}
-.path{font-family:var(--f-mono);font-size:12.5px;background:var(--apex-soft);color:var(--apex);padding:1px 6px;border-radius:4px;white-space:nowrap}
-.shots{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px;margin-top:14px}
-figure.shot{margin:0;background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden}
-figure.shot img{display:block;width:100%;cursor:zoom-in;border-bottom:1px solid var(--line)}
-figure.shot figcaption{padding:8px 12px;font-size:13px}
-figure.shot figcaption b{display:block}
-.console{background:#0f1117;color:#d6dae6;border-radius:8px;font:12.5px/1.6 var(--f-mono);padding:10px 14px;max-width:760px}
-.console div::before{content:"› ";color:#6e7896}
-.console .warn{color:#f3c96b}
-.console .warn::before{content:"⚠ ";color:#f3c96b}
-.callout{border-left:3px solid var(--accent);background:var(--accent-soft);padding:10px 14px;border-radius:0 8px 8px 0;max-width:78ch;font-size:14px}
-.callout.warn{border-color:var(--js);background:var(--js-soft)}
-.callout.new{border-color:var(--new);background:var(--new-soft)}
-.callout.new b:first-child{color:var(--new)}
-.callout + .callout{margin-top:10px}
+.note{border-left:5px solid;border-radius:0 10px 10px 0;padding:11px 15px;margin-top:14px;max-width:80ch;font-size:14.5px}
+.note b.tag{display:block;font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;margin-bottom:3px}
+.note.yellow{background:var(--yellow-bg);border-color:var(--yellow-line)} .note.yellow b.tag{color:var(--yellow)}
+.note.red{background:var(--red-bg);border-color:var(--red-line)} .note.red b.tag{color:var(--red)}
 
-/* lightbox */
-dialog.lb{border:0;padding:0;max-width:96vw;max-height:94vh;background:transparent}
-dialog.lb::backdrop{background:rgba(10,12,20,.82)}
-dialog.lb img{max-width:96vw;max-height:88vh;display:block;border-radius:6px}
-dialog.lb p{color:#fff;font-size:13px;margin-top:6px}
+table.dt{border-collapse:collapse;width:100%;margin-top:10px;font-size:14px;background:var(--surface);border-radius:10px;overflow:hidden}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;margin-top:10px}
+.tablewrap table{margin:0}
+table.dt th,table.dt td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+table.dt th{background:var(--sunk);font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+table.dt tr:last-child td{border-bottom:0}
+.pill{display:inline-block;font:700 11px var(--f-body);padding:2px 8px;border-radius:999px;white-space:nowrap}
+.pill.pl{background:var(--pl-soft);color:var(--pl)} .pill.js{background:var(--js-soft);color:var(--js)} .pill.jq{background:var(--jq-soft);color:var(--jq)} .pill.dec{background:var(--good-bg);color:var(--good)}
 
-/* runner + exercises (shared engine) */
-.tbody{display:grid;gap:14px}
-.runner{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface)}
-.runner .bar{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 8px 6px 12px;background:var(--sunk);font-size:12px;color:var(--muted)}
-.runner textarea{display:block;width:100%;border:0;resize:vertical;min-height:110px;font:13px/1.55 var(--f-mono);background:var(--code-bg);color:var(--code-fg);padding:12px 14px;tab-size:2}
-.runner textarea.text{background:var(--surface);color:var(--fg);font-family:var(--f-body);font-size:14px;min-height:90px}
-.out{font:12.5px/1.5 var(--f-mono);padding:10px 14px;border-top:1px solid var(--line);white-space:pre-wrap;word-break:break-word;min-height:20px}
-.out .err{color:var(--bad)} .out .dim{color:var(--muted)}
-.fakepage{display:flex;flex-wrap:wrap;gap:10px;padding:10px 14px;border-top:1px solid var(--line);background:var(--bg)}
-.fakepage label{display:grid;gap:2px;font-size:11px;color:var(--muted);font-family:var(--f-mono)}
-.fakepage input{font:13px var(--f-body);padding:5px 8px;border:1px solid var(--line);border-radius:5px;background:var(--surface);color:var(--fg);width:130px}
-.fakepage input.hidden-item{opacity:.35}
-.banner{margin:8px 14px 0;padding:6px 10px;border-radius:6px;font-size:13px}
-.banner.ok{background:var(--apex-soft);color:var(--good)} .banner.bad{background:#c5303022;color:var(--bad)}
-.ex{border:1px solid var(--line);border-radius:10px;padding:14px;display:grid;gap:10px;background:var(--surface)}
-.ex-head{display:flex;gap:10px;align-items:baseline}
-.ex-tag{flex:none;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 8px;border-radius:4px;background:var(--accent-soft);color:var(--accent)}
-.ex-tag.t2{background:var(--js-soft);color:var(--js)} .ex-tag.t3{background:var(--new-soft);color:var(--new)}
-.ex .q{max-width:74ch}
-.ex-tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-.saved{font-size:12px;color:var(--muted);margin-left:auto}
-.reveal{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:14px}
-.reveal pre{margin-top:6px}
-.qz{border:1px solid var(--line);border-radius:10px;padding:14px;background:var(--surface)}
-.qz .opts{display:grid;gap:6px;margin-top:8px}
-.qz button.opt{text-align:left;border:1px solid var(--line);background:var(--bg);color:var(--fg);border-radius:6px;padding:7px 10px;font-size:14px}
-.qz button.opt.right{border-color:var(--good);background:var(--apex-soft)}
-.qz button.opt.wrong{border-color:var(--bad);background:#c5303018}
-.qz .why{font-size:13.5px;color:var(--muted);margin-top:8px}
-.quiz{display:grid;gap:10px}
+/* practice */
+.task{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;margin-top:14px}
+.task-head{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.task-head .qn{font:700 13px var(--f-mono);background:var(--accent-soft);color:var(--accent);padding:2px 8px;border-radius:5px}
+.task-head .status{margin-left:auto;font-size:12.5px;font-weight:600}
+.task-head .status.ok{color:var(--good)} .task-head .status.no{color:var(--red)}
+.task ol{margin:8px 0 0;padding-left:22px}
+.task .ask{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;align-items:center}
+.answer{margin-top:14px;border-top:1px dashed var(--line);padding-top:12px}
+.answer ol.stepx{margin:8px 0 0;padding-left:0;list-style:none;counter-reset:s;display:grid;gap:10px}
+.answer ol.stepx>li{counter-increment:s;display:grid;grid-template-columns:30px 1fr;gap:10px}
+.answer ol.stepx>li::before{content:counter(s);width:26px;height:26px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font:700 13px var(--f-display)}
+.answer ol.stepx>li>div{min-width:0}
+textarea.mine{width:100%;min-height:70px;margin-top:10px;font:13px/1.5 var(--f-mono);border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--bg);color:var(--fg);font-variant-ligatures:none}
+
+/* summary */
+.sheet{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:22px;margin-top:16px}
+.sheet h1{font-size:24px}
+.sheet .cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 22px;margin-top:14px}
+.sheet .box{border-top:3px solid var(--accent);padding-top:6px}
+.sheet .box.y{border-color:var(--yellow-line)} .sheet .box.r{border-color:var(--red-line)}
+.sheet h3{margin:0 0 4px;font-size:14.5px}
+.sheet ul{margin:0;padding-left:18px;font-size:13.5px;line-height:1.5}
+.sheet pre{font-size:11.5px;padding:8px 10px;margin-top:4px}
+@media (max-width:720px){.sheet .cols{grid-template-columns:1fr}}
 footer{margin:40px 0 30px;font-size:13px;color:var(--muted)}
+
+@media print{
+  .wsbar,.back,.noprint,footer{display:none!important}
+  #view > :not(.part[id$='-summary']){display:none!important}
+  .part[id$='-summary'] > h2{display:none!important}
+  .part[id$='-summary']{margin:0}
+  body{background:#fff;color:#000;font-size:11px}
+  .sheet{border:0;padding:0;margin:0}
+  .sheet .cols{grid-template-columns:1fr 1fr;gap:8px 16px}
+  pre{background:#f3f3f3!important;color:#000!important;white-space:pre-wrap}
+  pre .c{color:#666!important}
+}
 </style>
 </head>
 <body>
@@ -166,746 +153,398 @@ footer{margin:40px 0 30px;font-size:13px;color:var(--muted)}
   <div class="wrap">
     <span>Workspace <b>ANAND_DEV</b></span><span class="sep">|</span>
     <a href="https://oracleapex.com/ords/r/apex/workspace-sign-in/oracle-apex-sign-in" target="_blank" rel="noopener">Sign in to APEX ↗</a><span class="sep">|</span>
-    <a href="https://oracleapex.com/ords/r/anand_dev/js-lab/home" target="_blank" rel="noopener">Open JS Lab app ↗</a><span class="sep">|</span>
-    <span>App <b>161768</b> · user: your Gmail</span>
+    <a href="https://oracleapex.com/ords/r/anand_dev/js-lab/home" target="_blank" rel="noopener">JS Lab app ↗</a>
     <span class="sync" id="sync"><span id="syncmsg">Saved in this browser</span></span>
   </div>
 </div>
-
 <div class="gutter"><div class="wrap" id="view"></div></div>
-<dialog class="lb" id="lb"><img alt=""><p></p></dialog>
 
-<!-- ======================= TOPIC CONTENT ======================= -->
+<!-- ======================= SESSION 1 ======================= -->
+<template id="s1">
+  <nav class="toc noprint">
+    <a href="#s1-where">1. Where JS lives<span>5m</span></a>
+    <a href="#s1-vars">2. Variables & types<span>10m</span></a>
+    <a href="#s1-items">3. Page items<span>10m</span></a>
+    <a href="#s1-choose">4. JS vs jQuery vs PL/SQL<span>10m</span></a>
+    <a href="#s1-exc">5. Exceptions<span>10m</span></a>
+    <a href="#s1-practice">6. Practice<span>15m</span></a>
+    <a href="#s1-summary">7. Summary</a>
+  </nav>
 
-<template id="topic-1">
-  <section class="part">
-    <h2><span class="n">01</span>PL/SQL vs JavaScript</h2>
+  <!-- 1 -->
+  <section class="part" id="s1-where">
+    <h2><span class="n">01</span>Where JavaScript lives in APEX<span class="time">5 min</span></h2>
+    <div class="prose"><p>In PL/SQL you know exactly where code runs: a process, a computation, a validation, a package. JavaScript runs in the <b>browser</b>, and APEX gives it four homes. In Page Designer, click the <b>page name</b> at the top of the left tree and scroll the right panel to <b>JavaScript</b>.</p></div>
+    <div class="tablewrap"><table class="dt">
+      <tr><th>Where</th><th>When it runs</th><th>PL/SQL feeling</th><th>Use it for</th></tr>
+      <tr><td><b>Function and Global Variable Declaration</b></td><td>Loaded with the page (defines, doesn't run)</td><td>Package spec + body for one page</td><td>Functions and constants this page needs</td></tr>
+      <tr><td><b>Execute when Page Loads</b></td><td>Once, after the page has rendered</td><td>The <code>BEGIN … END</code> of "Before Header" logic</td><td>First setup, default values, wiring</td></tr>
+      <tr><td><b>Dynamic Action → Execute JavaScript Code</b></td><td>Every time an event happens (change, click…)</td><td>A trigger, in the browser</td><td>Reacting to the user</td></tr>
+      <tr><td><b>Static Application File</b> (<code>#APP_FILES#js/app.js</code>)</td><td>Loaded on every page that references it</td><td>A real stored package</td><td>Code shared by many pages</td></tr>
+    </table></div>
+    <div class="note yellow"><b class="tag">Note to remember</b>Short code goes in the page. Code you'd copy to a second page goes in a static file. Always try a <b>declarative</b> Dynamic Action first (Show, Hide, Set Value, Refresh); write JavaScript only when the declarative options can't do it.</div>
+  </section>
+
+  <!-- 2 -->
+  <section class="part" id="s1-vars">
+    <h2><span class="n">02</span>Variables and data types<span class="time">10 min</span></h2>
     <div class="compare">
-      <div class="h pl">PL/SQL (what you know)</div><div class="h js">JavaScript (the same idea)</div>
-<pre><span class="c">DECLARE</span>
-  v_ename   VARCHAR2(30) := 'KING';
-  v_sal     NUMBER       := 5000;
-  c_bonus   CONSTANT NUMBER := 0.10;
-<span class="c">BEGIN</span>
+      <div><span class="h pl">PL/SQL</span>
+<pre><span class="k">DECLARE</span>
+  v_ename  VARCHAR2(30) := 'KING';
+  v_sal    NUMBER       := 5000;
+  v_active BOOLEAN      := TRUE;
+  v_comm   NUMBER;               <span class="c">-- NULL</span>
+  c_bonus  CONSTANT NUMBER := 0.10;
+<span class="k">BEGIN</span>
   v_sal := v_sal + 100;
-  DBMS_OUTPUT.PUT_LINE(v_ename);
-<span class="c">END;</span></pre>
-<pre>let   ename = 'KING';      <span class="c">// no type needed</span>
-let   sal   = 5000;
-const BONUS = 0.10;        <span class="c">// CONSTANT</span>
+  DBMS_OUTPUT.PUT_LINE(v_ename || ' ' || v_sal);
+<span class="k">END;</span></pre></div>
+      <div><span class="h js">JavaScript</span>
+<pre>let   ename  = 'KING';     <span class="c">// string</span>
+let   sal    = 5000;       <span class="c">// number</span>
+let   active = true;       <span class="c">// boolean</span>
+let   comm   = null;       <span class="c">// "no value"</span>
+const BONUS  = 0.10;       <span class="c">// CONSTANT</span>
 
-sal = sal + 100;           <span class="c">// let can change</span>
-console.log(ename);        <span class="c">// DBMS_OUTPUT</span>
-<span class="c">// BONUS = 0.2;  -> TypeError: Assignment</span>
-<span class="c">//                  to constant variable</span></pre>
-      <div class="note"><b>Rule of thumb:</b> use <code>const</code> by default, <code>let</code> when the value changes, and never <code>var</code> (old style, leaks out of blocks). JavaScript has no <code>DECLARE</code> section: you declare a variable where you first need it.</div>
+sal = sal + 100;
+console.log(ename + ' ' + sal);
+console.log(`${ename} ${sal}`);   <span class="c">// same, nicer</span></pre></div>
     </div>
-    <div class="callout warn" style="margin-top:12px"><b>Trap:</b> <code>const</code> stops you reassigning the name, not changing what's inside. <code>const emp = {sal: 100}; emp.sal = 200;</code> works fine.</div>
-  </section>
+    <div class="prose" style="margin-top:12px"><p>No <code>DECLARE</code> section, no types and no <code>:=</code>. You declare a variable where you first need it. The type comes from the value.</p></div>
 
-  <section class="part">
-    <h2><span class="n">02</span>Where JavaScript lives in APEX</h2>
-    <div class="prose"><p>Your page 1 uses the two most common places. Both are in Page Designer when you click the <b>page</b> (top node of the tree), in the <b>JavaScript</b> group of the Property Editor:</p></div>
-    <ol class="steps" style="margin-top:10px">
-      <li><b>Function and Global Variable Declaration</b>: functions and constants used on this page. Think of it as the package spec plus body for one page.</li>
-      <li><b>Execute when Page Loads</b>: runs once after the page has rendered. Think of it as the <code>BEGIN … END</code> that runs on open.</li>
-      <li><b>Dynamic Action → Execute JavaScript Code</b>: runs on an event, like Change or Click (topic 3).</li>
-      <li><b>Static Application File</b>: a real <code>.js</code> file, cached and shared by all pages (topic 7).</li>
-      <li><b>Browser console (F12)</b>: try code live on a running page. Nothing is saved.</li>
-    </ol>
-    <div class="shots">
-      <figure class="shot"><img src="img/t1-page-js-properties.jpg" alt="Page Designer, page 1 selected, JavaScript properties"><figcaption><b>Page Designer → page 1 → JavaScript</b>Left: tree with the items P1_ENAME, P1_SAL, P1_RESULT. Right: the two code boxes.</figcaption></figure>
-      <figure class="shot"><img src="img/t1-page-load-code.jpg" alt="Code editor showing Execute when Page Loads"><figcaption><b>The code editor (click the ↗ icon next to the box)</b>Each JS line has its PL/SQL twin as a comment above it.</figcaption></figure>
-      <figure class="shot"><img src="img/t1-running.jpg" alt="Page 1 running"><figcaption><b>The page running</b>The items were filled from JavaScript, so no PL/SQL ran.</figcaption></figure>
-    </div>
-    <h3 style="margin-top:16px">What the console shows (F12 → Console)</h3>
-    <div class="console" style="margin-top:6px"><div>KING earns 60000 a year, bonus 500</div></div>
-  </section>
+    <h3>The five types you'll use</h3>
+    <div class="tablewrap"><table class="dt">
+      <tr><th>JavaScript</th><th>Example</th><th>PL/SQL</th></tr>
+      <tr><td>string</td><td><code>'KING'</code> or <code>"KING"</code> or <code>`KING`</code></td><td>VARCHAR2</td></tr>
+      <tr><td>number</td><td><code>5000</code>, <code>12.5</code> (one type for all numbers)</td><td>NUMBER</td></tr>
+      <tr><td>boolean</td><td><code>true</code> / <code>false</code></td><td>BOOLEAN</td></tr>
+      <tr><td>null / undefined</td><td><code>null</code> = set to nothing; <code>undefined</code> = never set</td><td>NULL</td></tr>
+      <tr><td>object / array</td><td><code>{ename:'KING'}</code> / <code>[10, 20]</code></td><td>RECORD / collection</td></tr>
+    </table></div>
 
-  <section class="part">
-    <h2><span class="n">03</span>Do it yourself in JS Lab</h2>
-    <ol class="steps">
-      <li>Click <b>Sign in to APEX</b> in the top bar → <span class="path">App Builder → JS Lab → 1. Variables</span>.</li>
-      <li>Click the page node, find <b>Execute when Page Loads</b>, and change <code>'KING'</code> to <code>'BLAKE'</code> and <code>5000</code> to <code>2850</code>.</li>
-      <li>Click <b>Save</b>, then run the page and check the Result.</li>
-      <li>Press <b>F12</b> (Mac: ⌥⌘I) → Console. Type <code>annualPay(2850)</code> and press Enter. The function is global, so the console can call it.</li>
-    </ol>
-  </section>
-
-  <section class="part">
-    <h2><span class="n">04</span>Practice</h2>
-    <div class="tbody">
-      <div class="ex" data-id="d1-t2-e1" data-kind="js">
-        <p class="q">Rewrite this old code using <code>const</code>/<code>let</code> and a template literal:<br><code>var n = 'KING'; var d = 10; var msg = 'Employee ' + n + ' works in dept ' + d + '.';</code></p>
-        <pre class="start">// rewrite here
-</pre>
-        <div class="hint">Nothing gets reassigned, so all three can be <code>const</code>. A template literal uses backticks and <code>${…}</code>.</div>
-        <pre class="sol">const n = 'KING';
-const d = 10;
-const msg = `Employee ${n} works in dept ${d}.`;
-console.log(msg);</pre>
-      </div>
-      <div class="ex" data-id="d1-t1-e1" data-kind="js" data-page="P1_FIRST=Asha;P1_LAST=Rao">
-        <p class="q">New scenario: write a function <code>fullName()</code> that reads <code>P1_FIRST</code> and <code>P1_LAST</code> and returns <code>"Rao, Asha"</code>. Log it.</p>
-        <pre class="start">function fullName() {
-  // your code
-}
-console.log(fullName());</pre>
-        <div class="hint"><code>apex.item('P1_FIRST').getValue()</code> is <code>:P1_FIRST</code> in PL/SQL.</div>
-        <pre class="sol">function fullName() {
-  return `${apex.item('P1_LAST').getValue()}, ${apex.item('P1_FIRST').getValue()}`;
-}
-console.log(fullName());</pre>
-      </div>
-      <div class="ex" data-id="d1-t2-e3" data-kind="js">
-        <p class="q">Stretch: loop over <code>['ACCOUNTING','RESEARCH','SALES']</code> and build one HTML <code>&lt;ul&gt;</code> string, with <code>let</code> only where the value changes. (PL/SQL: a <code>FOR</code> loop appending with <code>||</code>.)</p>
-        <pre class="start">const depts = ['ACCOUNTING', 'RESEARCH', 'SALES'];
-</pre>
-        <div class="hint"><code>for (const d of depts) { … }</code> is like <code>FOR r IN (…) LOOP</code>.</div>
-        <pre class="sol">const depts = ['ACCOUNTING', 'RESEARCH', 'SALES'];
-let html = '&lt;ul&gt;';
-for (const d of depts) {
-  html += `&lt;li&gt;${d}&lt;/li&gt;`;
-}
-html += '&lt;/ul&gt;';
-console.log(html);</pre>
-      </div>
-    </div>
-  </section>
-  <section class="part"><h2><span class="n">05</span>Quick check</h2><div class="quiz" data-quiz="t1"></div></section>
-</template>
-
-<template id="topic-2">
-  <section class="part">
-    <h2><span class="n">01</span>PL/SQL vs JavaScript</h2>
+    <h3>Comparing values</h3>
     <div class="compare">
-      <div class="h pl">PL/SQL</div><div class="h js">JavaScript</div>
-<pre>UPPER(v_name)
-LENGTH(v_name)
-SUBSTR(v_name, 1, 3)    <span class="c">-- starts at 1</span>
-TRIM('  KING ')
-LPAD('SMITH', 8, '*')
-INSTR('KING','IN') &gt; 0
-APEX_STRING.SPLIT('A,B,C', ',')
-'Salary: ' || v_sal
-TO_NUMBER('3000') + 100
-NVL(v_comm, 0)</pre>
-<pre>name.toUpperCase()
-name.length              <span class="c">// no ()</span>
-name.substring(0, 3)     <span class="c">// starts at 0!</span>
-'  KING '.trim()
-'SMITH'.padStart(8, '*')
-'KING'.includes('IN')
-'A,B,C'.split(',')
-`Salary: ${sal}`         <span class="c">// or 'Salary: ' + sal</span>
-Number('3000') + 100
-comm ?? 0</pre>
-      <div class="note"><b>The big trap:</b> every page item value is a <b>string</b>. <code>'3000' + 100</code> gives <code>'3000100'</code> because <code>+</code> joins strings. Always convert first: <code>Number($v('P2_SAL')) + 100</code>.</div>
+      <div><span class="h pl">PL/SQL</span>
+<pre>IF v_sal = 5000 THEN …
+IF v_sal &lt;&gt; 5000 THEN …
+IF v_comm IS NULL THEN …
+IF a AND b THEN … / a OR b / NOT a</pre></div>
+      <div><span class="h js">JavaScript</span>
+<pre>if (sal === 5000) { … }
+if (sal !== 5000) { … }
+if (comm == null) { … }   <span class="c">// null or undefined</span>
+if (a &amp;&amp; b) { … }  /  a || b  /  !a</pre></div>
     </div>
+    <div class="note yellow"><b class="tag">Note to remember</b>Use <code>const</code> by default and <code>let</code> only if the value changes. Never use <code>var</code>, the old style that leaks out of blocks. Compare with <b>three</b> equals signs, <code>===</code>. Two (<code>==</code>) quietly converts types, so <code>'5' == 5</code> is true.</div>
+    <div class="note red"><b class="tag">Trap: empty string is NOT null</b>In Oracle, <code>''</code> IS NULL. In JavaScript, <code>''</code> is an empty string and <code>'' === null</code> is <b>false</b>. An empty APEX item gives you <code>''</code>, not <code>null</code>. Test for "empty" with <code>if (!value)</code> or <code>apex.item('P1_X').isEmpty()</code>.</div>
   </section>
-  <section class="part">
-    <h2><span class="n">02</span>In your JS Lab, page 2</h2>
-    <div class="shots">
-      <figure class="shot"><img src="img/t2-code.jpg" alt="Code editor page 2"><figcaption><b>Execute when Page Loads, page 2</b>Each line has the PL/SQL function it replaces in the comment.</figcaption></figure>
-      <figure class="shot"><img src="img/t2-running.jpg" alt="Page 2 running"><figcaption><b>Running: the trap in action</b><code>'3000' + 100 = 3000100</code>, but <code>Number('3000') + 100 = 3100</code>.</figcaption></figure>
-    </div>
-    <h3 style="margin-top:16px">Console output (real, from your page)</h3>
-    <div class="console" style="margin-top:6px"><div>SCOTT</div><div>5</div><div>sco</div><div>KING</div><div>***SMITH</div><div>['A', 'B', 'C']</div><div>true</div><div>Salary: 3000</div><div>Salary: 3000</div><div>3000100</div><div>3100</div><div>0</div></div>
-  </section>
-  <section class="part">
-    <h2><span class="n">03</span>Do it yourself</h2>
-    <ol class="steps">
-      <li>Open <span class="path">JS Lab → 2. Strings and Numbers</span> in Page Designer.</li>
-      <li>In <b>Execute when Page Loads</b>, add <code>console.log('oracle apex'.split(' ').map(w =&gt; w[0].toUpperCase() + w.slice(1)).join(' '));</code>. That's <code>INITCAP</code>.</li>
-      <li>Save, run, and check the console for <code>Oracle Apex</code>.</li>
-    </ol>
-  </section>
-  <section class="part">
-    <h2><span class="n">04</span>Practice</h2>
-    <div class="tbody">
-      <div class="ex" data-id="t2-e1" data-kind="js" data-page="P2_SAL=2975;P2_COMM=">
-        <p class="q">Read <code>P2_SAL</code> and <code>P2_COMM</code> (empty), and log the total pay as a number. The PL/SQL version is <code>TO_NUMBER(:P2_SAL) + NVL(TO_NUMBER(:P2_COMM), 0)</code>.</p>
-        <pre class="start">// your code
-</pre>
-        <div class="hint"><code>Number($v('P2_COMM') || 0)</code>. An empty string is falsy, so <code>|| 0</code> works here.</div>
-        <pre class="sol">const total = Number($v('P2_SAL')) + Number($v('P2_COMM') || 0);
-console.log(total); // 2975</pre>
-      </div>
-      <div class="ex" data-id="d1-t2-e2" data-kind="js">
-        <p class="q">New scenario, an order line. With <code>const line = {product:'Laptop', qty:3, price:58000}</code>, log <code>3 × Laptop = ₹1,74,000</code> using one template literal.</p>
-        <pre class="start">const line = { product: 'Laptop', qty: 3, price: 58000 };
-</pre>
-        <div class="hint"><code>.toLocaleString('en-IN')</code> is your <code>TO_CHAR(n, '99,99,999')</code>.</div>
-        <pre class="sol">const line = { product: 'Laptop', qty: 3, price: 58000 };
-console.log(`${line.qty} × ${line.product} = ₹${(line.qty * line.price).toLocaleString('en-IN')}`);</pre>
-      </div>
-      <div class="ex" data-id="t2-e3" data-kind="js">
-        <p class="q">Stretch: write <code>initcap(s)</code> that works like PL/SQL <code>INITCAP</code> for <code>'mARTIN o\'NEIL'</code> → <code>'Martin O'neil'</code>.</p>
-        <pre class="start">function initcap(s) {
-}
-console.log(initcap("mARTIN o'NEIL"));</pre>
-        <div class="hint">Lower-case everything, split on spaces, then upper-case the first letter of each word.</div>
-        <pre class="sol">function initcap(s) {
-  return s.toLowerCase().split(' ')
-    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(' ');
-}
-console.log(initcap("mARTIN o'NEIL"));</pre>
-      </div>
-    </div>
-  </section>
-  <section class="part"><h2><span class="n">05</span>Quick check</h2><div class="quiz" data-quiz="t2"></div></section>
-</template>
 
-<template id="topic-3">
-  <section class="part">
-    <h2><span class="n">01</span>PL/SQL vs JavaScript</h2>
+  <!-- 3 -->
+  <section class="part" id="s1-items">
+    <h2><span class="n">03</span>Reading and writing page items<span class="time">10 min</span></h2>
     <div class="compare">
-      <div class="h pl">PL/SQL</div><div class="h js">JavaScript</div>
-<pre>FUNCTION annual_pay (
-  p_sal  NUMBER,
-  p_comm NUMBER DEFAULT 0
-) RETURN NUMBER IS
-BEGIN
-  RETURN p_sal * 12 + p_comm;
-END;
+      <div><span class="h pl">PL/SQL (server, after submit)</span>
+<pre>v_sal := :P1_SAL;
+:P1_SAL := 5000;
+:P1_ANNUAL := :P1_SAL * 12;
 
-v := annual_pay(1600);
-v := annual_pay(1600, 300);</pre>
-<pre>function annualPay(sal, comm = 0) {
-  return sal * 12 + comm;
-}
+<span class="c">-- only sees the value after
+-- the page is submitted</span></pre></div>
+      <div><span class="h js">JavaScript (browser, instantly)</span>
+<pre>let sal = apex.item('P1_SAL').getValue();
+apex.item('P1_SAL').setValue(5000);
+apex.item('P1_ANNUAL').setValue(Number(sal) * 12);
 
-<span class="c">// Arrow function: short form, very common</span>
-const gst = (amount, rate = 0.18) =&gt; amount * rate;
-
-
-annualPay(1600);        <span class="c">// 19200</span>
-annualPay(1600, 300);   <span class="c">// 19500</span></pre>
-      <div class="note">No types and no <code>IS/BEGIN/END</code>. Default parameters work the same way. A JavaScript function can also be <b>stored in a variable and passed around</b>, which PL/SQL can't do. Dynamic Actions and APEX APIs rely on this.</div>
+<span class="c">// short forms you'll see everywhere</span>
+$v('P1_SAL');          <span class="c">// = getValue()</span>
+$s('P1_SAL', 5000);    <span class="c">// = setValue()</span></pre></div>
     </div>
-  </section>
-  <section class="part">
-    <h2><span class="n">02</span>Dynamic Actions: JavaScript that runs on an event</h2>
-    <div class="prose"><p>A Dynamic Action is like a trigger for the browser: <b>When</b> (an event on an item) → <b>True action</b> (what to do). With <b>Execute JavaScript Code</b>, APEX sets <code>this</code> to describe the event:</p></div>
-<pre style="margin-top:10px;max-width:760px">this.triggeringElement   <span class="c">// the HTML element that fired (the P3_SAL input)</span>
-this.browserEvent        <span class="c">// the event: change, click…</span>
-this.affectedElements    <span class="c">// the Affected Elements you chose</span>
-this.data                <span class="c">// extra data some events pass</span></pre>
-    <ol class="steps" style="margin-top:12px">
-      <li>In Page Designer, right-click the item (<b>P3_SAL</b>) → <span class="path">Create Dynamic Action</span>. Name it <b>Salary changed</b>. Event: <b>Change</b>.</li>
-      <li>Click the <b>Show</b> action under True, and change <b>Action</b> to <b>Execute JavaScript Code</b>.</li>
-      <li>Paste the code into <b>Settings → Code</b>, then Save.</li>
-    </ol>
-    <div class="shots">
-      <figure class="shot"><img src="img/t3-da-tree.jpg" alt="Dynamic Action in the tree"><figcaption><b>The Dynamic Action in the tree</b>P3_SAL → Dynamic Actions → Salary changed → True → Execute JavaScript Code. When: Change on P3_SAL.</figcaption></figure>
-      <figure class="shot"><img src="img/t3-da-code.jpg" alt="Dynamic Action code"><figcaption><b>The DA code</b>It reads <code>this.triggeringElement</code> and calls the page's functions.</figcaption></figure>
-      <figure class="shot"><img src="img/t3-running.jpg" alt="Page 3 after typing 2500"><figcaption><b>Type 2500 in Salary and press Tab</b>The DA fires: Annual pay 30000, GST 450. No submit, no PL/SQL.</figcaption></figure>
-    </div>
-    <div class="callout warn" style="margin-top:14px"><b>Trap:</b> inside <code>setTimeout(function(){…})</code>, <code>this</code> is no longer the DA. Use an arrow function <code>() =&gt; {…}</code>, which keeps the outer <code>this</code>.</div>
-  </section>
-  <section class="part">
-    <h2><span class="n">03</span>Do it yourself</h2>
-    <ol class="steps">
-      <li>Open <span class="path">JS Lab → 3. Functions and Dynamic Actions</span>.</li>
-      <li>Add a second Dynamic Action on <b>P3_ENAME</b> (Change → Execute JavaScript Code) that upper-cases the name: <code>apex.item('P3_ENAME').setValue(this.triggeringElement.value.toUpperCase(), null, true);</code></li>
-      <li>Run the page, type <code>allen</code>, press Tab, and it becomes <code>ALLEN</code>. The <code>true</code> at the end stops the change event firing again, so there's no loop.</li>
-    </ol>
-  </section>
-  <section class="part">
-    <h2><span class="n">04</span>Practice</h2>
-    <div class="tbody">
-      <div class="ex" data-id="d2-t1-e1" data-kind="js">
-        <p class="q">Write an arrow function <code>annualSal(sal, comm = 0)</code> that returns <code>sal * 12 + comm</code>. Test it with and without comm.</p>
-        <pre class="start">// your code
-</pre>
-        <div class="hint">One line: <code>const annualSal = (sal, comm = 0) =&gt; …</code></div>
-        <pre class="sol">const annualSal = (sal, comm = 0) => sal * 12 + comm;
-console.log(annualSal(1250, 500));
-console.log(annualSal(3000));</pre>
-      </div>
-      <div class="ex" data-id="d2-t2-e1" data-kind="js" data-this="P3_STATUS=CLOSED" data-page="P3_STATUS=CLOSED;P3_REASON=">
-        <p class="q">New scenario: a DA fires on change of <code>P3_STATUS</code>. If the triggering element's value is <code>CLOSED</code>, set <code>P3_REASON</code> to <code>"Required"</code>, otherwise clear it. Use <code>this.triggeringElement</code>.</p>
-        <pre class="start">// DA code
-</pre>
-        <div class="hint"><code>const val = this.triggeringElement.value;</code> then a ternary <code>cond ? a : b</code> (your <code>CASE WHEN</code>).</div>
-        <pre class="sol">const val = this.triggeringElement.value;
-$s('P3_REASON', val === 'CLOSED' ? 'Required' : '');
-console.log('P3_REASON =', $v('P3_REASON'));</pre>
-      </div>
-      <div class="ex" data-id="d2-t2-e2" data-kind="js" data-this="P4_QTY=7" data-page="P4_QTY=7;P4_PRICE=250;P4_TOTAL=">
-        <p class="q">Stretch: the DA fires on <code>P4_QTY</code>. After a 300 ms delay, set <code>P4_TOTAL = qty × P4_PRICE</code>. The delayed code must still read qty from <code>this</code>.</p>
-        <pre class="start">// DA code
-</pre>
-        <div class="hint">Use an arrow function inside <code>setTimeout</code>.</div>
-        <pre class="sol">setTimeout(() => {
-  const qty = Number(this.triggeringElement.value);
-  $s('P4_TOTAL', qty * Number($v('P4_PRICE')));
-  console.log('Total', $v('P4_TOTAL'));
-}, 300);</pre>
-      </div>
-    </div>
-  </section>
-  <section class="part"><h2><span class="n">05</span>Quick check</h2><div class="quiz" data-quiz="t3"></div></section>
-</template>
 
-<template id="topic-4">
-  <section class="part">
-    <h2><span class="n">01</span>PL/SQL vs JavaScript</h2>
+    <div class="codehead"><span>Paste this into <span class="where">Execute when Page Loads</span>. Needs items P1_ENAME, P1_SAL, P1_ANNUAL.</span></div>
+<pre><span class="c">// 1. Write values (like :P1_ENAME := 'KING';)</span>
+apex.item('P1_ENAME').setValue('KING');
+apex.item('P1_SAL').setValue('5000');
+
+<span class="c">// 2. Read a value back - it is ALWAYS a string</span>
+const salText = apex.item('P1_SAL').getValue();   <span class="c">// '5000'</span>
+
+<span class="c">// 3. Convert before maths (like TO_NUMBER)</span>
+const sal = Number(salText);                       <span class="c">// 5000</span>
+
+<span class="c">// 4. Calculate and write the result</span>
+apex.item('P1_ANNUAL').setValue(sal * 12);         <span class="c">// 60000</span>
+
+<span class="c">// 5. See it in the browser console (F12) - your DBMS_OUTPUT</span>
+console.log('Annual salary of', apex.item('P1_ENAME').getValue(), 'is', sal * 12);</pre>
+
+    <h3>More things an item can do</h3>
+<pre>apex.item('P1_COMM').hide();          <span class="c">// and .show()</span>
+apex.item('P1_COMM').disable();       <span class="c">// and .enable()</span>
+apex.item('P1_COMM').isEmpty();       <span class="c">// true / false</span>
+apex.item('P1_COMM').setFocus();
+apex.item('P1_DEPTNO').setValue('10', 'ACCOUNTING');   <span class="c">// value + display (popup LOV)</span>
+apex.item('P1_COMM').setValue('0', null, true);        <span class="c">// true = do NOT fire Change event</span></pre>
+
+    <div class="note red"><b class="tag">Trap: the string + number bug</b><code>$v('P1_SAL') + 100</code> gives <code>'5000100'</code>, not <code>5100</code>. <code>+</code> joins strings. Always wrap item values in <code>Number(…)</code> before doing maths.</div>
+    <div class="note red"><b class="tag">Trap: endless Dynamic Action loops</b><code>setValue</code> fires a <b>Change</b> event. If a DA on P1_SAL changes P1_SAL, it fires itself again. Pass <code>true</code> as the third argument to stop that: <code>setValue(v, null, true)</code>.</div>
+    <div class="note yellow"><b class="tag">Note to remember</b>Use <code>apex.item()</code> for items, <b>not</b> jQuery <code>$('#P1_SAL').val()</code>. Popup LOVs, shuttles, switches and date pickers store their values in different HTML, and <code>apex.item</code> knows each one; jQuery doesn't.</div>
+  </section>
+
+  <!-- 4 -->
+  <section class="part" id="s1-choose">
+    <h2><span class="n">04</span>JavaScript vs jQuery vs PL/SQL: which one?<span class="time">10 min</span></h2>
+    <div class="prose">
+      <p><b>PL/SQL</b> runs on the database server. <b>JavaScript</b> runs in the browser. <b>jQuery</b> is a JavaScript library that APEX already loads on every page. It's a short way to find HTML elements and change them. In APEX, <code>$</code> means jQuery (and <code>apex.jQuery</code> is the same thing).</p>
+    </div>
+    <div class="tablewrap"><table class="dt">
+      <tr><th>Situation</th><th>Use</th><th>Why</th></tr>
+      <tr><td>Read/insert/update the database, anything with DML</td><td><span class="pill pl">PL/SQL</span></td><td>Data lives on the server</td></tr>
+      <tr><td>Security: who can see or change what, and the final validation</td><td><span class="pill pl">PL/SQL</span></td><td>The browser can be bypassed, so the server is the real gate</td></tr>
+      <tr><td>Show/hide, enable/disable, set value, refresh a region</td><td><span class="pill dec">Declarative DA</span></td><td>No code at all; easiest to maintain</td></tr>
+      <tr><td>Instant check while typing (before submit)</td><td><span class="pill js">JS · apex.item / apex.message</span></td><td>Fast feedback, no round trip</td></tr>
+      <tr><td>Read or set a page item</td><td><span class="pill js">JS · apex.item()</span></td><td>Works for every item type</td></tr>
+      <tr><td>Refresh a report or chart</td><td><span class="pill js">JS · apex.region('id').refresh()</span></td><td>APEX API knows the region</td></tr>
+      <tr><td>Change things that aren't items: add a CSS class, change text in a header, style table rows</td><td><span class="pill jq">jQuery</span></td><td>Selects any HTML by CSS selector</td></tr>
+      <tr><td>Handle clicks on many elements, including ones added later (report rows)</td><td><span class="pill jq">jQuery .on()</span></td><td>Event delegation in one line</td></tr>
+      <tr><td>Get data from the database without submitting</td><td><span class="pill js">JS apex.server.process</span> + <span class="pill pl">PL/SQL</span></td><td>JS calls your PL/SQL (AJAX), coming in Session 2</td></tr>
+    </table></div>
+
+    <h3>Same job, three ways: highlight salaries over 3000 in a report</h3>
     <div class="compare">
-      <div class="h pl">PL/SQL (server, after submit)</div><div class="h js">JavaScript (browser, instantly)</div>
-<pre>v := :P4_SAL;
-:P4_SAL := '1000';
-
-IF :P4_SAL NOT BETWEEN 800 AND 5000 THEN
-  apex_error.add_error(
-    p_message          =&gt; 'Salary must be between 800 and 5000',
-    p_display_location =&gt; apex_error.c_inline_with_field_and_notif,
-    p_page_item_name   =&gt; 'P4_SAL');
-END IF;</pre>
-<pre>v = apex.item('P4_SAL').getValue();   <span class="c">// or $v('P4_SAL')</span>
-apex.item('P4_SAL').setValue('1000');  <span class="c">// or $s(...)</span>
-
-apex.message.clearErrors();
-if (sal &lt; 800 || sal &gt; 5000) {
-  apex.message.showErrors([{
-    type: 'error', location: ['page', 'inline'],
-    pageItem: 'P4_SAL',
-    message: 'Salary must be between 800 and 5000',
-    unsafe: false }]);
-}</pre>
-      <div class="note">Use <b>apex.item()</b>, not jQuery <code>$('#P4_SAL').val()</code>. It handles every item type correctly (popup LOV, shuttle, date picker…). Keep the PL/SQL validation too, because browser code can be bypassed.</div>
-    </div>
-    <div class="callout" style="margin-top:12px"><b>More of the item API:</b> <code>.show()</code> <code>.hide()</code> <code>.enable()</code> <code>.disable()</code> <code>.isEmpty()</code> <code>.setFocus()</code>, and <code>setValue(v, display, true)</code> where <code>true</code> means "don't fire change", which prevents DA loops.</div>
-  </section>
-  <section class="part">
-    <h2><span class="n">02</span>In your JS Lab, page 4</h2>
-    <div class="shots">
-      <figure class="shot"><img src="img/t4-da-code.jpg" alt="Validation code"><figcaption><b>The DA "Salary changed" on P4_SAL</b>The PL/SQL version is in the comments, with the JavaScript version below it.</figcaption></figure>
-      <figure class="shot"><img src="img/t4-error.jpg" alt="Error message"><figcaption><b>9000 → error</b>Shown at the top (page) and under the field (inline), exactly like <code>apex_error</code>.</figcaption></figure>
-      <figure class="shot"><img src="img/t4-success.jpg" alt="Success message"><figcaption><b>1250 → success</b>From <code>apex.message.showPageSuccess(…)</code>.</figcaption></figure>
-    </div>
-  </section>
-  <section class="part">
-    <h2><span class="n">03</span>Do it yourself</h2>
-    <ol class="steps">
-      <li>Open <span class="path">JS Lab → 4. Page Items and Messages</span>.</li>
-      <li>In the DA code, change the limits to 1000 and 9999 and the message to match. Save, then run with 900 and 9000.</li>
-      <li>Add a server-side <b>Validation</b> on P4_SAL (PL/SQL Expression <code>:P4_SAL BETWEEN 1000 AND 9999</code>) so it's enforced on submit too.</li>
-    </ol>
-  </section>
-  <section class="part">
-    <h2><span class="n">04</span>Practice</h2>
-    <div class="tbody">
-      <div class="ex" data-id="d4-t2-e1" data-kind="js" data-page="P2_SAL=1500;P2_COMM=2000">
-        <p class="q">Show an inline error on <code>P2_COMM</code> if commission is more than salary; otherwise show the success message "Commission OK".</p>
-        <pre class="start">// your code
-</pre>
-        <div class="hint">Compare numbers, not strings: <code>Number($v(...))</code>.</div>
-        <pre class="sol">apex.message.clearErrors();
-if (Number($v('P2_COMM')) > Number($v('P2_SAL'))) {
-  apex.message.showErrors([{ type: 'error', location: 'inline', pageItem: 'P2_COMM',
-    message: 'Commission cannot exceed salary', unsafe: false }]);
-} else {
-  apex.message.showPageSuccess('Commission OK');
-}</pre>
-      </div>
-      <div class="ex" data-id="d4-t1-e2" data-kind="js" data-page="P7_TYPE=COMPANY;P7_GSTIN=;P7_PAN=">
-        <p class="q">New scenario, customer registration. If <code>P7_TYPE</code> is <code>COMPANY</code>, show <code>P7_GSTIN</code> and hide <code>P7_PAN</code>; if it's <code>INDIVIDUAL</code>, do the opposite. Try both by editing the box below the code.</p>
-        <pre class="start">// your code
-</pre>
-        <div class="hint"><code>apex.item('X')[cond ? 'show' : 'hide']()</code></div>
-        <pre class="sol">const isCo = $v('P7_TYPE') === 'COMPANY';
-apex.item('P7_GSTIN')[isCo ? 'show' : 'hide']();
-apex.item('P7_PAN')[isCo ? 'hide' : 'show']();</pre>
-      </div>
-      <div class="ex" data-id="d4-t2-e3" data-kind="js" data-page="P6_NAME=;P6_EMAIL=x@y.com;P6_CITY=">
-        <p class="q">Stretch: write <code>requireItems(...names)</code> that shows one inline "is required" error per empty item and returns <code>true</code> only if all are filled.</p>
-        <pre class="start">// your code
-</pre>
-        <div class="hint"><code>names.filter(n =&gt; apex.item(n).isEmpty())</code>, then <code>map</code> to error objects.</div>
-        <pre class="sol">function requireItems(...names) {
-  apex.message.clearErrors();
-  const errors = names
-    .filter(n => apex.item(n).isEmpty())
-    .map(n => ({ type: 'error', location: 'inline', pageItem: n, message: 'is required', unsafe: false }));
-  if (errors.length) apex.message.showErrors(errors);
-  return errors.length === 0;
-}
-console.log(requireItems('P6_NAME', 'P6_EMAIL', 'P6_CITY'));</pre>
-      </div>
-    </div>
-  </section>
-  <section class="part"><h2><span class="n">05</span>Quick check</h2><div class="quiz" data-quiz="t4"></div></section>
-</template>
-
-<template id="topic-5">
-  <section class="part">
-    <h2><span class="n">01</span>PL/SQL vs JavaScript</h2>
-    <div class="compare">
-      <div class="h pl">PL/SQL / SQL</div><div class="h js">JavaScript</div>
-<pre>TYPE emp_rec IS RECORD (ename VARCHAR2(30), sal NUMBER);
-TYPE emp_tab IS TABLE OF emp_rec;
-v_emp.ename                       <span class="c">-- field</span>
-v_tab(1)                          <span class="c">-- first row</span>
-
-SELECT * FROM emp WHERE deptno = 20
-SELECT ename FROM … ORDER BY ename
-SELECT SUM(sal) FROM …
-SELECT … WHERE empno = 7788       <span class="c">-- one row</span>
-SELECT deptno, SUM(sal) … GROUP BY deptno
-SELECT ename, sal INTO v_ename, v_sal</pre>
-<pre>const emp  = { ename: 'SCOTT', sal: 3000 };
-const emps = [ emp, … ];          <span class="c">// array</span>
-emp.ename
-emps[0]                           <span class="c">// starts at 0!</span>
-
-emps.filter(e =&gt; e.deptno === 20)
-  .map(e =&gt; e.ename).sort()
-  .reduce((s, e) =&gt; s + e.sal, 0)
-emps.find(e =&gt; e.empno === 7788)
-emps.reduce((acc, e) =&gt; {…}, {})
-const { ename, sal } = scott;     <span class="c">// destructuring</span></pre>
-      <div class="note">Think of an object as a <b>record</b> and an array as a <b>collection</b>. <code>filter</code> = WHERE, <code>map</code> = SELECT list, <code>reduce</code> = aggregate, <code>find</code> = single-row SELECT. You'll use these on AJAX results all the time (Week 2).</div>
-    </div>
-  </section>
-  <section class="part">
-    <h2><span class="n">02</span>In your JS Lab, page 5</h2>
-    <div class="shots">
-      <figure class="shot"><img src="img/t5-code.jpg" alt="Arrays code"><figcaption><b>Execute when Page Loads, page 5</b>Every array method has its SQL twin in the comment above.</figcaption></figure>
-      <figure class="shot"><img src="img/t5-running.jpg" alt="Page 5 running"><figcaption><b>Result</b>Dept 20 = JONES, SCOTT, SMITH · total 6775 · GROUP BY {10:5000, 20:6775, 30:1600}.</figcaption></figure>
-    </div>
-    <h3 style="margin-top:16px">Console output (real)</h3>
-    <div class="console" style="margin-top:6px"><div>SCOTT ANALYST</div><div>SCOTT 3000</div><div>{10: 5000, 20: 6775, 30: 1600}</div><div>(console.table prints dept 20 as a grid)</div></div>
-  </section>
-  <section class="part">
-    <h2><span class="n">03</span>Do it yourself</h2>
-    <ol class="steps">
-      <li>Open <span class="path">JS Lab → 5. Arrays and Objects</span>.</li>
-      <li>Add <code>console.log(emps.filter(e =&gt; e.sal &gt; 2000).map(e =&gt; e.ename));</code>, which is <code>WHERE sal &gt; 2000</code>.</li>
-      <li>Add a new employee to the <code>emps</code> array in <b>Function and Global Variable Declaration</b> and check how the totals change.</li>
-    </ol>
-  </section>
-  <section class="part">
-    <h2><span class="n">04</span>Practice</h2>
-    <div class="tbody">
-      <div class="ex" data-id="d3-t2-e1" data-kind="js">
-        <p class="q">Log the names of products under ₹1,000, in upper case.</p>
-        <pre class="start">const products = [
-  { name: 'Pen', price: 40 }, { name: 'Bag', price: 1200 },
-  { name: 'Notebook', price: 120 }, { name: 'Lamp', price: 950 }
-];
-</pre>
-        <div class="hint"><code>.filter(...).map(p =&gt; p.name.toUpperCase())</code></div>
-        <pre class="sol">const products = [
-  { name: 'Pen', price: 40 }, { name: 'Bag', price: 1200 },
-  { name: 'Notebook', price: 120 }, { name: 'Lamp', price: 950 }
-];
-console.log(products.filter(p => p.price &lt; 1000).map(p => p.name.toUpperCase()));</pre>
-      </div>
-      <div class="ex" data-id="d3-t1-e2" data-kind="js">
-        <p class="q">New scenario, a hospital appointment. Write <code>reschedule(appt, newDate)</code> that returns a <b>new</b> object with the date changed and <code>status:'RESCHEDULED'</code>, leaving the original untouched.</p>
-        <pre class="start">const appt = { id: 501, patient: 'Meera', date: '2026-11-12', status: 'BOOKED' };
-</pre>
-        <div class="hint">Spread copies a record: <code>{ ...appt, date: newDate }</code>.</div>
-        <pre class="sol">const appt = { id: 501, patient: 'Meera', date: '2026-11-12', status: 'BOOKED' };
-const reschedule = (a, newDate) => ({ ...a, date: newDate, status: 'RESCHEDULED' });
-console.log(appt, reschedule(appt, '2026-11-19'));</pre>
-      </div>
-      <div class="ex" data-id="d3-t2-e2" data-kind="js">
-        <p class="q">Stretch: average mark per subject, i.e. <code>SELECT subject, AVG(mark) … GROUP BY subject</code> → <code>{Maths: 82.5, Science: 71}</code>.</p>
-        <pre class="start">const marks = [
-  { subject: 'Maths', mark: 90 }, { subject: 'Science', mark: 64 },
-  { subject: 'Maths', mark: 75 }, { subject: 'Science', mark: 78 }
-];
-</pre>
-        <div class="hint">Reduce into <code>{Maths: {sum, n}}</code>, then divide.</div>
-        <pre class="sol">const marks = [
-  { subject: 'Maths', mark: 90 }, { subject: 'Science', mark: 64 },
-  { subject: 'Maths', mark: 75 }, { subject: 'Science', mark: 78 }
-];
-const t = marks.reduce((acc, { subject, mark }) => {
-  acc[subject] ??= { sum: 0, n: 0 };
-  acc[subject].sum += mark; acc[subject].n++;
-  return acc;
-}, {});
-console.log(Object.fromEntries(Object.entries(t).map(([s, v]) => [s, v.sum / v.n])));</pre>
-      </div>
-    </div>
-  </section>
-  <section class="part"><h2><span class="n">05</span>Quick check</h2><div class="quiz" data-quiz="t5"></div></section>
-</template>
-
-<template id="topic-6">
-  <section class="part">
-    <h2><span class="n">01</span>PL/SQL vs JavaScript</h2>
-    <div class="compare">
-      <div class="h pl">PL/SQL</div><div class="h js">JavaScript</div>
-<pre>BEGIN
-  IF v_qty &lt;= 0 THEN
-    RAISE_APPLICATION_ERROR(-20001,
-      'Quantity must be positive');
-  END IF;
-EXCEPTION
-  WHEN OTHERS THEN
-    log_error(SQLERRM);
-    RAISE;                 <span class="c">-- re-raise</span>
-END;
-
-apex_debug.message('qty=%s', v_qty);</pre>
-<pre>try {
-  if (qty &lt;= 0) {
-    throw new Error(
-      'Quantity must be positive');
+      <div><span class="h pl">PL/SQL / SQL (best when possible)</span>
+<pre><span class="c">-- In the report query: decide the CSS class on the server</span>
+SELECT ename, sal,
+       CASE WHEN sal &gt; 3000 THEN 'u-danger-text' END AS sal_css
+  FROM emp
+<span class="c">-- Column SAL → HTML Expression:
+--   &lt;span class="#SAL_CSS#"&gt;#SAL#&lt;/span&gt;</span></pre></div>
+      <div><span class="h jq">jQuery (after the report renders)</span>
+<pre><span class="c">// Report region Static ID = emp_report
+// DA: Event "After Refresh" on that region + Page Load</span>
+$('#emp_report td[headers="SAL"]').each(function () {
+  if (Number($(this).text()) &gt; 3000) {
+    $(this).addClass('u-danger-text');
   }
-} catch (err) {
-  console.error(err.message);  <span class="c">// SQLERRM</span>
-  throw err;               <span class="c">// re-raise</span>
-} finally {
-  <span class="c">// always runs (no PL/SQL equivalent)</span>
-}
-apex.debug.info('qty=', qty);</pre>
-      <div class="note"><code>apex.debug.info()</code> only prints when the page runs in <b>Debug</b> mode (Developer Toolbar → Debug), so it's safe to leave in production code, just like <code>apex_debug</code>.</div>
+});</pre></div>
     </div>
-  </section>
-  <section class="part">
-    <h2><span class="n">02</span>In your JS Lab, page 6</h2>
-    <div class="shots">
-      <figure class="shot"><img src="img/t6-code.jpg" alt="Error functions"><figcaption><b>Function and Global Variable Declaration</b><code>toQuantity()</code> throws, like <code>RAISE_APPLICATION_ERROR</code>. <code>safeParse()</code> has its own <code>EXCEPTION</code> block.</figcaption></figure>
-      <figure class="shot"><img src="img/t6-running.jpg" alt="Page 6 running"><figcaption><b>'4x2' → caught → shown as an APEX error</b>The bad JSON fell back to <code>{}</code> without crashing the page.</figcaption></figure>
-    </div>
-    <h3 style="margin-top:16px">Console output (real)</h3>
-    <div class="console" style="margin-top:6px"><div>check finished</div><div class="warn">Bad JSON: Expected property name or '}' in JSON at position 1</div></div>
-    <h3 style="margin-top:18px">Debugging in 4 moves</h3>
-    <ol class="steps" style="margin-top:6px">
-      <li><b>Console (F12)</b>: read errors in red. Click the file:line link to jump to the code.</li>
-      <li><b>Sources → breakpoint</b>: click a line number, or put <code>debugger;</code> in your code, then step with F10.</li>
-      <li><b>Developer Toolbar → Debug</b>: turns on <code>apex.debug</code> output and loads full (non-minified) files.</li>
-      <li><b>Developer Toolbar → View Debug</b>: the server-side log (your <code>apex_debug.message</code> calls).</li>
-    </ol>
-  </section>
-  <section class="part">
-    <h2><span class="n">03</span>Do it yourself</h2>
-    <ol class="steps">
-      <li>Run <span class="path">JS Lab → 6. Errors and Debugging</span>, then change Quantity to <code>5</code>. Notice nothing happens: the check only runs on page load. Exercise: add a Dynamic Action (Change on P6_ENAME) that runs the same <code>try/catch</code>.</li>
-      <li>On the Developer Toolbar at the bottom, click <b>Debug</b> and reload. The console now shows the <code>apex.debug.info</code> line.</li>
-    </ol>
-  </section>
-  <section class="part">
-    <h2><span class="n">04</span>Practice</h2>
-    <div class="tbody">
-      <div class="ex" data-id="d6-t1-e1" data-kind="js">
-        <p class="q">Write <code>toNumber(text)</code> that returns a number or throws <code>Error('Not a number: …')</code>. Call it in try/catch for <code>'42'</code> and <code>'4x2'</code>.</p>
-        <pre class="start">// your code
-</pre>
-        <div class="hint"><code>Number.isNaN(Number('4x2'))</code> is <code>true</code>.</div>
-        <pre class="sol">function toNumber(text) {
-  const n = Number(text);
-  if (Number.isNaN(n)) throw new Error(`Not a number: ${text}`);
-  return n;
-}
-for (const t of ['42', '4x2']) {
-  try { console.log(toNumber(t)); } catch (e) { console.error(e.message); }
-}</pre>
-      </div>
-      <div class="ex" data-id="d6-t2-e1" data-kind="js">
-        <p class="q"><b>AI review.</b> An AI wrote this to total order lines. It prints <code>0100200null</code> instead of <code>300</code>. Fix both bugs.</p>
-        <pre class="start">const lines = [{ amt: '100' }, { amt: '200' }, { amt: null }];
-var total = 0;
-lines.forEach(function (l) {
-  total = total + l.amt;
-});
-console.log('Total:', total);</pre>
-        <div class="hint">Values from items/JSON are strings. And what does <code>null</code> become when joined to a string?</div>
-        <pre class="sol">const lines = [{ amt: '100' }, { amt: '200' }, { amt: null }];
-const total = lines.reduce((t, l) => t + Number(l.amt ?? 0), 0);
-console.log('Total:', total); // 300</pre>
-      </div>
-      <div class="ex" data-id="d6-t2-e2" data-kind="js" data-this="P3_DEPT=20" data-page="P3_DEPT=20;P3_MSG=">
-        <p class="q"><b>AI review, new scenario.</b> This Dynamic Action code crashes. Read the error, then fix it.</p>
-        <pre class="start">setTimeout(function () {
-  $s('P3_MSG', 'Dept ' + this.triggeringElement.value + ' loaded');
-  console.log($v('P3_MSG'));
-}, 100);</pre>
-        <div class="hint">Topic 3, the <code>this</code> trap.</div>
-        <pre class="sol">setTimeout(() => {
-  $s('P3_MSG', `Dept ${this.triggeringElement.value} loaded`);
-  console.log($v('P3_MSG'));
-}, 100);</pre>
-      </div>
-    </div>
-  </section>
-  <section class="part"><h2><span class="n">05</span>Quick check</h2><div class="quiz" data-quiz="t6"></div></section>
-</template>
 
-<template id="topic-7">
-  <section class="part">
-    <h2><span class="n">01</span>PL/SQL vs JavaScript</h2>
+    <h3>The jQuery you actually need (8 lines)</h3>
+<pre>$('#emp_region')                 <span class="c">// find by Static ID (# = id)</span>
+$('.my-class')                   <span class="c">// find by CSS class (. = class)</span>
+$('#emp_region').hide();          <span class="c">// .show()  .toggle()</span>
+$('#emp_region').addClass('is-warning');   <span class="c">// .removeClass()</span>
+$('#title').text('New title');    <span class="c">// change visible text (safe)</span>
+$('#emp_region .t-Region-title').css('color', 'red');
+<span class="c">// one click handler for every button with class js-approve, even rows added later:</span>
+$(document).on('click', '.js-approve', function () { console.log($(this).data('id')); });</pre>
+    <div class="note yellow"><b class="tag">Note to remember: decision order</b>1) Can SQL/PL/SQL do it on the server? 2) Can a <b>declarative</b> Dynamic Action do it? 3) Is there an <b>apex.*</b> API (<code>apex.item</code>, <code>apex.region</code>, <code>apex.message</code>)? 4) Only then use <b>jQuery</b>, for plain HTML. Give regions a <b>Static ID</b> (Region → Advanced → Static ID) so <code>#emp_region</code> always works.</div>
+    <div class="note red"><b class="tag">Trap</b>Never build HTML from user input with <code>.html(userText)</code>. That's how XSS attacks happen. Use <code>.text(userText)</code>, or <code>apex.util.escapeHTML(userText)</code>.</div>
+  </section>
+
+  <!-- 5 -->
+  <section class="part" id="s1-exc">
+    <h2><span class="n">05</span>Exceptions: EXCEPTION → try / catch<span class="time">10 min</span></h2>
     <div class="compare">
-      <div class="h pl">PL/SQL package</div><div class="h js">JavaScript "namespace" (module pattern)</div>
-<pre>CREATE PACKAGE hr_emp AS          <span class="c">-- spec</span>
-  FUNCTION annual(p_sal NUMBER) RETURN NUMBER;
-  FUNCTION label(p_ename VARCHAR2, p_sal NUMBER)
-    RETURN VARCHAR2;
-END;
-
-CREATE PACKAGE BODY hr_emp AS     <span class="c">-- body</span>
-  c_max_sal CONSTANT NUMBER := 5000;   <span class="c">-- private</span>
-  FUNCTION fmt(n NUMBER) RETURN VARCHAR2 …  <span class="c">-- private</span>
-  …
-END;
-
-hr_emp.label('KING', 5000);</pre>
-<pre>window.hr = window.hr || {};
-
-hr.emp = (function () {           <span class="c">// body</span>
-  const MAX_SAL = 5000;           <span class="c">// private</span>
-  const fmt = n =&gt; …;             <span class="c">// private</span>
-
-  return {                        <span class="c">// spec (public)</span>
-    annual:  sal =&gt; sal * 12,
-    label:   e   =&gt; …,
-    isValid: sal =&gt; sal &gt; 0 &amp;&amp; sal &lt;= MAX_SAL
-  };
-})();
-
-hr.emp.label({ ename: 'KING', sal: 5000 });</pre>
-      <div class="note">One global name (<code>hr</code>) for the whole app means no clashes with APEX, plug-ins or other pages. Anything not in <code>return { }</code> is private, like the package body.</div>
+      <div><span class="h pl">PL/SQL</span>
+<pre><span class="k">BEGIN</span>
+  IF v_sal &lt;= 0 THEN
+    RAISE_APPLICATION_ERROR(-20001,
+      'Salary must be positive');
+  END IF;
+  v_annual := v_sal * 12;
+<span class="k">EXCEPTION</span>
+  WHEN OTHERS THEN
+    apex_debug.error('Failed: %s', SQLERRM);
+    RAISE;                        <span class="c">-- re-raise</span>
+<span class="k">END;</span></pre></div>
+      <div><span class="h js">JavaScript</span>
+<pre><span class="k">try</span> {
+  if (sal &lt;= 0) {
+    throw new Error('Salary must be positive');
+  }
+  annual = sal * 12;
+} <span class="k">catch</span> (err) {               <span class="c">// WHEN OTHERS</span>
+  apex.debug.error('Failed:', err.message);  <span class="c">// SQLERRM</span>
+  throw err;                      <span class="c">// re-raise</span>
+} <span class="k">finally</span> {
+  <span class="c">// always runs - no PL/SQL twin</span>
+}</pre></div>
     </div>
-  </section>
-  <section class="part">
-    <h2><span class="n">02</span>Static Application Files: where serious code goes</h2>
-    <ol class="steps">
-      <li><span class="path">Shared Components → Static Application Files → Create File</span>. Set Directory to <code>js</code> and File Name to <code>hr.js</code>, then click Create. The code editor opens, so you can write the file right there with no upload needed.</li>
-      <li>Click <b>Save Changes</b>. APEX says <i>"File saved and minified"</i> and gives you the <b>Reference</b> <code>#APP_FILES#js/hr#MIN#.js</code>.</li>
-      <li>Load it: <b>one page</b> → Page → JavaScript → <b>File URLs</b>. <b>Every page</b> → <span class="path">Shared Components → User Interface Attributes → JavaScript → File URLs</span>.</li>
-      <li>Run the page. In DevTools → Network you'll see <code>…/files/static/v…/js/hr.js</code>. The <code>v…</code> number changes when you edit the file, so browsers fetch the new copy.</li>
-    </ol>
-    <div class="shots">
-      <figure class="shot"><img src="img/t7-hr-js-file.jpg" alt="hr.js in the APEX file editor"><figcaption><b>js/hr.js in the APEX file editor</b>Reference <code>#APP_FILES#js/hr#MIN#.js</code>. APEX minified it on save.</figcaption></figure>
-      <figure class="shot"><img src="img/t7-file-urls.jpg" alt="File URLs on page 7"><figcaption><b>Page 7 → JavaScript → File URLs</b>The page itself now has no package code, only a note.</figcaption></figure>
-      <figure class="shot"><img src="img/t7-running.jpg" alt="Page 7 running"><figcaption><b>Page 7 running with hr.js</b><code>typeof fmt = undefined</code>: the private helper really is private.</figcaption></figure>
-      <figure class="shot"><img src="img/t7-static-files.jpg" alt="Static Application Files list"><figcaption><b>Static Application Files list</b>The Reference column is what you paste into File URLs.</figcaption></figure>
-    </div>
-    <div class="callout" style="margin-top:14px"><b>Substitution strings:</b> <code>#APP_FILES#</code> (this app) · <code>#WORKSPACE_FILES#</code> (all apps in ANAND_DEV) · <code>#MIN#</code> (minified normally, full source in Debug) · <code>#APEX_FILES#</code> (APEX's own library).</div>
-  </section>
-  <section class="part">
-    <h2><span class="n">03</span>Do it yourself</h2>
-    <ol class="steps">
-      <li>Open <span class="path">Static Application Files → js/hr.js</span> and add a function <code>bonus: sal =&gt; sal * 0.1</code> inside <code>return { }</code>. Save.</li>
-      <li>On page 7, add <code>console.log(hr.emp.bonus(5000));</code> to Execute when Page Loads. Run it and check for 500 in the console.</li>
-      <li>Move the File URL to <b>User Interface Attributes</b> so every JS Lab page can use <code>hr.emp</code>.</li>
-    </ol>
-  </section>
-  <section class="part">
-    <h2><span class="n">04</span>Practice</h2>
-    <div class="tbody">
-      <div class="ex" data-id="d5-t1-e1" data-kind="js">
-        <p class="q">Create <code>window.inv</code> with <code>inv.tax</code> exposing <code>gst(amount)</code> (18%) and <code>total(amount)</code>. Keep the rate private.</p>
-        <pre class="start">// your code
-</pre>
-        <div class="hint"><code>(function(){ const RATE = 0.18; return { … }; })()</code></div>
-        <pre class="sol">window.inv = window.inv || {};
-inv.tax = (function () {
-  const RATE = 0.18;
-  const gst = amt => amt * RATE;
-  return { gst, total: amt => amt + gst(amt) };
-})();
-console.log(inv.tax.gst(1000), inv.tax.total(1000));</pre>
-      </div>
-      <div class="ex" data-id="d5-t1-e2" data-kind="js">
-        <p class="q">New scenario, a library. Build <code>lib.loans</code> with a private <code>Map</code> and public <code>borrow(bookId, member)</code>, <code>giveBack(bookId)</code> and <code>whoHas(bookId)</code>. Borrowing a book that's already out returns <code>false</code>.</p>
-        <pre class="start">// your code
-</pre>
-        <div class="hint"><code>const loans = new Map();</code> then <code>has / set / delete / get</code>.</div>
-        <pre class="sol">window.lib = window.lib || {};
-lib.loans = (function () {
-  const loans = new Map();
-  return {
-    borrow(id, m) { if (loans.has(id)) return false; loans.set(id, m); return true; },
-    giveBack(id) { return loans.delete(id); },
-    whoHas(id) { return loans.get(id) ?? 'available'; }
-  };
-})();
-console.log(lib.loans.borrow('B1', 'Asha'), lib.loans.borrow('B1', 'Ravi'), lib.loans.whoHas('B1'));</pre>
-      </div>
-      <div class="ex" data-id="d5-t1-e3" data-kind="text">
-        <p class="q">Stretch: map these PL/SQL package ideas to the JS pattern: spec, body, body-level variable, public function, initialisation section.</p>
-        <pre class="start"></pre>
-        <div class="hint">The function around the code runs once. What does that match?</div>
-        <pre class="sol">Spec → the returned object. Body → the function scope.
-Body-level variable → const/let inside the function (private, lives for the page).
-Public function → a property of the returned object.
-Initialisation section → code before `return`; runs once when the file loads.</pre>
-      </div>
-    </div>
-  </section>
-  <section class="part"><h2><span class="n">05</span>Quick check</h2><div class="quiz" data-quiz="t7"></div></section>
-</template>
+    <div class="tablewrap"><table class="dt">
+      <tr><th>PL/SQL</th><th>JavaScript</th></tr>
+      <tr><td><code>RAISE_APPLICATION_ERROR(-20001, msg)</code></td><td><code>throw new Error(msg)</code></td></tr>
+      <tr><td><code>EXCEPTION WHEN OTHERS THEN</code></td><td><code>catch (err) { … }</code></td></tr>
+      <tr><td><code>SQLERRM</code></td><td><code>err.message</code></td></tr>
+      <tr><td><code>RAISE;</code></td><td><code>throw err;</code></td></tr>
+      <tr><td><code>WHEN NO_DATA_FOUND</code> (a specific error)</td><td><code>if (err instanceof MyError) { … } else { throw err; }</code></td></tr>
+      <tr><td><code>apex_error.add_error(…)</code></td><td><code>apex.message.showErrors([…])</code></td></tr>
+      <tr><td><code>apex_debug.message(…)</code></td><td><code>apex.debug.info(…)</code> (only prints in Debug mode)</td></tr>
+    </table></div>
 
-<template id="topic-new">
-  <section class="part">
-    <h2><span class="n">01</span>What changed in APEX recently</h2>
-    <div class="prose"><p>You know APEX well, so these are the things that look different in your <b>APEX 26.2</b> workspace compared with older versions. The screenshots below are from your own ANAND_DEV. Each one gets a full topic in a later week.</p></div>
-    <div class="callout new" style="margin-top:12px"><b>Template Components</b>: build your own reusable UI pieces, like a status badge or an employee card, with HTML placeholders and no PL/SQL render code. They're the modern alternative to many plug-ins. <i>Week 7.</i></div>
-    <div class="callout new"><b>Workflows and Task Definitions</b>: approval flows built into APEX, under Shared Components → Workflows and Automations (visible in the screenshot below). <i>Later topic.</i></div>
-    <div class="callout new"><b>Generative AI</b>: the "Enable Generative AI" banner on your workspace home. APEX can call an AI service for assistants and SQL help. Needs an AI service configured; optional.</div>
-    <div class="callout new"><b>Working Copies</b>: the "Working Copies" column in your App Builder list. Branch an app, change it, and merge back, a bit like Git. <i>Week 9.</i></div>
-    <div class="callout new"><b>Static file editor with automatic minify</b>: create and edit <code>.js</code>/<code>.css</code> files right in the builder, and APEX minifies them on save (topic 7 screenshot).</div>
-    <div class="callout new"><b>Code editor in Page Designer</b>: the ↗ icon next to every code box opens a full editor with syntax colouring and <b>Save and Run Page</b>.</div>
-    <div class="shots">
-      <figure class="shot"><img src="img/shared-components.jpg" alt="Shared Components"><figcaption><b>Shared Components in 26.2</b>Note Workflows and Automations, Generative AI, JSON Sources and Static Application Files.</figcaption></figure>
-      <figure class="shot"><img src="img/app-menu.jpg" alt="JS Lab menu"><figcaption><b>Your JS Lab app</b>One page per topic. It opens without sign-in, so you can practise from any computer.</figcaption></figure>
+    <div class="codehead"><span>A complete pattern: <span class="where">Dynamic Action · Change on P1_SAL · Execute JavaScript Code</span></span></div>
+<pre><span class="c">// Validate salary in the browser, show it the APEX way.
+// PL/SQL twin is an item Validation with apex_error - keep that too!</span>
+apex.message.clearErrors();                       <span class="c">// clear old messages first</span>
+try {
+  const text = apex.item('P1_SAL').getValue();
+  const sal  = Number(text);
+
+  if (apex.item('P1_SAL').isEmpty()) throw new Error('Salary is required');
+  if (Number.isNaN(sal))             throw new Error(`'${text}' is not a number`);
+  if (sal &lt; 800 || sal &gt; 5000)       throw new Error('Salary must be between 800 and 5000');
+
+  apex.item('P1_ANNUAL').setValue(sal * 12, null, true);
+  apex.message.showPageSuccess('Salary OK');
+} catch (err) {
+  apex.message.showErrors([{
+    type:     'error',
+    location: ['page', 'inline'],    <span class="c">// top of page AND under the item</span>
+    pageItem: 'P1_SAL',
+    message:  err.message,
+    unsafe:   false                  <span class="c">// escape the text - always false</span>
+  }]);
+} finally {
+  apex.debug.info('P1_SAL checked:', apex.item('P1_SAL').getValue());
+}</pre>
+    <div class="note yellow"><b class="tag">Note to remember</b>Browser validation is for <b>speed</b>; server validation (PL/SQL) is for <b>safety</b>. Do both. Always call <code>apex.message.clearErrors()</code> before showing new errors, or old ones stay on screen.</div>
+    <div class="note red"><b class="tag">Trap</b>An error you don't catch stops the rest of that JavaScript, and the user sees nothing. Only the console (F12) shows it in red. If "nothing happens", open the console first.</div>
+  </section>
+
+  <!-- 6 -->
+  <section class="part" id="s1-practice">
+    <h2><span class="n">06</span>Practice: try it in your workspace<span class="time">15 min</span></h2>
+    <div class="prose"><p>Use any app (your office APEX or <b>ANAND_DEV</b>). For each task: do it, run the page, then press <b>I got it</b> or <b>I didn't get it</b>. If you didn't, the answer opens step by step. You can also paste your code into the box to keep it.</p></div>
+    <div id="s1-tasks"></div>
+  </section>
+
+  <!-- 7 -->
+  <section class="part" id="s1-summary">
+    <h2><span class="n">07</span>One-page summary<span class="time">read tomorrow</span></h2>
+    <div class="noprint" style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" id="print">Print / save as PDF</button><span class="muted" style="font-size:13px">Prints only this summary on one page.</span></div>
+    <div class="sheet" id="sheet">
+      <div class="label">APEX Expert Drills · Session 1</div>
+      <h1>JavaScript in APEX, the PL/SQL way</h1>
+      <div class="cols">
+        <div class="box"><h3>1. Where JS lives</h3><ul>
+          <li><b>Function &amp; Global Var Declaration</b>: page functions (like a package)</li>
+          <li><b>Execute when Page Loads</b>: runs once on open</li>
+          <li><b>Dynamic Action → Execute JS Code</b>: runs on an event</li>
+          <li><b>Static file</b> <code>#APP_FILES#js/x#MIN#.js</code>: shared code</li></ul></div>
+        <div class="box"><h3>2. Variables</h3>
+<pre>const BONUS = 0.10;   // CONSTANT
+let sal = 5000;       // changes
+let comm = null;      // NULL
+`${ename} ${sal}`     // ename||' '||sal</pre></div>
+        <div class="box"><h3>3. Page items</h3>
+<pre>apex.item('P1_SAL').getValue()  // :P1_SAL
+apex.item('P1_SAL').setValue(v) // :P1_SAL := v
+$v('P1_SAL')  $s('P1_SAL', v)   // short forms
+.isEmpty() .show() .hide() .enable() .disable()
+setValue(v, null, true)  // no Change event</pre></div>
+        <div class="box"><h3>4. Exceptions</h3>
+<pre>try { … throw new Error('msg'); }
+catch (err) { err.message }   // SQLERRM
+finally { … }                 // always
+apex.message.clearErrors();
+apex.message.showErrors([{type:'error',
+  location:['page','inline'], pageItem:'P1_SAL',
+  message:'…', unsafe:false}]);
+apex.message.showPageSuccess('OK');</pre></div>
+        <div class="box"><h3>5. Which tool?</h3><ul>
+          <li><b>PL/SQL</b>: data, DML, security, final validation</li>
+          <li><b>Declarative DA</b>: show/hide/set value/refresh</li>
+          <li><b>apex.* API</b>: items, regions, messages</li>
+          <li><b>jQuery</b>: plain HTML, CSS classes, click handlers: <code>$('#static_id')</code>, <code>.addClass</code>, <code>.text</code>, <code>$(document).on('click', '.cls', fn)</code></li></ul></div>
+        <div class="box y"><h3>Notes to remember</h3><ul>
+          <li><code>const</code> by default, <code>let</code> if it changes, never <code>var</code></li>
+          <li>Compare with <code>===</code> and <code>!==</code></li>
+          <li>Use <code>apex.item()</code> for items, not <code>$('#P1_X').val()</code></li>
+          <li>Give regions a <b>Static ID</b> for jQuery and <code>apex.region</code></li>
+          <li>Browser check = speed, PL/SQL check = safety. Do both</li></ul></div>
+        <div class="box r"><h3>Traps</h3><ul>
+          <li>Item values are <b>strings</b>: <code>'5000' + 100 = '5000100'</code>. Use <code>Number()</code></li>
+          <li><code>''</code> is not <code>null</code> in JS. Use <code>isEmpty()</code> or <code>!value</code></li>
+          <li><code>setValue</code> fires Change, so DAs can loop. Pass <code>true</code> as the 3rd argument</li>
+          <li>Never <code>.html(userText)</code>. Use <code>.text()</code> or <code>apex.util.escapeHTML</code></li>
+          <li>"Nothing happens" → open the console (F12): the error is in red</li></ul></div>
+        <div class="box"><h3>Console = DBMS_OUTPUT</h3><ul>
+          <li>F12 (Mac ⌥⌘I) → <b>Console</b></li>
+          <li><code>console.log(x)</code>, <code>console.table(rows)</code></li>
+          <li><code>apex.debug.info(x)</code>: shows only in Debug mode</li>
+          <li>Type <code>$v('P1_SAL')</code> in the console to test live</li></ul></div>
+      </div>
     </div>
   </section>
 </template>
 
 <script>
-/* ======================= DATA ======================= */
-const LAB = 'https://oracleapex.com/ords/r/anand_dev/js-lab/';
-const TOPICS = [
-  { n:1, id:'t1', title:'Variables and where JS lives', sub:'let, const, DECLARE vs JS · page JavaScript properties', page:'home', line:'JavaScript variables are PL/SQL variables without types, and APEX gives you five places to put the code.' },
-  { n:2, id:'t2', title:'Strings and numbers', sub:'UPPER, SUBSTR, ||, NVL in JS · the string-number trap', page:'2-strings-and-numbers', line:'Every PL/SQL string function has a JavaScript twin. The trap: page item values are always strings.' },
-  { n:3, id:'t3', title:'Functions and Dynamic Actions', sub:'functions, arrow functions, this.triggeringElement', page:'3-functions-and-dynamic-actions', line:'Functions look like PL/SQL functions without types. Dynamic Actions run them on browser events.' },
-  { n:4, id:'t4', title:'Page items and messages', sub:'apex.item, $v/$s, apex.message vs apex_error', page:'4-page-items-and-messages', line:'Read and write :P_ITEMS from JavaScript and show APEX errors instantly, without a submit.' },
-  { n:5, id:'t5', title:'Arrays and objects', sub:'records and collections · filter/map/reduce = SQL', page:'5-arrays-and-objects', line:'Objects are records, arrays are collections, and the array methods read like SQL.' },
-  { n:6, id:'t6', title:'Errors and debugging', sub:'try/catch vs EXCEPTION · DevTools · apex.debug', page:'6-errors-and-debugging', line:'try/catch is your EXCEPTION block, throw is RAISE_APPLICATION_ERROR, and DevTools is your SQL Developer debugger.' },
-  { n:7, id:'t7', title:'Organizing code', sub:'namespace = package · Static Application Files', page:'7-organizing-code', line:'Write JavaScript like a PL/SQL package: one namespace, private helpers, in a cached static file.' },
-  { n:8, id:'tnew', tpl:'topic-new', title:'What\'s new in APEX', sub:'what looks different in 26.2 vs older versions', page:'home', line:'A quick tour of the newer features you can see in your own workspace.' }
-];
-const UPCOMING = [
-  ['Week 2','Async JavaScript and AJAX: apex.server.process, promises, async/await'],
-  ['Week 3','APEX JS API in depth: apex.region, Interactive Grid model and view'],
-  ['Week 4','CSS: the cascade, specificity and Universal Theme'],
-  ['Week 5','Layout: Flexbox, Grid, responsive pages'],
-  ['Week 6','Theming: Theme Roller, custom styles, dark mode'],
-  ['Week 7','Template Components'],
-  ['Week 8','Plug-ins'],
-  ['Weeks 9–12','Static files and libraries, performance, front-end security, capstone']
-];
-const QUIZ = {
-  t1:[{q:'Which keyword should be your default for a new variable?',o:['var','let','const'],a:2,why:'const by default; let only if the value changes.'},
-      {q:'Where do you put code that should run once when the page opens?',o:['Function and Global Variable Declaration','Execute when Page Loads','A PL/SQL process'],a:1,why:'Execute when Page Loads runs after the page renders.'},
-      {q:'const emp = {sal:100}; emp.sal = 200; What happens?',o:['TypeError','emp.sal becomes 200','Nothing'],a:1,why:'const blocks reassigning the name, not changing its contents.'}],
-  t2:[{q:"'3000' + 100 in JavaScript is…",o:['3100',"'3000100'",'Error'],a:1,why:'+ with a string joins. Convert with Number() first.'},
-      {q:"PL/SQL SUBSTR(s,1,3) is JavaScript…",o:['s.substring(1,3)','s.substring(0,3)','s.substr(1,3)'],a:1,why:'JavaScript counts from 0.'},
-      {q:'NVL(comm, 0) in JavaScript is…',o:['comm || 0 or comm ?? 0','NVL(comm,0)','comm.nvl(0)'],a:0,why:'?? replaces only null/undefined; || also replaces 0 and an empty string.'}],
-  t3:[{q:'In a DA, this.triggeringElement is…',o:['The page','The element that fired the event','The affected region'],a:1,why:'APEX sets this for Execute JavaScript Code.'},
-      {q:'Inside setTimeout(function(){…}) in a DA, this is…',o:['Still the DA context','window/undefined','The item'],a:1,why:'Regular functions lose this; use an arrow.'},
-      {q:'const gst = (a, r = 0.18) => a * r; gst(1000) returns…',o:['180','1000','undefined'],a:0,why:'Default parameter 0.18, like DEFAULT in PL/SQL.'}],
-  t4:[{q:'Which reads any APEX item type correctly?',o:["$('#P1_X').val()","apex.item('P1_X').getValue()","document.P1_X"],a:1,why:'apex.item knows how every item type stores its value.'},
-      {q:"setValue('5', null, true): what does true do?",o:['Read-only','Suppresses the change event','Submits'],a:1,why:'It stops other DAs firing, which prevents loops.'},
-      {q:'Why keep the PL/SQL validation too?',o:['APEX requires it','Browser code can be bypassed','It is faster'],a:1,why:'The server is the real gate.'}],
-  t5:[{q:'SQL WHERE maps to…',o:['map','filter','reduce'],a:1,why:'filter keeps the matching rows.'},
-      {q:'emps[0] is…',o:['The first row','Nothing (arrays start at 1)','The last row'],a:0,why:'Arrays start at 0.'},
-      {q:'{ ...emp, sal: 0 } does what?',o:['Changes emp','Makes a new copy with sal 0','Deletes sal'],a:1,why:'Spread copies; emp is untouched.'}],
-  t6:[{q:"JavaScript's RAISE_APPLICATION_ERROR is…",o:['throw new Error(msg)','console.error(msg)','return false'],a:0,why:'throw raises; catch handles it.'},
-      {q:'When does apex.debug.info() print?',o:['Always','Only in Debug mode','Never in production'],a:1,why:'It only prints in Debug mode, so it is safe to leave in.'},
-      {q:'finally { } runs…',o:['Only on error','Only on success','Always'],a:2,why:'Always, error or not.'}],
-  t7:[{q:'In the module pattern, the PL/SQL package spec is…',o:['The returned object','The outer function','window'],a:0,why:'What is returned is public.'},
-      {q:'#MIN# in a file reference means…',o:['Minify at runtime','Minified normally, full source in Debug','Smallest file'],a:1,why:'You get readable code when debugging.'},
-      {q:'To load a JS file on every page, use…',o:['Each page File URLs','User Interface Attributes → File URLs','A Dynamic Action'],a:1,why:'App-level File URLs load on every page.'}]
+/* ======================= PRACTICE TASKS ======================= */
+const TASKS = {
+  s1: [
+    { id:'s1-q1', title:'Set and calculate on page load',
+      task:`<p>Create items <code>P1_ENAME</code> (Text), <code>P1_SAL</code> (Number) and <code>P1_ANNUAL</code> (Display Only). When the page opens, set the name to <b>BLAKE</b> and the salary to <b>2850</b>, and show the annual salary.</p>`,
+      steps:[
+        `Click the <b>page name</b> at the top of the tree → right panel → <b>JavaScript → Execute when Page Loads</b>. This is your "run once on open" block.`,
+        `Write the values with <code>setValue</code>, which is like <code>:P1_ENAME := 'BLAKE';</code>:<pre>apex.item('P1_ENAME').setValue('BLAKE');
+apex.item('P1_SAL').setValue('2850');</pre>`,
+        `Read the salary back and <b>convert it</b>. getValue always returns a string:<pre>const sal = Number(apex.item('P1_SAL').getValue());   // 2850</pre>`,
+        `Write the result:<pre>apex.item('P1_ANNUAL').setValue(sal * 12);   // 34200</pre>`,
+        `Save → Run. P1_ANNUAL shows <b>34200</b>. If it's empty, press F12 and read the red error. A misspelled item name is the usual cause.`
+      ]},
+    { id:'s1-q2', title:'Find the bug: 2850100',
+      task:`<p>A colleague wrote this in <b>Execute when Page Loads</b>, and P1_ANNUAL shows <code>2850100</code> instead of <code>2950</code>. Fix it.</p><pre>var raise = $v('P1_SAL') + 100;
+$s('P1_ANNUAL', raise);</pre>`,
+      steps:[
+        `<code>$v('P1_SAL')</code> returns the <b>string</b> <code>'2850'</code>, not a number.`,
+        `<code>'2850' + 100</code> joins the text, like <code>'2850' || '100'</code> in PL/SQL, so you get <code>'2850100'</code>.`,
+        `Convert first with <code>Number()</code>, your <code>TO_NUMBER</code>. Also change <code>var</code> to <code>const</code>, because the value never changes:<pre>const raise = Number($v('P1_SAL')) + 100;
+$s('P1_ANNUAL', raise);   // 2950</pre>`,
+        `Rule: <b>every</b> item value is a string. Wrap it in <code>Number()</code> before any maths.`
+      ]},
+    { id:'s1-q3', title:'Validate salary with try/catch',
+      task:`<p>Create a Dynamic Action: <b>Change</b> on <code>P1_SAL</code> → <b>Execute JavaScript Code</b>. If the salary is empty, not a number, or outside 800–5000, show an <b>inline + page error</b>. Otherwise set P1_ANNUAL and show "Salary OK". Test with <code>abc</code>, <code>9000</code> and <code>1250</code>.</p>`,
+      steps:[
+        `Right-click <b>P1_SAL</b> → <b>Create Dynamic Action</b>. Event: <b>Change</b>. Click the <b>Show</b> action and change it to <b>Execute JavaScript Code</b>.`,
+        `Start with <code>apex.message.clearErrors();</code> so old messages disappear.`,
+        `Inside <code>try { }</code>, read and convert, then <code>throw</code> for each bad case. This is like <code>RAISE_APPLICATION_ERROR</code>:<pre>const text = $v('P1_SAL'), sal = Number(text);
+if (!text) throw new Error('Salary is required');
+if (Number.isNaN(sal)) throw new Error(\`'\${text}' is not a number\`);
+if (sal < 800 || sal > 5000) throw new Error('Salary must be between 800 and 5000');</pre>`,
+        `Success path, still inside <code>try</code>. The <code>true</code> stops the change event firing again:<pre>apex.item('P1_ANNUAL').setValue(sal * 12, null, true);
+apex.message.showPageSuccess('Salary OK');</pre>`,
+        `In <code>catch (err)</code>, show the message the APEX way:<pre>apex.message.showErrors([{ type:'error', location:['page','inline'],
+  pageItem:'P1_SAL', message: err.message, unsafe:false }]);</pre>`,
+        `Test: <code>abc</code> → "'abc' is not a number"; <code>9000</code> → range error under the field and at the top; <code>1250</code> → green "Salary OK" and annual 15000.`
+      ]},
+    { id:'s1-q4', title:'jQuery: highlight a region',
+      task:`<p>Give a region the <b>Static ID</b> <code>emp_region</code>. Add a Switch item <code>P1_HIGHLIGHT</code>. When it's switched on, add the CSS class <code>u-color-9</code> to the region; when it's off, remove it. Then answer: why jQuery here and not <code>apex.item</code>?</p>`,
+      steps:[
+        `Region → <b>Advanced → Static ID</b> = <code>emp_region</code>. Now <code>$('#emp_region')</code> always finds it. The <code>#</code> means "by id".`,
+        `Dynamic Action: <b>Change</b> on <code>P1_HIGHLIGHT</code> → Execute JavaScript Code. A Switch returns <code>'Y'</code> or <code>'N'</code> by default:<pre>const on = $v('P1_HIGHLIGHT') === 'Y';</pre>`,
+        `jQuery's <code>toggleClass(name, true/false)</code> adds or removes the class in one line:<pre>$('#emp_region').toggleClass('u-color-9', on);</pre>`,
+        `Why jQuery? A region is <b>not a page item</b>, so <code>apex.item</code> doesn't apply. Adding a CSS class to plain HTML is exactly the job jQuery is for.`,
+        `Bonus: with no code at all, a declarative DA <b>Add Class</b> / <b>Remove Class</b> with a client-side condition does the same thing. Always check the declarative actions first.`
+      ]},
+    { id:'s1-q5', title:'Choose the right tool',
+      task:`<p>Write <b>PL/SQL</b>, <b>Declarative DA</b>, <b>apex.* JS</b> or <b>jQuery</b> for each:</p><ol type="a"><li>Save a new employee row</li><li>Hide P1_COMM unless JOB = SALESMAN</li><li>Show "Salary OK" instantly while typing</li><li>Stop a clerk from approving his own leave</li><li>Turn every negative number in a report red</li><li>Refresh the report after a modal dialog closes</li></ol>`,
+      steps:[
+        `<b>a) PL/SQL.</b> DML runs on the server (a Form region's process or your own PL/SQL).`,
+        `<b>b) Declarative DA.</b> Show/Hide with a client-side condition "Item = Value" on P1_JOB, no code.`,
+        `<b>c) apex.* JS:</b> <code>apex.message.showPageSuccess</code> in an Execute JavaScript Code DA.`,
+        `<b>d) PL/SQL</b> (an Authorization Scheme or validation). Security must never rely on the browser.`,
+        `<b>e) SQL/PL/SQL first:</b> a CASE that returns a CSS class in the query. Otherwise <b>jQuery</b> after refresh. It's plain HTML, not an item.`,
+        `<b>f) Declarative DA:</b> event <b>Dialog Closed</b> → action <b>Refresh</b> on the report region. In code, the same thing is <code>apex.region('emp_report').refresh()</code>.`
+      ]}
+  ]
 };
+const SESSIONS = [
+  { id:'s1', n:1, title:'JavaScript in APEX, the PL/SQL way', sub:'Where JS lives · variables & types · page items · JS vs jQuery vs PL/SQL · exceptions · 5 practice tasks', ready:true },
+  { id:'s2', n:2, title:'AJAX: JavaScript calling your PL/SQL', sub:'apex.server.process · Ajax Callback processes · JSON · promises/async-await · error handling', ready:false },
+  { id:'s3', n:3, title:'Functions, arrays and objects for APEX data', sub:'arrow functions · records/collections · filter/map/reduce as SQL', ready:false },
+  { id:'s4', n:4, title:'Interactive Grid with JavaScript', sub:'IG model, view, toolbar actions, selected rows', ready:false },
+  { id:'s5', n:5, title:'CSS for APEX developers', sub:'selectors, specificity, Universal Theme classes, Theme Roller', ready:false }
+];
 
 /* ===================== STATE + SAVING ===================== */
 const LS = 'apexdrills.v1';
@@ -1085,211 +724,78 @@ const remote = (function(){
 
 
 
-/* ======================= HELPERS ======================= */
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-function updateStats(){
-  const d = document.getElementById('st-done'), e = document.getElementById('st-ex');
-  if(d) d.textContent = TOPICS.filter(t => state.days[t.id]?.done).length + ' / ' + TOPICS.length;
-  if(e) e.textContent = Object.values(state.answers).filter(a => a && a.text && a.text.trim().length > 15).length;
-}
+function updateStats(){}
 
 /* ======================= HOME ======================= */
 function renderHome(){
   const v = document.getElementById('view');
+  const got = id => (TASKS[id] || []).filter(t => state.quiz[t.id]?.pick === 1).length;
   v.innerHTML = `<header class="head">
-      <div class="label">Week 1 · JavaScript for APEX, the PL/SQL developer's way</div>
+      <div class="label">1-hour sessions · built on your PL/SQL</div>
       <h1>APEX Expert Drills</h1>
-      <p class="sub">Each topic shows the PL/SQL you know next to the JavaScript you're learning, then how to use it in APEX, with real screenshots from your ANAND_DEV workspace. Every topic has a matching page in the <a href="${LAB}home" target="_blank" rel="noopener">JS Lab app</a> to try it live.</p>
-      <div class="stats"><div class="stat"><span class="label">Topics done</span><b id="st-done">0</b></div><div class="stat"><span class="label">Exercises written</span><b id="st-ex">0</b></div></div>
+      <p class="sub">Each session is 1 hour: the concept with PL/SQL next to JavaScript, code you can paste straight into APEX, notes to remember, traps, practice with step-by-step answers, and a one-page summary to read the next day.</p>
     </header>
-    <div class="topics">${TOPICS.map(t => `<button class="tcard ${state.days[t.id]?.done ? 'done' : ''}" data-t="${t.id}">
-      <span class="num">${t.id === 'tnew' ? '★' : t.n}</span><span><span class="t">${esc(t.title)}</span><span class="s" style="display:block">${esc(t.sub)}</span></span></button>`).join('')}</div>
-    <div class="week-title"><span class="label">Coming next</span></div>
-    <div class="upcoming">${UPCOMING.map(([w, t]) => `<div><b>${w}</b>${esc(t)}</div>`).join('')}</div>
-    <footer>Practice workspace ANAND_DEV on oracleapex.com · JS Lab is app 161768 · Your answers save in this browser, and sync across devices once you enter your APEX passphrase in the top bar.</footer>`;
-  v.querySelectorAll('.tcard').forEach(b => b.onclick = () => { location.hash = b.dataset.t; });
-  updateStats();
+    <div class="sessions">${SESSIONS.map(s => `<button class="scard ${s.ready ? '' : 'soon'}" ${s.ready ? `data-s="${s.id}"` : 'aria-disabled="true"'}>
+      <span class="num">${s.n}</span><span><span class="t">${esc(s.title)}</span><span class="s" style="display:block">${esc(s.sub)}</span>
+      <span class="s" style="display:block;margin-top:4px;font-weight:600">${s.ready ? `${got(s.id)} / ${(TASKS[s.id]||[]).length} practice tasks done · <a href="#${s.id}-summary" onclick="event.stopPropagation()">summary</a>` : 'Coming next'}</span></span></button>`).join('')}</div>
+    <footer>Practise in any APEX: your office workspace or ANAND_DEV on oracleapex.com. Your "I got it" marks and notes save in this browser.</footer>`;
+  v.querySelectorAll('.scard[data-s]').forEach(b => b.onclick = () => { location.hash = b.dataset.s; });
   window.scrollTo(0, 0);
 }
 
-/* ======================= TOPIC ======================= */
-function renderTopic(id){
-  const t = TOPICS.find(x => x.id === id);
-  const tpl = t && document.getElementById(t.tpl || ('topic-' + t.n));
-  if(!tpl){ location.hash = ''; return; }
+/* ======================= SESSION ======================= */
+function renderSession(id, anchor){
+  const s = SESSIONS.find(x => x.id === id), tpl = document.getElementById(id);
+  if(!s || !tpl){ renderHome(); return; }
   const v = document.getElementById('view');
-  const done = state.days[t.id]?.done;
-  const idx = TOPICS.indexOf(t), next = TOPICS[idx + 1];
-  v.innerHTML = `<button class="back" id="back">← All topics</button>
-    <div class="topic-head"><div><div class="label">${t.id === 'tnew' ? 'Overview' : 'Topic ' + t.n}</div><h1>${esc(t.title)}</h1><p class="oneline">${esc(t.line)}</p></div>
-      <div class="actions"><a class="btn" href="${LAB}${t.page}" target="_blank" rel="noopener">Open in JS Lab ↗</a>
-      <button class="btn ${done ? 'done' : 'primary'}" id="done">${done ? 'Done ✓' : 'Mark as done'}</button></div></div>`;
+  v.innerHTML = `<button class="back" id="back">← All sessions</button>
+    <div class="label">Session ${s.n} · about 1 hour</div><h1>${esc(s.title)}</h1>`;
   v.appendChild(tpl.content.cloneNode(true));
-  if(next){ const nb = document.createElement('div'); nb.style.margin = '30px 0'; nb.innerHTML = `<button class="btn primary" id="next">Next: ${esc(next.title)} →</button>`; v.appendChild(nb); nb.querySelector('#next').onclick = () => { location.hash = next.id; }; }
   document.getElementById('back').onclick = () => { location.hash = ''; };
-  document.getElementById('done').onclick = () => {
-    state.days[t.id] = { done: !state.days[t.id]?.done, at: Date.now() };
-    saveDoc('days/' + t.id, state.days[t.id]); renderTopic(id);
-  };
-  v.querySelectorAll('.ex').forEach(buildExercise);
-  v.querySelectorAll('[data-quiz]').forEach(buildQuiz);
-  v.querySelectorAll('figure.shot img').forEach(img => img.onclick = () => {
-    const lb = document.getElementById('lb'); lb.querySelector('img').src = img.src;
-    lb.querySelector('p').textContent = img.closest('figure').querySelector('b')?.textContent || '';
-    try{ lb.showModal(); }catch(e){ lb.setAttribute('open', ''); }
-  });
+  const tasksEl = v.querySelector('#' + id + '-tasks');
+  (TASKS[id] || []).forEach((t, i) => tasksEl.appendChild(buildTask(t, i)));
+  v.querySelector('#print')?.addEventListener('click', () => { window.print(); });
+  if(anchor){ const a = document.getElementById(anchor); if(a){ a.scrollIntoView(); return; } }
   window.scrollTo(0, 0);
 }
-document.getElementById('lb').addEventListener('click', e => e.currentTarget.close());
 
-/* ===================== PLAY RUNTIME (fake APEX) ===================== */
-function parsePage(spec){ const o = {}; (spec||'').split(';').filter(Boolean).forEach(p => { const i = p.indexOf('='); o[p.slice(0,i)] = p.slice(i+1); }); return o; }
-function buildRuntime(container, pageSpec, thisSpec){
-  const items = parsePage(pageSpec);
-  const out = container.querySelector('.out'), page = container.querySelector('.fakepage'), banners = container.querySelector('.banners');
-  const inputs = {};
-  if(page){
-    page.innerHTML = '';
-    Object.keys(items).forEach(k => {
-      const lab = document.createElement('label'); lab.textContent = k;
-      const inp = document.createElement('input'); inp.value = items[k]; inp.id = container.dataset.uid + '-' + k;
-      lab.appendChild(inp); page.appendChild(lab); inputs[k] = inp;
-    });
-  }
-  const val = k => inputs[k] ? inputs[k].value : (items[k] ?? '');
-  const log = (cls, args) => { const line = document.createElement('div'); if(cls) line.className = cls;
-    line.textContent = args.map(a => a === undefined ? 'undefined' : typeof a === 'string' ? a : (() => { try { return JSON.stringify(a, null, Array.isArray(a)||typeof a!=='object'?0:1); } catch(e){ return String(a); } })()).join(' ');
-    out.appendChild(line); };
-  const banner = (cls, t) => { const b = document.createElement('div'); b.className = 'banner ' + cls; b.textContent = t; banners.appendChild(b); };
-  const item = k => ({
-    getValue: () => val(k),
-    setValue: (v, disp, suppress) => { if(inputs[k]) inputs[k].value = v ?? ''; else items[k] = v ?? ''; log('dim', [`↳ ${k} = "${v ?? ''}"${suppress?' (no change event)':''}`]); },
-    isEmpty: () => String(val(k)).trim() === '',
-    show: () => { inputs[k]?.classList.remove('hidden-item'); log('dim', [`↳ ${k} shown`]); },
-    hide: () => { inputs[k]?.classList.add('hidden-item'); log('dim', [`↳ ${k} hidden`]); },
-    enable: () => { if(inputs[k]) inputs[k].disabled = false; log('dim', [`↳ ${k} enabled`]); },
-    disable: () => { if(inputs[k]) inputs[k].disabled = true; log('dim', [`↳ ${k} disabled`]); },
-    setFocus: () => inputs[k]?.focus()
+function buildTask(t, i){
+  const el = document.createElement('div'); el.className = 'task';
+  const st = () => state.quiz[t.id]?.pick;
+  el.innerHTML = `<div class="task-head"><span class="qn">Task ${i+1}</span><h3 style="margin:0">${t.title}</h3><span class="status"></span></div>
+    <div class="body" style="margin-top:8px">${t.task}</div>
+    <textarea class="mine" id="mine-${t.id}" placeholder="Optional: paste your code or notes here (saved)"></textarea>
+    <div class="ask"><button class="btn good" data-a="1">✓ I got it</button><button class="btn bad" data-a="0">✗ I didn't get it, show me</button><button class="btn" data-a="show">Show the answer anyway</button></div>
+    <div class="answer" hidden><div class="label">Step by step</div><ol class="stepx">${t.steps.map(x => `<li><div>${x}</div></li>`).join('')}</ol></div>`;
+  const status = el.querySelector('.status'), ans = el.querySelector('.answer'), ta = el.querySelector('textarea');
+  const paint = () => { const p = st();
+    status.textContent = p === 1 ? 'Got it ✓' : p === 0 ? 'Review the steps' : '';
+    status.className = 'status ' + (p === 1 ? 'ok' : p === 0 ? 'no' : '');
+    if(p === 0) ans.hidden = false; };
+  ta.value = state.answers[t.id]?.text || '';
+  ta.addEventListener('input', () => saveAnswer(t.id, ta.value));
+  el.querySelectorAll('[data-a]').forEach(b => b.onclick = () => {
+    if(b.dataset.a === 'show'){ ans.hidden = !ans.hidden; return; }
+    state.quiz[t.id] = { pick: Number(b.dataset.a), at: Date.now() };
+    saveDoc('quiz/' + t.id, state.quiz[t.id]);
+    if(b.dataset.a === '1') ans.hidden = true;
+    paint();
   });
-  const apex = {
-    item,
-    message: {
-      showPageSuccess: t => banner('ok', '✓ ' + t),
-      clearErrors: () => { banners.innerHTML = ''; },
-      showErrors: errs => [].concat(errs).forEach(e => banner('bad', `✗ ${e.pageItem ? e.pageItem + ': ' : ''}${e.message}`))
-    },
-    debug: { info: (...a) => log('dim', ['[apex.debug]', ...a]), log: (...a) => log('dim', ['[apex.debug]', ...a]), error: (...a) => log('err', ['[apex.debug]', ...a]) },
-    util: { escapeHTML: s => esc(s), delayLinger: undefined },
-    page: { submit: r => banner('ok', `Page submitted with request "${r || ''}"`) }
-  };
-  const fakeConsole = {
-    log: (...a) => log('', a), info: (...a) => log('', a), warn: (...a) => log('err', ['⚠', ...a]), error: (...a) => log('err', a),
-    table: rows => { try{ const r = [].concat(rows); const cols = Object.keys(r[0]||{}); log('', [[cols.join(' | '), ...r.map(x => cols.map(c => x[c]).join(' | '))].join('\n')]); }catch(e){ log('', [rows]); } }
-  };
-  let daThis = {};
-  if(thisSpec){ const [id, value] = thisSpec.split('='); daThis = { triggeringElement: { id, get value(){ return val(id) || value; } }, browserEvent: { type: 'change' }, data: {}, affectedElements: [] }; }
-  return { apex, $v: k => val(k), $s: (k, v) => item(k).setValue(v), console: fakeConsole, daThis, log };
-}
-let uidCounter = 0;
-function runCode(container, code){
-  const out = container.querySelector('.out'); out.innerHTML = ''; container.querySelector('.banners').innerHTML = '';
-  const rt = container._rt;
-  try{
-    const fn = new Function('apex', '$v', '$s', 'console', code);
-    fn.call(rt.daThis, rt.apex, rt.$v, rt.$s, rt.console);
-  }catch(e){ rt.log('err', [`${e.name}: ${e.message}`]); }
-  window.__lastRuntime = rt;
-  setTimeout(() => { if(!out.textContent.trim() && !container.querySelector('.banners').textContent) rt.log('dim', ['(ran with no output)']); }, 700);
-}
-// errors thrown inside setTimeout callbacks in user code
-window.addEventListener('error', e => { if(window.__lastRuntime){ window.__lastRuntime.log('err', [e.message]); e.preventDefault(); } });
-
-function runnerShell(kind, label, pageSpec){
-  const id = 'r' + (++uidCounter);
-  const wrap = document.createElement('div'); wrap.className = 'runner'; wrap.dataset.uid = id;
-  wrap.innerHTML = `<div class="bar"><span>${label}</span><span class="tools"></span></div>
-    <textarea id="${id}-code" class="${kind==='text'?'text':''}" spellcheck="false"></textarea>
-    ${kind==='js' ? `${pageSpec?'<div class="fakepage"></div>':''}<div class="banners"></div><div class="out"></div>` : ''}`;
-  return wrap;
-}
-function fitTextarea(ta){ const lines = ta.value.split('\n').length; ta.rows = Math.min(Math.max(lines + 1, 4), 26); }
-function tabKey(ta){ ta.addEventListener('keydown', e => { if(e.key === 'Tab' && !e.shiftKey && ta.classList.contains('text')===false){ e.preventDefault(); const s = ta.selectionStart; ta.setRangeText('  ', s, ta.selectionEnd, 'end'); ta.dispatchEvent(new Event('input')); } }); }
-
-function buildDemo(el){
-  const code = el.querySelector('pre').textContent;
-  const r = runnerShell('js', 'Example · editable', el.dataset.page);
-  el.replaceChildren(r);
-  const ta = r.querySelector('textarea'); ta.value = code; fitTextarea(ta); tabKey(ta);
-  r._rt = buildRuntime(r, el.dataset.page, el.dataset.this);
-  const tools = r.querySelector('.tools');
-  tools.innerHTML = `<button class="btn primary">Run</button> <button class="btn">Reset</button>`;
-  const [run, reset] = tools.querySelectorAll('button');
-  run.onclick = () => runCode(r, ta.value);
-  reset.onclick = () => { ta.value = code; fitTextarea(ta); r._rt = buildRuntime(r, el.dataset.page, el.dataset.this); r.querySelector('.out').innerHTML=''; r.querySelector('.banners').innerHTML=''; };
+  paint();
+  return el;
 }
 
-function buildExercise(el){
-  const id = el.dataset.id, kind = el.dataset.kind;
-  const all = [...el.closest('.tbody').querySelectorAll('.ex')]; const idx = all.indexOf(el);
-  const tags = ['Guided', 'New scenario', 'Stretch']; const tag = tags[Math.min(idx, 2)] || 'Exercise';
-  const q = el.querySelector('.q'), start = el.querySelector('.start')?.textContent || '', hint = el.querySelector('.hint'), sol = el.querySelector('.sol')?.textContent || '';
-  const r = runnerShell(kind, kind === 'js' ? 'Your code · saved as you type' : 'Your answer · saved as you type', el.dataset.page);
-  const head = document.createElement('div'); head.className = 'ex-head';
-  head.innerHTML = `<span class="ex-tag t${Math.min(idx,2)+1}">${tag}</span>`; head.appendChild(q);
-  const tools = document.createElement('div'); tools.className = 'ex-tools';
-  tools.innerHTML = `${kind==='js'?'<button class="btn primary" data-a="run">Run</button>':''}<button class="btn" data-a="hint">Show hint</button><button class="btn" data-a="sol">Show solution</button><span class="saved"></span>`;
-  const hintBox = document.createElement('div'); hintBox.className = 'reveal'; hintBox.hidden = true; hintBox.innerHTML = '<span class="label">Hint</span><div></div>'; hintBox.lastChild.append(...(hint ? hint.childNodes : []));
-  const solBox = document.createElement('div'); solBox.className = 'reveal'; solBox.hidden = true; solBox.innerHTML = '<span class="label">One possible solution. Compare it with yours; don\'t replace yours.</span><pre></pre>'; solBox.querySelector('pre').textContent = sol;
-  el.replaceChildren(head, r, tools, hintBox, solBox);
-  const ta = r.querySelector('textarea'); ta.id = 'ex-' + id;
-  ta.value = state.answers[id]?.text ?? start; fitTextarea(ta); tabKey(ta);
-  if(kind==='text') ta.placeholder = 'Write your answer here…';
-  if(kind === 'js') r._rt = buildRuntime(r, el.dataset.page, el.dataset.this);
-  const savedEl = tools.querySelector('.saved'), solBtn = tools.querySelector('[data-a=sol]');
-  const attempted = () => ta.value.trim() !== start.trim() && ta.value.trim().length > 15;
-  const refresh = () => { solBtn.disabled = !attempted(); solBtn.title = attempted() ? '' : 'Write your own attempt first'; savedEl.textContent = state.answers[id] ? 'Saved ' + new Date(state.answers[id].at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : ''; };
-  refresh();
-  ta.addEventListener('input', () => { fitTextarea(ta); saveAnswer(id, ta.value); refresh(); });
-  tools.querySelector('[data-a=hint]').onclick = () => { hintBox.hidden = !hintBox.hidden; };
-  solBtn.onclick = () => { solBox.hidden = !solBox.hidden; };
-  if(kind === 'js') tools.querySelector('[data-a=run]').onclick = () => { r._rt = buildRuntime(r, el.dataset.page, el.dataset.this); runCode(r, ta.value); };
-  el._ta = ta; el._refresh = refresh;
-}
-
-
-
-function buildQuiz(el){
-  const key = el.dataset.quiz, qs = QUIZ[key] || [];
-  el.innerHTML = '';
-  const score = document.createElement('p'); score.className = 'muted';
-  const upd = () => { const got = qs.filter((it,i) => state.quiz[`${key}-${i}`]?.pick === it.a).length; score.textContent = `Score: ${got} / ${qs.length}`; };
-  qs.forEach((item, i) => {
-    const box = document.createElement('div'); box.className = 'qz';
-    box.innerHTML = `<b>${i+1}. ${esc(item.q)}</b><div class="opts"></div><p class="why" hidden></p>`;
-    const opts = box.querySelector('.opts'), why = box.querySelector('.why');
-    const show = pick => {
-      opts.querySelectorAll('button').forEach((b, j) => { b.classList.toggle('right', j === item.a); b.classList.toggle('wrong', j === pick && pick !== item.a); });
-      why.hidden = false; why.textContent = (pick === item.a ? 'Correct. ' : 'Not quite. ') + item.why;
-    };
-    item.o.forEach((o, j) => { const b = document.createElement('button'); b.className = 'opt'; b.textContent = o;
-      b.onclick = () => { state.quiz[`${key}-${i}`] = { pick: j, at: Date.now() }; saveDoc(`quiz/${key}-${i}`, state.quiz[`${key}-${i}`]); show(j); upd(); };
-      opts.appendChild(b); });
-    const prev = state.quiz[`${key}-${i}`]; if(prev) show(prev.pick);
-    el.appendChild(box);
-  });
-  el.prepend(score); upd();
-}
-
-function refreshOpenView(){
-  if(!location.hash || location.hash === '#'){ renderHome(); return; }
-  document.querySelectorAll('.ex').forEach(ex => {
-    const ta = ex._ta, saved = state.answers[ex.dataset.id];
-    if(ta && saved && document.activeElement !== ta && saved.text !== ta.value){ ta.value = saved.text; fitTextarea(ta); ex._refresh(); }
-  });
-}
+function fitTextarea(){}
+function refreshOpenView(){ if(!location.hash) renderHome(); }
 function route(){
-  const id = location.hash.replace('#', '');
-  if(id && TOPICS.some(t => t.id === id)) renderTopic(id); else renderHome();
+  const h = location.hash.replace('#', '');
+  if(!h){ renderHome(); return; }
+  const sid = h.split('-')[0];
+  if(SESSIONS.some(s => s.id === sid && s.ready)){
+    if(document.getElementById('back') && document.getElementById(h)){ document.getElementById(h).scrollIntoView(); return; }
+    renderSession(sid, h.includes('-') ? h : null);
+  } else renderHome();
 }
 window.addEventListener('hashchange', route);
 route(); connect();
