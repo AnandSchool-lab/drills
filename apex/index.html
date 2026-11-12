@@ -473,7 +473,7 @@ Item P1_SAL
   <!-- 6 -->
   <section class="part" id="s1-practice">
     <h2><span class="n">07</span>Practice: try it in your workspace<span class="time">15 min</span></h2>
-    <div class="prose"><p>Use any app (your office APEX or <b>ANAND_DEV</b>). For each task: do it, run the page, then press <b>I got it</b> or <b>I didn't get it</b>. If you didn't, the answer opens step by step. You can also paste your code into the box to keep it.</p></div>
+    <div class="prose"><p>Use any app (your office APEX or <b>ANAND_DEV</b>). For each task: do it, run the page, then press <b>I got it</b> or <b>I didn't get it</b>. The step-by-step answer is shown under each task. Read it whenever you need it. You can also paste your code into the box to keep it.</p></div>
     <div id="s1-tasks"></div>
   </section>
 
@@ -1244,8 +1244,8 @@ function buildTask(t, i){
   el.innerHTML = `<div class="task-head"><span class="qn">Task ${i+1}</span><h3 style="margin:0">${t.title}</h3><span class="status"></span></div>
     <div class="body" style="margin-top:8px">${t.task}</div>
     <textarea class="mine" id="mine-${t.id}" placeholder="Optional: paste your code or notes here (saved)"></textarea>
-    <div class="ask"><button class="btn good" data-a="1">✓ I got it</button><button class="btn bad" data-a="0">✗ I didn't get it, show me</button><button class="btn" data-a="show">Show the answer anyway</button></div>
-    <div class="answer" hidden><div class="label">Step by step</div><ol class="stepx">${t.steps.map(x => `<li><div>${x}</div></li>`).join('')}</ol></div>`;
+    <div class="ask"><button class="btn good" data-a="1">✓ I got it</button><button class="btn bad" data-a="0">✗ I didn't get it</button><button class="btn" data-a="show">Hide answer</button></div>
+    <div class="answer"><div class="label">Step by step</div><ol class="stepx">${t.steps.map(x => `<li><div>${x}</div></li>`).join('')}</ol></div>`;
   const status = el.querySelector('.status'), ans = el.querySelector('.answer'), ta = el.querySelector('textarea');
   const paint = () => { const p = st();
     status.textContent = p === 1 ? 'Got it ✓' : p === 0 ? 'Review the steps' : '';
@@ -1254,10 +1254,9 @@ function buildTask(t, i){
   ta.value = state.answers[t.id]?.text || '';
   ta.addEventListener('input', () => saveAnswer(t.id, ta.value));
   el.querySelectorAll('[data-a]').forEach(b => b.onclick = () => {
-    if(b.dataset.a === 'show'){ ans.hidden = !ans.hidden; return; }
+    if(b.dataset.a === 'show'){ ans.hidden = !ans.hidden; b.textContent = ans.hidden ? 'Show answer' : 'Hide answer'; return; }
     state.quiz[t.id] = { pick: Number(b.dataset.a), at: Date.now() };
     saveDoc('quiz/' + t.id, state.quiz[t.id]);
-    if(b.dataset.a === '1') ans.hidden = true;
     paint();
   });
   paint();
