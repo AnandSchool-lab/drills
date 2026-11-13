@@ -189,7 +189,7 @@ var live = [];          // pads currently on screen, so we can flush them all at
    Pencil down and using fingers needs no thought and no toggle.
    ============================================================ */
 var SHIELD_MS = 45000;
-var shieldUntil = 0, swallowClick = false;
+var shieldUntil = 0, swallowEl = null, swallowAt = 0;
 
 function shieldOn(){ return Date.now() < shieldUntil; }
 function touchPen(){
@@ -232,18 +232,27 @@ function guard(e){
   if(!t || !t.closest) return;
   if(t.closest(".pad-surface")) return;                    // the pad does its own rejecting
   if(t.closest("#palmShield")) return;                     // never block the way out
+  /* Save & close is the way out of the writing sheet, and a child who
+     writes with the Pencil taps it with a finger. Blocked, it took ten
+     taps or more (v34). It sits at the top, far from a resting wrist. */
+  if(t.closest(".sheethead")) return;
   if(!t.closest(BLOCKABLE)) return;                        // let scrolling and plain taps through
   e.preventDefault();
   e.stopPropagation();
-  swallowClick = true;
+  /* Remember exactly which control the palm hit, briefly. Before v34 this
+     was a plain flag that stayed set when no click followed (a palm
+     usually just rests), and it then ate the next real tap anywhere -
+     even a Pencil tap on Save. */
+  swallowEl = t.closest(BLOCKABLE); swallowAt = Date.now();
 }
 
 if(typeof document !== "undefined"){
   document.addEventListener("pointerdown", guard, true);
   document.addEventListener("click", function(e){
-    if(!swallowClick) return;
-    swallowClick = false;
-    if(e.target && e.target.closest && e.target.closest(".pad-surface, #palmShield")) return;
+    if(!swallowEl) return;
+    var el = swallowEl, fresh = Date.now() - swallowAt < 800;
+    swallowEl = null;
+    if(!fresh || !e.target || !e.target.closest || e.target.closest(BLOCKABLE) !== el) return;
     e.preventDefault();
     e.stopPropagation();
   }, true);
@@ -417,37 +426,54 @@ function mount(host, key, opts){
     try{ surf.setPointerCapture(e.pointerId); }catch(err){}
     cur = { t: Date.now() - t0, p: [ r1(e.offsetX), r1(e.offsetY) ] };
     data.s.push(cur);
+    drawn = 0;
     var ph = host.querySelector(".pad-ph"); if(ph) ph.remove();
     e.preventDefault();
   });
 
   function r1(n){ return Math.round(n * 10) / 10; }
 
+  /* Points are stored the moment they arrive, but painted once per screen
+     frame. A Pencil reports up to 240 times a second; painting each one
+     made the whole full-screen canvas recomposite every time, and writing
+     lagged behind the nib (v34). `drawn` is how far this stroke is painted. */
+  var drawn = 0, frame = 0;
+  function paintPending(){
+    frame = 0;
+    if(!cur || !ctx) return;
+    var p = cur.p;
+    if(p.length - 2 <= drawn) return;
+    ctx.beginPath();
+    ctx.moveTo(p[drawn], p[drawn + 1]);
+    for(var i = drawn + 2; i < p.length; i += 2) ctx.lineTo(p[i], p[i + 1]);
+    ctx.stroke();
+    drawn = p.length - 2;
+  }
   surf.addEventListener("pointermove", function(e){
     if(!drawing || !cur) return;
     var co = e.getCoalescedEvents ? e.getCoalescedEvents() : null;
     var evts = (co && co.length) ? co : null;
     var p = cur.p;
-    ctx.beginPath();
-    ctx.moveTo(p[p.length-2], p[p.length-1]);
     if(!evts){
-      var x = r1(e.offsetX), y = r1(e.offsetY);
-      p.push(x, y); ctx.lineTo(x, y);
+      p.push(r1(e.offsetX), r1(e.offsetY));
     } else {
       var ox = e.offsetX, oy = e.offsetY, cx = e.clientX, cy = e.clientY;
       for(var i = 0; i < evts.length; i++){
-        var gx = r1(ox + (evts[i].clientX - cx));
-        var gy = r1(oy + (evts[i].clientY - cy));
-        p.push(gx, gy); ctx.lineTo(gx, gy);
+        p.push(r1(ox + (evts[i].clientX - cx)), r1(oy + (evts[i].clientY - cy)));
       }
     }
-    ctx.stroke();
+    if(!frame) frame = requestAnimationFrame(paintPending);
     e.preventDefault();
   });
 
   function endStroke(e){
     if(!drawing) return;
     drawing = false;
+    if(frame){ cancelAnimationFrame(frame); frame = 0; }
+    paintPending();                                   /* the last bit of the stroke */
+    if(cur && cur.p.length === 2 && ctx){             /* a dot */
+      ctx.beginPath(); ctx.moveTo(cur.p[0], cur.p[1]); ctx.lineTo(cur.p[0] + 0.1, cur.p[1] + 0.1); ctx.stroke();
+    }
     try{ surf.releasePointerCapture(e.pointerId); }catch(err){}
     if(cur && cur.p.length < 2) data.s.pop();
     cur = null;
@@ -620,7 +646,10 @@ function openSheet(key, opts){
      ink landed away from the nib. The drawing no longer cares where the
      panel is, so the panel can hold still. */
 
+  var closed = false;
   function close(){
+    if(closed) return;
+    closed = true;
     try{ pad.flush(); }catch(e){}
     var data = null;
     try{ data = pad.data(); }catch(e){}
@@ -632,7 +661,11 @@ function openSheet(key, opts){
     if(opts.onClose) opts.onClose(data, touched);
   }
 
-  back.querySelector(".sheetdone").addEventListener("click", close);
+  /* pointerup as well as click: on the iPad a tap after Pencil writing
+     sometimes produced no click at all. close() runs once either way. */
+  var done = back.querySelector(".sheetdone");
+  done.addEventListener("pointerup", function(e){ e.preventDefault(); close(); });
+  done.addEventListener("click", close);
   back.addEventListener("click", function(e){ if(e.target === back) close(); });
   document.addEventListener("keydown", function esc(e){
     if(e.key === "Escape"){ document.removeEventListener("keydown", esc); close(); }
