@@ -1,0 +1,22 @@
+{
+  "praise": "On the fractions sheet you drew the question out instead of trying to hold it in your head: a bar cut into ten equal parts with every part numbered 1 to 10, eight of them ringed, and a second bar underneath with the first four crossed off. That is the first time your working has actually shown up on a maths pad, and it is the right picture for that question.",
+  "math": {
+    "approach": "The question was 4 8/10 − 4/10. You started by writing the 4 and the 8/10 down on their own, which is the right first move — the 4 is not going anywhere, so the whole question is really 8/10 − 4/10. Then you built it: ten parts, numbered, eight ringed for the 8/10 you began with, and underneath the same ten parts with four crossed off for the 4/10 you are taking away. Four parts are left, so it is 4 4/10. The only thing the picture does not do for you is the word simplify at the end: four parts out of ten is the same amount as two parts out of five, so the finished answer is 4 2/5. You have already made that exact swap — 4/10 in simplest form came up on the 9th and you got it right.",
+    "note": "Your subtracting on these is not the problem. 3 8/12, 4 2/4, 1 4/6 — every one of those was the right amount, and every one was marked wrong only because of the line after it. When a question says simplify, stop and look at the fraction you have landed on: do the top and bottom share a number? 2/4 halves to 1/2, 4/6 halves to 2/3, 4/10 halves to 2/5. One extra look each time. Separately, on 1/4 = ?/8 in the Recap, the two numbers you typed, 2 and 8, were the right pair — the answer box that evening had no way to put a slash between them. It takes one now, so you can write 2/8."
+  },
+  "focus": [
+    "simplify as the last step: 2/4 is 1/2, 4/6 is 2/3, 4/10 is 2/5",
+    "tenths and fifths: 4/10 is 2/5",
+    "draw the bar when fractions get slippery - it worked"
+  ],
+  "tips": [
+    {
+      "q": "5 3/4  −  1 1/4  (simplify)",
+      "note": "Use the picture you drew tonight on this one. A bar in four parts, three of them ringed, one crossed off: two parts left out of four. Two out of four is a half, which is how 4 2/4 turns into 4 1/2."
+    },
+    {
+      "q": "2 5/6  −  1 1/6  (simplify)",
+      "note": "The subtracting here comes out right for you - the whole numbers and the sixths both land. Draw the six parts the way you drew the ten tonight, then group what is left into pairs: four parts is two pairs out of three, so 1 2/3."
+    }
+  ]
+}
