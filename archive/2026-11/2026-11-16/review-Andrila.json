@@ -1,0 +1,41 @@
+{
+  "praise": "The best line in your writing is the one about her always sleeping in your bed. That is a proper clue - it fits one person and not everybody - and choosing it was your own doing. You also spelled journey, stomach and believe right, which are three of the trickiest words on tonight's list.",
+  "spelling": [
+    {
+      "word": "quiet",
+      "wrote": "qiuet",
+      "right": "quiet"
+    },
+    {
+      "word": "usually",
+      "wrote": "usally",
+      "right": "usually"
+    }
+  ],
+  "essay": {
+    "summary": "Four sentences, every one of them still about the same person - you never wandered off into something else halfway through. The detail about your bed is the one doing the most work; the rest are a little softer.",
+    "fixes": [
+      {
+        "was": "somtimes",
+        "should": "sometimes",
+        "why": "it is some + times, and some keeps its e"
+      },
+      {
+        "was": "very silly somtimes a little crazy and very fun to play with",
+        "should": "very silly, sometimes a little crazy, and very fun to play with",
+        "why": "when you list three things about someone, a comma goes between them"
+      },
+      {
+        "was": "I am mostly always with her",
+        "should": "I am almost always with her",
+        "why": "mostly and always pull against each other - almost always is the one you mean"
+      }
+    ],
+    "next": "Add one clue that could only ever be her: something she says, or something she does with her hands. Right now the clues fit a lot of people, and a riddle is best when there is exactly one answer."
+  },
+  "focus": [
+    "quiet: the q and the u travel together - q-u-i-e-t, like queen and quick",
+    "usually is usual + ly, so the u in usual has to stay in",
+    "commas when you list three things in a row"
+  ]
+}

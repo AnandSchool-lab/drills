@@ -1,0 +1,23 @@
+{
+  "praise": "All ten spelling words, letter for letter. Two of those are real traps: usually, which almost everybody drops a letter out of, and island, which carries an s you cannot hear at all when you say it.",
+  "essay": {
+    "summary": "You chose three details that actually tell us something, and cartwheels is the best of them - it is the kind of detail that makes a person appear on the page instead of just being described.",
+    "fixes": [
+      {
+        "was": "Playful loves cartwheels",
+        "should": "She is playful and she loves cartwheels",
+        "why": "a sentence has to say who is doing it - playful on its own has nobody attached to it"
+      },
+      {
+        "was": "sometimes phone addicted",
+        "should": "sometimes she will not put her phone down",
+        "why": "show what she actually does instead of labelling her - we can picture the second one"
+      }
+    ],
+    "next": "Give each of your three details a sentence of its own. You already did the hard part by choosing them; three sentences instead of one line is all that is missing."
+  },
+  "focus": [
+    "writing in whole sentences: who, then what they do",
+    "stretching one detail into a full sentence instead of a label"
+  ]
+}
