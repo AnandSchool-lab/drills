@@ -9,6 +9,7 @@ folder would still open.
 
 | Day | Finished | Photos | |
 |---|---|---|---|
+| 2026-11-16 | 8 blocks | Andrila 0p, Alvina 0p | [open](./2026-11/2026-11-16/) |
 | 2026-11-12 | 1 blocks | Andrila 0p | [open](./2026-11/2026-11-12/) |
 | 2026-11-10 | 4 blocks | Andrila 0p, Alvina 0p | [open](./2026-11/2026-11-10/) |
 | 2026-11-09 | 7 blocks | Andrila 0p, Alvina 0p | [open](./2026-11/2026-11-09/) |

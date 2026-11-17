@@ -1,0 +1,89 @@
+{
+  "date": "2026-11-16",
+  "pulledAt": "2026-11-17T06:50:49.972Z",
+  "kids": {
+    "Andrila": {
+      "pads": 11,
+      "photos": 0
+    },
+    "Alvina": {
+      "pads": 11,
+      "photos": 0
+    }
+  },
+  "results": [
+    {
+      "kid": "Alvina",
+      "date": "2026-11-16",
+      "block": "eng",
+      "got": 14,
+      "total": 14,
+      "secs": 7,
+      "at": "2026-11-16T23:10:51.238Z"
+    },
+    {
+      "kid": "Alvina",
+      "date": "2026-11-16",
+      "block": "math",
+      "got": 42,
+      "total": 42,
+      "secs": 9,
+      "at": "2026-11-16T23:10:20.394Z"
+    },
+    {
+      "kid": "Alvina",
+      "date": "2026-11-16",
+      "block": "recap",
+      "got": 4,
+      "total": 4,
+      "secs": 77,
+      "at": "2026-11-16T23:09:53.804Z"
+    },
+    {
+      "kid": "Alvina",
+      "date": "2026-11-16",
+      "block": "think",
+      "got": 10,
+      "total": 10,
+      "secs": 6,
+      "at": "2026-11-16T23:10:39.738Z"
+    },
+    {
+      "kid": "Andrila",
+      "date": "2026-11-16",
+      "block": "eng",
+      "got": 14,
+      "total": 14,
+      "secs": 1102,
+      "at": "2026-11-16T23:29:59.620Z"
+    },
+    {
+      "kid": "Andrila",
+      "date": "2026-11-16",
+      "block": "math",
+      "got": 42,
+      "total": 42,
+      "secs": 4,
+      "at": "2026-11-16T23:10:59.535Z"
+    },
+    {
+      "kid": "Andrila",
+      "date": "2026-11-16",
+      "block": "recap",
+      "got": 4,
+      "total": 4,
+      "secs": 120,
+      "at": "2026-11-16T23:10:32.634Z"
+    },
+    {
+      "kid": "Andrila",
+      "date": "2026-11-16",
+      "block": "think",
+      "got": 10,
+      "total": 10,
+      "secs": 14,
+      "at": "2026-11-16T23:11:22.777Z"
+    }
+  ],
+  "misses": []
+}
