@@ -26,6 +26,10 @@
 --   2026-11-10  a teacher's note per missed question, for the Recap's
 --               "Show me how". Run:
 --               ALTER TABLE review ADD COLUMN tips TEXT;
+--
+--   2026-11-18  paper sheets (v35). The Worker creates this table itself on
+--               first use (paperTable), so nothing to run by hand; it is
+--               listed below so this file stays the whole picture.
 
 -- One row per child, per day, per block, once they press Check.
 CREATE TABLE IF NOT EXISTS results (
@@ -167,3 +171,20 @@ CREATE TABLE IF NOT EXISTS drafts (
   at     TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS drafts_kid_date ON drafts (kid, date, block, id);
+
+-- A paper sheet (v35): her photos are ink pads "paper-N"; this holds the
+-- answer key her screen showed, and the marking once Claude has done it.
+CREATE TABLE IF NOT EXISTS paper (
+  kid       TEXT NOT NULL,
+  date      TEXT NOT NULL,
+  block     TEXT NOT NULL,
+  pages     INTEGER NOT NULL,
+  sheet     TEXT NOT NULL,        -- JSON [{sec, n, q, want}]
+  secs      INTEGER NOT NULL DEFAULT 0,
+  submitted TEXT NOT NULL,
+  state     TEXT NOT NULL,        -- new | exported | marked
+  marks     TEXT,                 -- JSON [{sec, n, q, want, gave, ok, note}]
+  notes     TEXT,                 -- tutor notes for the parent
+  marked    TEXT,
+  PRIMARY KEY (kid, date, block)
+);

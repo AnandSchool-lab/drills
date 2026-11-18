@@ -8,7 +8,7 @@
 
 /* ---------- configuration you may want to change ---------- */
 var START_DATE = "2026-10-27";   // Monday the programme begins. Week 1 starts here.
-var APP_VERSION = "34";          // shown on the home screen; keep in step with CACHE in sw.js
+var APP_VERSION = "35";          // shown on the home screen; keep in step with CACHE in sw.js
 
 /* Google Apps Script web-app URL. Blank = results stay on the iPad only.
    Paste the /exec URL from Deploy → New deployment → Web app. */
@@ -1025,8 +1025,10 @@ function loadFeedback(){
 /* ---------- the three blocks for one day ---------- */
 function blockCard(key){
   var b = BLOCKS[key], r = resultFor(key);
-  var sub = r ? "Finished in "+fmt(r.secs).replace("+","")+" — tap to open" : b.mins+" minutes";
-  var right = r ? '<span class="chip '+(r.got/r.total >= 0.8 ? "good" : "work")+'">'+r.got+" / "+r.total+'</span>'
+  var sub = r ? (r.paper ? r.pages + " page" + (r.pages === 1 ? "" : "s") + " sent" + (r.at ? " at " + r.at : "") + " — tap to open"
+                         : "Finished in "+fmt(r.secs).replace("+","")+" — tap to open") : b.mins+" minutes";
+  var right = r ? (r.paper ? '<span class="chip good">sent &#10003;</span>'
+                           : '<span class="chip '+(r.got/r.total >= 0.8 ? "good" : "work")+'">'+r.got+" / "+r.total+'</span>')
                 : '<span class="chip">'+b.mins+' min</span>';
   var extra = "";
 
@@ -1069,6 +1071,15 @@ function screenDay(){
   $("#report").addEventListener("click", screenReport);
   $("#parent").addEventListener("click", screenParent);
   loadFeedback();
+  /* paper days are marked on the server: fetch her misses so the Recap
+     card knows about them, then redraw that one card */
+  fetchHistory(function(){
+    var card = app.querySelector('.block[data-block="recap"]');
+    if(!card || resultFor("recap")) return;
+    card.outerHTML = blockCard("recap");
+    var nc = app.querySelector('.block[data-block="recap"]');
+    if(nc) nc.addEventListener("click", function(){ openBlock("recap"); });
+  });
 }
 
 /* ============================================================
@@ -1369,8 +1380,20 @@ function missKind(m){
 
 /* Walk back through the record, newest first, gathering what they missed.
    Each entry remembers which day it came from so the sheet can say so. */
+/* This iPad's own record, plus the server's copy of her misses. Paper
+   days are marked on the server, so their misses only exist there. */
+function missRecords(){
+  var all = JSON.parse(JSON.stringify(records() || {}));
+  (store.get("hist:" + who(), []) || []).forEach(function(m){
+    if(!m || !m.date || !m.q || ["math","think","eng"].indexOf(m.block) < 0) return;
+    var d = all[m.date] = all[m.date] || {}, k = "miss:" + m.block;
+    d[k] = d[k] || [];
+    if(!d[k].some(function(x){ return x.q === m.q; })) d[k].push({ q: m.q, gave: m.gave, want: m.want });
+  });
+  return all;
+}
 function pastMisses(fromDaysAgo, toDaysAgo, limit){
-  var all = records(), today = todayKey(), out = [], seen = {};
+  var all = missRecords(), today = todayKey(), out = [], seen = {};
   var dates = Object.keys(all).filter(function(d){ return d < today; }).sort().reverse();
   var now = dateFromKey(today).getTime();
   for(var i = 0; i < dates.length && out.length < limit; i++){
@@ -1842,7 +1865,308 @@ function sectionHTML(sec, idPrefix){
     clearBar(idPrefix) + '</section>';
 }
 
+/* ============================================================
+   PAPER MODE (v35)
+
+   Typing answers on the iPad was a fight - number pads, Scribble,
+   autocorrect, a writing pad that lagged. So every block is now done on
+   paper: the screen shows the questions, she works on paper, photographs
+   the pages and presses Submit. The answer key for exactly what her
+   screen showed goes up with the photos, Claude marks the pages within
+   the hour, and the marks come back as ordinary results - so the parent
+   page, Recap and "Show me how" carry on as before.
+
+   Photos are kept on this iPad (IndexedDB) until the server has them,
+   and after, so nothing is lost to a bad connection.
+   ============================================================ */
+var PAPER = true;
+var LETTERS = ["a", "b", "c", "d", "e", "f"];
+
+function fracText(w, n, d){ return (w ? w + (n ? " " : "") : "") + (n ? n + "/" + d : (w ? "" : "0")); }
+function wantOf(it){
+  if(it.kind === "divr") return it.r ? it.a + " R" + it.r : String(it.a);
+  if(it.kind === "frac") return fracText(it.w, it.n, it.d);
+  return String(it.a);
+}
+
+/* One section of questions: numbered from 1 under its own heading, the
+   way she writes them on paper. Returns html and the sheet rows. */
+function paperSection(title, note, items, opts){
+  opts = opts || {};
+  var sheet = [];
+  var rows = items.map(function(it, i){
+    var n = i + 1;
+    sheet.push({ sec: title, n: n, q: it.q, want: it.want == null ? "" : String(it.want) });
+    var choices = it.o ? '<div class="popts">' + it.o.map(function(t, k){
+      return '<span><b>' + LETTERS[k] + ')</b> ' + esc(t) + '</span>'; }).join("") + '</div>' : "";
+    var extra = it.extra || "";
+    return '<div class="pq' + (it.o || it.long ? " pwide" : "") + '"><b class="pn">' + n + '.</b> ' +
+      '<span class="pt">' + esc(it.q) + '</span>' + choices + extra + '</div>';
+  }).join("");
+  return { sheet: sheet, html:
+    '<section class="card psec"><div class="chead"><h2>' + esc(title) + '</h2>' +
+    (opts.chip ? '<span class="chip work">' + esc(opts.chip) + '</span>' : '') + '</div>' +
+    (note ? '<p class="note">' + note + '</p>' : '') +
+    (opts.before || "") +
+    '<div class="pgrid' + (opts.wide ? " pone" : "") + '">' + rows + '</div></section>' };
+}
+
+function paperHow(word, headings){
+  return '<section class="phow"><b>Do this on paper</b><ol>' +
+    '<li>At the top write the <b>date</b> and <b>' + word + '</b>.</li>' +
+    '<li>Write each heading (' + headings.map(function(h){ return '<b>' + esc(h) + '</b>'; }).join(", ") +
+    ') and the <b>number</b> next to every answer.</li>' +
+    '<li>Show your working. If you don\'t know one, write <b>don\'t know</b>.</li></ol></section>';
+}
+
+function paperUpload(){
+  return '<section class="card pup" id="pup"><div class="chead"><h2>&#128247; Send your pages to Dad</h2></div>' +
+    '<p class="note">Take a photo of each page &mdash; add as many as you need &mdash; then press Submit.</p>' +
+    '<label class="addpage">&#128247; Add a page<input type="file" accept="image/*" multiple hidden></label>' +
+    '<div class="ppages"></div>' +
+    '<button type="button" class="psubmit" disabled>Submit</button>' +
+    '<p class="pmsg" aria-live="polite"></p></section>';
+}
+
+/* Make a phone photo small enough to send: long side 1800px, JPEG. */
+function shrinkPhoto(file){
+  return new Promise(function(resolve, reject){
+    var url = URL.createObjectURL(file), img = new Image();
+    img.onload = function(){
+      var k = Math.min(1, 1800 / Math.max(img.naturalWidth, img.naturalHeight));
+      var c = document.createElement("canvas");
+      c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+      var g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height);
+      g.drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      var q = 0.82, out = c.toDataURL("image/jpeg", q);
+      while(out.length > 2500000 && q > 0.4){ q -= 0.12; out = c.toDataURL("image/jpeg", q); }
+      resolve(out);
+    };
+    img.onerror = function(){ URL.revokeObjectURL(url); reject(new Error("could not read that photo")); };
+    img.src = url;
+  });
+}
+
+function postJSON(route, body){
+  return fetch(apiUrl() + route, { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body) }).then(function(r){ if(!r.ok) throw new Error("server " + r.status); return r; });
+}
+function withRetry(fn, tries){
+  return fn().catch(function(e){
+    if(tries <= 1) throw e;
+    return new Promise(function(res){ setTimeout(res, 1500); }).then(function(){ return withRetry(fn, tries - 1); });
+  });
+}
+
+function wirePaper(block, sheet){
+  var box = $("#pup"); if(!box) return;
+  var kid = who(), day = todayKey(), key = "paper:" + kid + ":" + day + ":" + block;
+  var list = box.querySelector(".ppages"), btn = box.querySelector(".psubmit"), msg = box.querySelector(".pmsg");
+  var input = box.querySelector("input[type=file]");
+  var state = { pages: [] }, busy = false;
+  var canStore = window.Ink && Ink.available();
+
+  function keep(){ if(canStore) Ink.save(key, state); }
+  function paint(){
+    list.innerHTML = state.pages.map(function(src, i){
+      return '<figure class="ppage"><img src="' + src + '" alt="page ' + (i + 1) + '">' +
+        '<span class="plabel">Page ' + (i + 1) + '</span>' +
+        '<button type="button" class="pdel" data-i="' + i + '" aria-label="Remove page ' + (i + 1) + '">&times;</button></figure>';
+    }).join("");
+    var n = state.pages.length;
+    btn.disabled = !n || busy;
+    btn.textContent = busy ? "Sending…" : (n ? "Submit " + n + " page" + (n === 1 ? "" : "s") : "Submit");
+    list.querySelectorAll(".pdel").forEach(function(b){
+      b.addEventListener("click", function(){ state.pages.splice(+b.dataset.i, 1); keep(); paint(); });
+    });
+    list.querySelectorAll(".ppage img").forEach(function(im){
+      im.addEventListener("click", function(){ bigPage(im.src); });
+    });
+  }
+  function sentNote(){
+    var r = resultFor(block);
+    if(r && r.paper) msg.innerHTML = '<span class="psent">&#10003; Sent ' + r.pages + ' page' + (r.pages === 1 ? "" : "s") +
+      (r.at ? ' at ' + esc(r.at) : '') + '. Dad will see them marked soon.</span>' +
+      ' You can add a page and submit again.';
+  }
+
+  (canStore ? Ink.load(key) : Promise.resolve(null)).then(function(saved){
+    if(saved && saved.pages) state.pages = saved.pages;
+    paint(); sentNote();
+  });
+
+  input.addEventListener("change", function(){
+    var files = [].slice.call(input.files || []);
+    input.value = "";
+    if(!files.length) return;
+    msg.textContent = "Adding " + files.length + " photo" + (files.length === 1 ? "" : "s") + "…";
+    files.reduce(function(p, f){
+      return p.then(function(){ return shrinkPhoto(f).then(function(src){ state.pages.push(src); keep(); paint(); }); });
+    }, Promise.resolve()).then(function(){ msg.textContent = ""; sentNote(); })
+      .catch(function(e){ msg.textContent = (e && e.message) || "Could not add that photo."; });
+  });
+
+  btn.addEventListener("click", function(){
+    if(busy || !state.pages.length) return;
+    if(!apiUrl()){ msg.textContent = "This iPad is not connected to Dad's server."; return; }
+    busy = true; paint();
+    var pages = state.pages.slice(), n = pages.length;
+    msg.textContent = "Sending page 1 of " + n + "…";
+    pages.reduce(function(p, src, i){
+      return p.then(function(){
+        msg.textContent = "Sending page " + (i + 1) + " of " + n + "…";
+        return withRetry(function(){
+          return postJSON("/ink", { kid: kid, date: day, block: block, pad: "paper-" + (i + 1),
+            data: { v: 1, mode: "photo", w: 0, h: 0, s: [], imgs: [src], text: "" } });
+        }, 3);
+      });
+    }, Promise.resolve()).then(function(){
+      return withRetry(function(){
+        return postJSON("/submit", { kid: kid, date: day, block: block, pages: n, sheet: sheet, secs: elapsed() });
+      }, 3);
+    }).then(function(){
+      var all = records(); all[day] = all[day] || {};
+      var t = new Date(), at = (t.getHours() % 12 || 12) + ":" + ("0" + t.getMinutes()).slice(-2) + (t.getHours() < 12 ? " am" : " pm");
+      all[day][block] = { paper: 1, pages: n, secs: elapsed(), at: at };
+      store.set("rec:" + kid, all);
+      stopTimer(); stopPings();
+      busy = false; paint(); sentNote();
+    }).catch(function(){
+      busy = false; paint();
+      msg.innerHTML = '<span class="pfail">Not sent yet.</span> Check the Wi-Fi and press Submit again &mdash; your photos are saved on this iPad.';
+    });
+  });
+}
+
+function bigPage(src){
+  var b = document.createElement("div");
+  b.className = "plight";
+  b.innerHTML = '<img src="' + src + '" alt="your page">';
+  b.addEventListener("click", function(){ b.remove(); });
+  document.body.appendChild(b);
+}
+
+function paperShell(block, title, mins, html, sheet, after){
+  shell(title, mins, html + paperUpload(), function(){
+    wirePaper(block, sheet);
+    if(after) after();
+  }, block);
+}
+
+/* ---------- the four blocks on paper ---------- */
+function paperMath(){
+  var L = levelNow();
+  seedFor("math");
+  var secs = [genMultiply(L), genDivide(L), genFractions(L)];
+  if(L >= 2) secs.push(genDecimals(L));
+  var html = paperHow("MATH", secs.map(function(s){ return s.title; })), sheet = [];
+  secs.forEach(function(s){
+    var note = s.items.some(function(it){ return it.kind === "divr"; })
+      ? "Write a remainder with R, like <b>19 R1</b>." : esc(s.note || "");
+    var out = paperSection(s.title, note, s.items.map(function(it){ return { q: it.q, want: wantOf(it) }; }));
+    html += out.html; sheet = sheet.concat(out.sheet);
+  });
+  paperShell("math", "Math", BLOCKS.math.mins, html, sheet);
+}
+
+function paperThink(){
+  var L = levelNow();
+  seedFor("think");
+  var items = genThinking(L);
+  seedFor("challenge");
+  var chal = genChallenge(L);
+  var html = paperHow("THINKING", ["Challenge", "Thinking"]), sheet = [];
+  var c = paperSection("Challenge", "These are meant to be hard. Draw a picture, try small numbers, look for a pattern.",
+    chal.map(function(it, i){ return { q: it.q, want: it.a, long: true,
+      extra: '<button type="button" class="ghost sm phint" data-h="c' + i + '">Hint</button><p class="hint" id="pc' + i + '" hidden>' + esc(it.hint) + '</p>' }; }),
+    { wide: true });
+  var t = paperSection("Thinking", "Read each one twice. Write the answer, and how you got it.",
+    items.map(function(it, i){
+      return { q: it.q, o: it.o, want: it.o ? LETTERS[it.a - 1] + ") " + it.o[it.a - 1] : it.a, long: true,
+        extra: '<button type="button" class="ghost sm phint" data-h="t' + i + '">Hint</button><p class="hint" id="pt' + i + '" hidden>' + esc(it.hint) + '</p>' };
+    }), { wide: true });
+  html += c.html + t.html; sheet = c.sheet.concat(t.sheet);
+  paperShell("think", "Thinking", BLOCKS.think.mins, html, sheet, function(){
+    app.querySelectorAll(".phint").forEach(function(b){
+      b.addEventListener("click", function(){ var h = $("#p" + b.dataset.h); h.hidden = !h.hidden; b.textContent = h.hidden ? "Hint" : "Hide"; });
+    });
+  });
+}
+
+function paperEnglish(){
+  var L = levelNow();
+  var E = pickEnglish(L), p = E.reading;
+  var html = paperHow("ENGLISH", ["Spelling", "Vocabulary", "Grammar", "Reading", "Writing"]), sheet = [];
+
+  /* The words are never on screen: each button only says the word and a
+     sentence with it, and she writes what she hears. */
+  var sp = { html: '<section class="card psec"><div class="chead"><h2>Spelling</h2><span class="chip work">listen and write</span></div>' +
+    '<p class="note">Tap a number to hear the word and a sentence. Tap again to hear it again.</p><div class="psay">' +
+    E.spelling.map(function(pair, i){
+      sheet.push({ sec: "Spelling", n: i + 1, q: "Spelling word " + (i + 1), want: pair[0] });
+      return '<button type="button" class="say" data-say="' + esc(pair[0] + ". " + String(pair[1]).replace(/[.!?\s]+$/, "") + ". " + pair[0] + ".") + '">' +
+        '<span aria-hidden="true">&#128266;</span>' + (i + 1) + '</button>';
+    }).join("") + '</div></section>' };
+
+  var vocabCards = '<div class="vgrid">' + E.vocab.map(function(v){
+    return '<div class="vcard"><div class="vhead"><strong>' + esc(v.w) + '</strong><span class="say2">' + esc(v.say) + '</span>' +
+      '<button class="speak" data-say="' + esc(v.w) + '" aria-label="Hear ' + esc(v.w) + '">&#128266;</button></div>' +
+      '<p class="vm">' + esc(v.m) + '</p><p class="vs">' + esc(v.s) + '</p></div>';
+  }).join("") + '</div>';
+  var vo = paperSection("Vocabulary", "Read each word aloud. Then, on paper:", [
+    { q: "Write two sentences about your own day, each using one of these words.", want: "", long: true }
+  ], { wide: true, before: vocabCards });
+
+  var gr = paperSection("Grammar", "Write the <b>letter</b> of your answer.",
+    E.grammar.map(function(g){ return { q: g.q, o: g.o, want: LETTERS[g.a] + ") " + g.o[g.a] }; }), { wide: true });
+
+  var passage = '<article class="passage"><h3>' + esc(p.title) + '</h3>' +
+    p.body.map(function(t, i){ return '<p><span class="pnum">' + (i + 1) + '</span>' + esc(t) + '</p>'; }).join("") + '</article>';
+  var rd = paperSection("Reading", "Read it twice &mdash; once for the story, once for the details.",
+    p.qs.map(function(q){ return { q: q.q, o: q.o, want: LETTERS[q.a] + ") " + q.o[q.a] }; })
+      .concat([{ q: p.open.q + " (two or three sentences)", want: "", long: true }]),
+    { wide: true, before: passage });
+
+  var wr = paperSection("Writing", "", [{ q: E.writing.p, want: "", long: true }], { wide: true });
+
+  html += sp.html + vo.html + gr.html + rd.html + wr.html;
+  sheet = sheet.concat(vo.sheet, gr.sheet, rd.sheet, wr.sheet);
+  paperShell("eng", "English", BLOCKS.eng.mins, html, sheet, function(){
+    app.querySelectorAll("[data-say]").forEach(function(b){
+      b.addEventListener("click", function(){ say(b.dataset.say); });
+    });
+  });
+}
+
+function paperRecap(){
+  var parts = recapParts();
+  var list = parts.fresh.concat(parts.older);
+  if(!list.length) return blockRecap();
+  var html = paperHow("RECAP", ["Recap"]);
+  var out = paperSection("Recap", "The ones you got wrong before. Work them out again rather than trying to remember.",
+    list.map(function(m, i){
+      var ago = m.age === 1 ? "yesterday" : m.age + " days ago";
+      return { q: m.q, o: m.opts, want: m.opts ? LETTERS[m.opts.indexOf(m.want)] + ") " + m.want : m.want, long: true,
+        extra: '<p class="recall">You wrote <b>' + esc(m.gave || "nothing") + '</b> ' + ago + '.</p>' +
+          (window.Explain ? '<button type="button" class="howbtn" data-how="' + i + '">&#128214; Show me how</button>' : '') };
+    }), { wide: true });
+  html += out.html;
+  paperShell("recap", "Recap", BLOCKS.recap.mins, html, out.sheet, function(){
+    if(!window.Explain) return;
+    app.querySelectorAll("[data-how]").forEach(function(b){
+      b.addEventListener("click", function(){ showHow(list[+b.dataset.how]); });
+    });
+  });
+}
+
 function openBlock(key){
+  if(PAPER){
+    if(key === "recap") return paperRecap();
+    if(key === "math") return paperMath();
+    if(key === "think") return paperThink();
+    return paperEnglish();
+  }
   if(key === "recap") return blockRecap();
   if(key === "math") return blockMath();
   if(key === "think") return blockThink();
@@ -2319,7 +2643,7 @@ function screenReport(){
   var tot = { math:[0,0], think:[0,0], eng:[0,0] };
   days.forEach(function(d){
     ["recap","math","think","eng"].forEach(function(b){
-      if(rec[d][b]){ tot[b][0] += rec[d][b].got; tot[b][1] += rec[d][b].total; }
+      if(rec[d][b] && rec[d][b].total){ tot[b][0] += rec[d][b].got; tot[b][1] += rec[d][b].total; }
     });
   });
   function pct(b){ return tot[b][1] ? Math.round(tot[b][0]/tot[b][1]*100) : null; }
@@ -2331,7 +2655,7 @@ function screenReport(){
   }
   var rows = days.map(function(d){
     var r = rec[d];
-    function cell(b){ return r[b] ? r[b].got+"/"+r[b].total : "—"; }
+    function cell(b){ return r[b] ? (r[b].paper ? "sent" : r[b].got+"/"+r[b].total) : "—"; }
     return "<tr><td>"+d+"</td><td>"+cell("math")+"</td><td>"+cell("think")+"</td><td>"+cell("eng")+"</td></tr>";
   }).join("");
   app.innerHTML = topBar("Progress") + '<div class="sheet"><section class="card">' +

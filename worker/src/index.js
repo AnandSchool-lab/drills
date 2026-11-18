@@ -15,6 +15,10 @@
      POST /draft    a sheet's answers as she goes (open, append-only)
      GET  /mywork   one of her sheets, to refill an iPad (open)
      GET  /misses   her misses, last 60 days, for "Show me how" (open)
+     POST /submit   a paper sheet's answer key, once its photos are up (open)
+     GET  /papers   paper sheets waiting to be marked  (needs the parent key)
+     POST /paper-state  mark one as picked up            (needs the parent key)
+     POST /marks    the marking of one paper sheet       (needs the parent key)
      GET  /retake   has a parent asked for a redo (open)
      GET  /live     the dashboard                 (needs the parent key)
      POST /retake   ask for a redo                (needs the parent key)
@@ -273,6 +277,100 @@ async function postDraft(body, env) {
    a cleared browser). Open, like /review: the app has no key and cannot
    have one. Each part is fetched on its own so a missing table only
    empties that part. */
+/* ---------- paper sheets (v35) ----------
+   The girls work on paper and send photos. Each page goes up through
+   POST /ink as pad "paper-N" (mode photo), so the pages sit with the rest
+   of her work. POST /submit then stores the sheet's answer key - the
+   questions exactly as her screen showed them - so the marker never has
+   to regenerate a sheet. Marks come back through POST /marks, which also
+   writes the ordinary results/answers/misses rows: the dashboard, Recap
+   and "Show me how" all work on paper days without knowing about paper.
+   The table makes itself, so no hand-run DDL can be forgotten. */
+let paperReady = false;
+async function paperTable(env) {
+  if (paperReady) return;
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS paper (
+    kid TEXT NOT NULL, date TEXT NOT NULL, block TEXT NOT NULL,
+    pages INTEGER NOT NULL, sheet TEXT NOT NULL, secs INTEGER NOT NULL DEFAULT 0,
+    submitted TEXT NOT NULL, state TEXT NOT NULL,
+    marks TEXT, notes TEXT, marked TEXT,
+    PRIMARY KEY (kid, date, block))`).run();
+  paperReady = true;
+}
+
+async function postSubmit(body, env) {
+  if (!isKid(body.kid) || !isBlock(body.block) || !isDate(body.date)) return "bad fields";
+  const pages = clampInt(body.pages, 0, 20);
+  if (!pages) return "no pages";
+  const sheet = Array.isArray(body.sheet) ? body.sheet.slice(0, 150) : [];
+  await paperTable(env);
+  /* A second submit (she added a page) sends it back to be marked again;
+     the earlier marks stay until new ones replace them. */
+  await env.DB.prepare(
+    `INSERT INTO paper (kid, date, block, pages, sheet, secs, submitted, state)
+     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 'new')
+     ON CONFLICT (kid, date, block) DO UPDATE SET
+       pages = ?4, sheet = ?5, secs = ?6, submitted = ?7, state = 'new'`
+  ).bind(body.kid, body.date, body.block, pages,
+         clampText(JSON.stringify(sheet), 60000),
+         clampInt(body.secs, 0, 86400), now()).run();
+  await env.DB.prepare(`DELETE FROM live WHERE kid = ?1 AND block = ?2`)
+    .bind(body.kid, body.block).run();
+  return null;
+}
+
+async function getPapers(url, env) {
+  await paperTable(env);
+  const state = url.searchParams.get("state");
+  const rows = await env.DB.prepare(
+    state ? `SELECT * FROM paper WHERE state = ?1 ORDER BY submitted LIMIT 40`
+          : `SELECT * FROM paper WHERE date >= date('now', '-14 day') ORDER BY submitted DESC LIMIT 80`
+  ).bind(...(state ? [state] : [])).all();
+  const p = (v) => { try { return v ? JSON.parse(v) : null; } catch { return null; } };
+  return { ok: true, papers: (rows.results || []).map((r) => ({ ...r, sheet: p(r.sheet), marks: p(r.marks) })) };
+}
+
+async function postPaperState(body, env) {
+  if (!isKid(body.kid) || !isBlock(body.block) || !isDate(body.date)) return "bad fields";
+  if (!["new", "exported"].includes(body.state)) return "bad state";
+  await paperTable(env);
+  await env.DB.prepare(`UPDATE paper SET state = ?4 WHERE kid = ?1 AND date = ?2 AND block = ?3`)
+    .bind(body.kid, body.date, body.block, body.state).run();
+  return null;
+}
+
+/* marks: [{ sec, n, q, want, gave, ok }] - ok is true, false, or null for
+   "could not read it / not on the page", which counts as not right but is
+   shown as a question mark rather than a cross. */
+async function postMarks(body, env) {
+  if (!isKid(body.kid) || !isBlock(body.block) || !isDate(body.date)) return "bad fields";
+  const marks = Array.isArray(body.marks) ? body.marks.slice(0, 150) : [];
+  await paperTable(env);
+  const row = await env.DB.prepare(`SELECT secs FROM paper WHERE kid = ?1 AND date = ?2 AND block = ?3`)
+    .bind(body.kid, body.date, body.block).first();
+  const label = (m) => (m.sec ? m.sec + " " + (m.n || "") + " · " : "") + String(m.q || "");
+  const answers = marks.map((m, i) => ({
+    n: i + 1, q: label(m), want: m.want == null ? "" : String(m.want),
+    gave: (m.ok === null || m.ok === undefined ? "? " + String(m.gave || "could not read") : String(m.gave || "(blank)")) +
+          (m.note ? "  (" + String(m.note) + ")" : ""),
+    ok: m.ok === true, pad: ""
+  }));
+  const graded = marks.filter((m) => String(m.want == null ? "" : m.want) !== "");
+  const misses = marks.filter((m) => m.ok !== true && String(m.want == null ? "" : m.want) !== "")
+    .map((m) => ({ q: String(m.q || ""), gave: m.ok === null ? "(could not read)" : String(m.gave || "(blank)"),
+                   want: String(m.want), kind: /^[\d\s./-]+$/.test(String(m.want)) ? "num" : "word" }));
+  const err = await postResult({ kid: body.kid, date: body.date, block: body.block,
+    got: graded.filter((m) => m.ok === true).length, total: graded.length,
+    secs: row ? row.secs : 0, answers, misses }, env);
+  if (err) return err;
+  await env.DB.prepare(
+    `UPDATE paper SET state = 'marked', marks = ?4, notes = ?5, marked = ?6
+     WHERE kid = ?1 AND date = ?2 AND block = ?3`
+  ).bind(body.kid, body.date, body.block, clampText(JSON.stringify(marks), 60000),
+         clampText(body.notes, 4000), now()).run();
+  return null;
+}
+
 /* Everything she got wrong lately, so "Show me how" can say "you did the
    same thing on Nov 5" even on an iPad that has lost its own history.
    Open, like /review: the same remarks are in the public archive. */
@@ -374,6 +472,14 @@ async function getLive(url, env) {
     : new Date().toISOString().slice(0, 10);
   const notes = [];
 
+  let papers = [];
+  try {
+    await paperTable(env);
+    papers = await safeAll(env.DB.prepare(
+      `SELECT kid, date, block, pages, submitted, state, notes, marked FROM paper WHERE date = ?1`
+    ).bind(date), "paper", notes);
+  } catch (e) { notes.push("paper: " + ((e && e.message) || "failed")); }
+
   const [live, today, recentMisses, overdue, stuck] = await Promise.all([
     safeAll(env.DB.prepare(`SELECT * FROM live ORDER BY kid, block`), "live", notes),
     safeAll(env.DB.prepare(`SELECT * FROM results WHERE date = ?1 ORDER BY kid, block`)
@@ -411,6 +517,7 @@ async function getLive(url, env) {
     tests: overdue,
     stuck: stuck,
     answers: answers,
+    papers: papers,
     notes: notes
   };
 }
@@ -569,6 +676,17 @@ export default {
         return err ? bad(err, origin) : json({ ok: true }, 200, origin);
       }
 
+      if (path === "/papers" && request.method === "GET") {
+        if (!keyOk(url.searchParams.get("key"), env.PARENT_KEY)) return bad("wrong key", origin, 401);
+        return json(await getPapers(url, env), 200, origin);
+      }
+      if ((path === "/marks" || path === "/paper-state") && request.method === "POST") {
+        const body = await readJson(request);
+        if (!keyOk(body.key, env.PARENT_KEY)) return bad("wrong key", origin, 401);
+        const err = path === "/marks" ? await postMarks(body, env) : await postPaperState(body, env);
+        return err ? bad(err, origin) : json({ ok: true }, 200, origin);
+      }
+
       if (path === "/review" && request.method === "POST") {
         const body = await readJson(request);
         if (!keyOk(body.key, env.PARENT_KEY)) return bad("wrong key", origin, 401);
@@ -604,6 +722,7 @@ export default {
         else if (path === "/result")       err = await postResult(body, env);
         else if (path === "/ink")          err = await postInk(body, env);
         else if (path === "/writing")      err = await postWriting(body, env);
+        else if (path === "/submit")       err = await postSubmit(body, env);
         else if (path === "/retake-done")  err = await postRetakeDone(body, env);
         else if (path === "/stuck")        err = await postStuck(body, env);
         else if (path === "/draft")        err = await postDraft(body, env);

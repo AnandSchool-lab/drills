@@ -83,9 +83,23 @@ open the real parent page, light and dark. Spelling pads now carry their
 `word`; written answers go up as answers rows with `want: ""` (outside
 the score, shown on their own line).
 
+**Paper mode (v35) - his decision after weeks of typing trouble.** Every
+block (Recap, Math, Thinking, English) shows its questions read-only; the
+girls work on paper, photograph the pages and press Submit (`PAPER` in
+app.js; the old typed-sheet functions are still there, unused). Spelling
+words are never on screen - numbered buttons speak the word and a sentence.
+Pages go up as ink pads `paper-N` (mode photo); `POST /submit` stores the
+answer key exactly as her screen showed it (`paper` table, created by the
+Worker on first use). `paper-export.yml` (every 10 min, 2-11 pm Pacific)
+files new sheets as `archive/.../paper-<Kid>-<block>/` and that push wakes
+the marking routine (`MARKING.md`), whose `marks.json` goes back through
+`POST /marks` - which writes ordinary results/answers/misses, so the
+dashboard, Recap and "Show me how" work unchanged. Unsent photos stay in
+IndexedDB (`paper:<kid>:<date>:<block>`) until the server has them.
+
 **Bumping the version is a three-line ritual.** `APP_VERSION` in `app.js`,
 `CACHE` in `sw.js`, and the file list in `app.js` (~line 2116) that the Update
-button fetches. Currently 34 / `drills-v34`. A new file that is not in that list
+button fetches. Currently 35 / `drills-v35`. A new file that is not in that list
 never reaches the iPads — `ink.js` was missing once and the handwriting fixes
 silently did not ship.
 

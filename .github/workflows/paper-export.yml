@@ -1,0 +1,60 @@
+# Every 10 minutes through the afternoon and evening, file any paper sheet
+# the girls have just submitted into archive/, as photos plus the answer
+# key their screen showed. That commit is what wakes the Claude marking
+# routine (MARKING.md), so marks reach the parent page soon after Submit.
+#
+# GitHub runs scheduled jobs late when it is busy - sometimes 15 minutes,
+# occasionally more - so "soon" is usually 15-30 minutes, not instant.
+
+name: Paper export
+
+on:
+  schedule:
+    # 22:00-06:50 UTC = 2:00-10:50 pm Pacific (standard time)
+    - cron: "*/10 22,23,0,1,2,3,4,5,6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: paper-export
+  cancel-in-progress: false
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pull newly submitted pages from the Worker
+        env:
+          API: https://drills-api.anandm401-amazon.workers.dev
+          PARENT_KEY: ${{ secrets.PARENT_KEY }}
+          OUT: ${{ runner.temp }}/exported.json
+        run: node .github/scripts/export-papers.mjs
+
+      - name: Commit them
+        id: commit
+        run: |
+          git config user.name  "Daily Drills"
+          git config user.email "noreply@anthropic.com"
+          if [ -z "$(git status --porcelain archive)" ]; then
+            echo "Nothing new."
+            exit 0
+          fi
+          git add archive
+          git commit -m "Paper $(TZ=America/Los_Angeles date +%F) - $(node -e 'console.log(require(process.env.OUT).map(p=>p.kid+" "+p.block).join(", "))')"
+          git pull --rebase
+          git push
+          echo "pushed=1" >> "$GITHUB_OUTPUT"
+        env:
+          OUT: ${{ runner.temp }}/exported.json
+
+      - name: Tell the Worker they are filed
+        if: steps.commit.outputs.pushed == '1'
+        env:
+          API: https://drills-api.anandm401-amazon.workers.dev
+          PARENT_KEY: ${{ secrets.PARENT_KEY }}
+          OUT: ${{ runner.temp }}/exported.json
+        run: node .github/scripts/export-papers.mjs --ack

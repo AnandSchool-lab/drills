@@ -156,6 +156,17 @@ input,select{font:inherit;font-size:15px;padding:8px 10px;border-radius:9px;
 .sprow .mk{font-weight:700;text-align:center}
 .sprow .mk.ok{color:var(--good)} .sprow .mk.no{color:var(--bad)}
 .sprow .fix{font-size:12.5px;color:var(--good);font-weight:700}
+.ptag{font-size:11.5px;border-radius:99px;padding:1px 9px;background:var(--surface-2);color:var(--muted);border:1px solid var(--line);white-space:nowrap}
+.ptag.ok{color:var(--good);border-color:var(--good)}
+.ptag.wait{color:var(--amber,#D9731A);border-color:var(--amber,#D9731A)}
+.ptutor{padding:10px 13px;background:var(--surface-2);border-top:1px solid var(--line);font-size:13.5px;line-height:1.55}
+.ptutor b{display:block;font-family:var(--mono);font-size:12px;color:var(--accent);margin-bottom:3px}
+.pthumbs{display:flex;flex-wrap:wrap;gap:10px;padding:6px 13px 12px}
+.pthumb{position:relative;margin:0;width:120px;height:160px;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff}
+.pthumb img{width:100%;height:100%;object-fit:cover;cursor:zoom-in;display:block}
+.pthumb span{position:absolute;left:5px;bottom:5px;background:rgba(10,18,30,.75);color:#fff;font-size:11px;font-weight:700;border-radius:5px;padding:0 6px}
+.qrow.unread{background:var(--amber-soft,#FDEEDC)}
+.qrow.unread .mk,.qrow.unread .ga{color:var(--amber,#D9731A)}
 .spnote{font-size:12px;color:var(--muted);padding:2px 0 6px}
 .blk.onlybad .qrow:not(.bad){display:none}
 .blk.onlybad .qrow:not(.bad)+.qink{display:none}
@@ -440,13 +451,15 @@ function paint(d){
    answer when she missed it, and a pencil if she showed her working. */
 function rowHTML(a){
   var gave = a.gave || "", blank = !gave || /^\(?blank\)?$/i.test(gave);
-  return '<div class="qrow' + (a.ok ? "" : " bad") + (a.want === "" && a.ok ? " text" : "") + '" data-pad="' + esc(a.pad || "") + '"' +
+  var unread = /^\? /.test(gave);
+  if(unread) gave = "can't read: " + gave.slice(2);
+  return '<div class="qrow' + (unread ? " unread" : a.ok ? "" : " bad") + (a.want === "" && a.ok ? " text" : "") + '" data-pad="' + esc(a.pad || "") + '"' +
     (a.ok ? '' : ' data-q="' + esc(a.q) + '" data-gave="' + esc(gave) + '" data-want="' + esc(a.want) + '"') + '>' +
     '<span class="n">' + a.n + '</span>' +
     '<span class="qq">' + esc(a.q) + (a.ok ? '' : '<span class="rep" hidden></span>') + '</span>' +
     '<span class="ga' + (a.ok ? " ok" : "") + (blank ? " blank" : "") + '">' +
       esc(blank ? "nothing" : gave) + '</span>' +
-    '<span class="mk">' + (a.want === "" && a.ok ? "✎" : a.ok ? "✓" : "✗") + '</span>' +
+    '<span class="mk">' + (unread ? "?" : a.want === "" && a.ok ? "✎" : a.ok ? "✓" : "✗") + '</span>' +
     '<span class="wa">' + (a.ok ? "" : esc(a.want)) + '</span>' +
     '<span class="pen"></span>' +
   '</div><div class="qink" hidden></div>';
@@ -471,7 +484,8 @@ function columns(rows){
      the order she met it, what she wrote, what the answer was, and her
      working beside the problem it belongs to. The old version listed
      only the mistakes, as two unlabelled numbers. */
-  var results = {}, rows = {}, wrong = {};
+  var results = {}, rows = {}, wrong = {}, papers = {};
+  (d.papers || []).forEach(function(p){ if(p.kid === kid && p.date === day) papers[p.block] = p; });
   (d.today || []).forEach(function(r){ if(r.kid === kid && r.date === day) results[r.block] = r; });
   (d.answers || []).forEach(function(a){
     if(a.kid !== kid) return;
@@ -489,21 +503,31 @@ function columns(rows){
     var pc = r && r.total ? r.got / r.total : 0;
     var missed = all.filter(function(a){ return !a.ok; }).length;
 
-    var head = '<header><span class="nm">' + LABEL[b] + '</span>' +
+    var pp = papers[b];
+    /* paper (v35): when she sent it, and whether Claude has marked it yet */
+    var ptag = pp ? '<span class="ptag">&#128247; ' + pp.pages + ' page' + (pp.pages === 1 ? "" : "s") +
+        ' sent ' + esc(clock(pp.submitted)) + '</span>' +
+        (pp.state === "marked" ? '<span class="ptag ok">marked ' + esc(clock(pp.marked)) + '</span>'
+                               : '<span class="ptag wait">being marked&hellip;</span>') : '';
+    var head = '<header><span class="nm">' + LABEL[b] + '</span>' + ptag +
       (r ? '<span class="tm">' + Math.round(r.secs/60) + ' min</span>' +
            (all.length ? '<button class="sm filt" data-b="' + b + '">show only the ' +
                           missed + ' wrong</button>' : '') +
            '<span class="sc ' + (pc >= 0.8 ? "good" : "work") + '">' + r.got + ' / ' + r.total + '</span>'
-         : '<span class="sc" style="color:var(--muted)">not done</span>') +
+         : (pp ? '' : '<span class="sc" style="color:var(--muted)">not done</span>')) +
       '</header>';
 
     var body;
-    if(!r){
+    if(!r && pp){
+      body = '<div class="nowork">Her ' + pp.pages + ' page' + (pp.pages === 1 ? " is" : "s are") +
+        ' below. Claude is marking ' + (pp.pages === 1 ? "it" : "them") +
+        ' &mdash; each question will be listed here with what she wrote, usually within half an hour.</div>';
+    } else if(!r){
       /* Say so. A bare empty card at nine in the morning looks like a
          page that is not working, rather than a day not started. */
       body = '<div class="nowork">' + esc(kid) + ' has not finished ' + LABEL[b] +
         (day === todayStr() ? " today yet." : " on this day.") +
-        ' Every question will be listed here once she presses Check.</div>';
+        ' Every question will be listed here once she sends her pages and Claude has marked them.</div>';
     } else if(all.length){
       body = columns(all.map(rowHTML));
     } else if(ws.length){
@@ -517,7 +541,8 @@ function columns(rows){
       body = '<div class="allright">All correct.</div>';
     }
 
-    return '<section class="blk" data-b="' + b + '">' + head + body +
+    var tut = pp && pp.notes ? '<div class="ptutor"><b># tutor notes</b>' + esc(pp.notes) + '</div>' : '';
+    return '<section class="blk" data-b="' + b + '"' + (pp ? ' data-pages="' + pp.pages + '"' : '') + '>' + head + tut + body +
       '<div class="notehost"></div></section>';
   }).join("");
 
@@ -659,11 +684,13 @@ function loadNotes(){
         "&kid=" + encodeURIComponent(kid) + "&date=" + day, { cache:"no-store" })
     .then(function(r){ return r.json(); })
     .then(function(d){
-      var loose = {}, spell = [];
+      var loose = {}, spell = [], paperPages = {};
       (d.pads || []).forEach(function(p){
         var data = {}; try{ data = JSON.parse(p.data || "{}"); }catch(e){}
         if(!padHas(data)) return;                       // nothing was written here
         if(p.block === "eng" && /^sp\d+$/.test(p.pad)){ spell.push({ i: +p.pad.slice(2), data: data }); return; }
+        var pm = /^paper-(\d+)$/.exec(p.pad);
+        if(pm){ (paperPages[p.block] = paperPages[p.block] || []).push({ n: +pm[1], data: data }); return; }
 
         var sec = document.querySelector('.blk[data-b="' + p.block + '"]');
         if(!sec) return;
@@ -673,6 +700,7 @@ function loadNotes(){
       });
 
       paintSpelling(spell);
+      paintPages(paperPages);
       Object.keys(loose).forEach(function(b){
         var sec = document.querySelector('.blk[data-b="' + b + '"]');
         if(!sec) return;
@@ -689,6 +717,36 @@ function loadNotes(){
 }
 
 function cssq(s){ return String(s).replace(/"/g, '\\"'); }
+
+/* An ISO time as "4:42 pm" in this computer's own time zone. */
+function clock(iso){
+  var t = new Date(iso || "");
+  if(isNaN(t)) return "";
+  var h = t.getHours();
+  return (h % 12 || 12) + ":" + ("0" + t.getMinutes()).slice(-2) + (h < 12 ? " am" : " pm");
+}
+
+/* Her paper pages (v35), in order, as thumbnails that open full size.
+   Only the pages of the latest submit: a page she removed before
+   submitting again is still kept on the server, just not shown. */
+function paintPages(byBlock){
+  Object.keys(byBlock).forEach(function(b){
+    var sec = document.querySelector('.blk[data-b="' + b + '"]');
+    if(!sec) return;
+    var max = +(sec.dataset.pages || 99);
+    var list = byBlock[b].filter(function(p){ return p.n <= max; }).sort(function(x, y){ return x.n - y.n; });
+    if(!list.length) return;
+    var html = '<div class="lab">Her pages</div><div class="pthumbs">' + list.map(function(p){
+      var src = (p.data.imgs || [])[0] || "";
+      return src ? '<figure class="pthumb"><img src="' + src + '" alt="page ' + p.n + '"><span>' + p.n + '</span></figure>' : '';
+    }).join("") + '</div>';
+    var host = sec.querySelector(".notehost");
+    host.insertAdjacentHTML("afterbegin", html);
+    host.querySelectorAll(".pthumb img").forEach(function(img){
+      img.addEventListener("click", function(){ bigPicture(img.src); });
+    });
+  });
+}
 
 /* The spelling test as a list: the word she was given, what she wrote,
    and - when she typed it - whether it matches. Handwriting is shown at

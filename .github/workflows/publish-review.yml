@@ -11,6 +11,7 @@ on:
   push:
     paths:
       - "archive/**/review-*.json"
+      - "archive/**/marks.json"
   workflow_dispatch:
 
 permissions:
@@ -29,3 +30,9 @@ jobs:
           API: https://drills-api.anandm401-amazon.workers.dev
           PARENT_KEY: ${{ secrets.PARENT_KEY }}
         run: node .github/scripts/publish-review.mjs
+
+      - name: Send each new marking to the Worker
+        env:
+          API: https://drills-api.anandm401-amazon.workers.dev
+          PARENT_KEY: ${{ secrets.PARENT_KEY }}
+        run: node .github/scripts/publish-marks.mjs
