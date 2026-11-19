@@ -1,0 +1,13 @@
+{ "submitted": "2026-11-19T04:45:47.498Z",
+  "summary": "Three pages. (1) A Math-Drills 'Multiplication Facts to 100 (A)' sheet: she did the Monday, Tuesday and Wednesday columns (60 facts, timed 0:39, 0:42 and 0:41) and left Thursday and Friday blank, presumably for later days. 58 of 60 are right; 9 × 10 in the last row looks like 96 (should be 90), and 8 × 8 is smudged so I read it as 64 but cannot be sure. (2) Explanatory Writing, 'describe the perfect meal': one long paragraph naming dumplings, omelettes, noodles, soup, cherries, strawberries, yellow watermelon, chicken biryani and fried eggs, with a reason for each dish and a closing sentence. It is organised and answers the prompt, but almost every sentence starts 'I want ... because', and she mixes up it's/its and there/their, and has a few spelling slips (amlets, stranberries, perfet). (3) Character Change graphic organizer about Travis: smart and clever -> scared and nervous -> relieved and grateful. A clear beginning/middle/end, with good feeling words but no evidence from the story to back them up. No teacher marks are visible on any page.",
+  "topics": ["multiplication facts to 100 (timed)", "explanatory writing", "its vs it's, their vs there", "character change / feelings across a story"],
+  "progress": "No earlier school.json files exist to compare with. Her facts speed is strong (about 40 seconds for 20 facts); the one wrong answer is on a 9s fact. Writing is fluent; the its/it's and there/their confusion is the thing to watch.",
+  "practice": [
+    { "q": "9 × 10", "want": "90" },
+    { "q": "8 × 8", "want": "64" },
+    { "q": "9 × 7", "want": "63" },
+    { "q": "Choose the right word: The dog wagged ___ tail. (a) its (b) it's", "want": "a" },
+    { "q": "Choose the right word: ___ going to rain today. (a) Its (b) It's", "want": "b" },
+    { "q": "Choose the right word: The twins put on ___ coats. (a) there (b) their (c) they're", "want": "b" },
+    { "q": "Write the missing word: Travis felt nervous at first, ___ he felt relieved at the end. (a) but (b) because (c) so", "want": "a" }
+  ] }
