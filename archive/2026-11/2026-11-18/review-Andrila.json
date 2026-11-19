@@ -1,0 +1,26 @@
+{
+  "praise": "Nine out of ten, and the hard ones were all yours: beautiful, probably, different. You also had through and thought one after the other - same letters, shuffled - and you kept them apart.",
+  "spelling": [
+    { "word": "exercise", "wrote": "exersicse", "right": "exercise" }
+  ],
+  "essay": {
+    "summary": "You put your rule in the very first sentence, so a reader knows where you stand straight away. Then you said what homework is actually for - getting better, or checking you understood - which is a fair description of it.",
+    "fixes": [
+      {
+        "was": "assighnment",
+        "should": "assignment",
+        "why": "sign is hiding inside it: a-s-s-i-g-n, then -ment. There is no h."
+      },
+      {
+        "was": "I would make a rule to not get any homework because homework is just more school work",
+        "should": "I would get rid of it because homework is just more school work",
+        "why": "you already told us the rule in sentence one, so sentence two can go straight to the reason"
+      }
+    ],
+    "next": "Your because explains what homework is for, which is really a reason to keep it. Give one reason to get rid of it instead - what would you do with that time?"
+  },
+  "focus": [
+    "exercise, and other words where the c and the s swap places",
+    "making the reason after because argue for your side"
+  ]
+}

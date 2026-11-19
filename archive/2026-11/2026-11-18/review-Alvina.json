@@ -1,0 +1,38 @@
+{
+  "praise": "Sixty multiplication facts on your school sheet, in three goes of about forty seconds each, and fifty-nine of them right. That speed only comes from knowing them, not from working them out.",
+  "spelling": [
+    { "word": "beginning", "wrote": "begining", "right": "beginning" },
+    { "word": "relieved", "wrote": "releived", "right": "relieved" },
+    { "word": "grateful", "wrote": "gratefull", "right": "grateful" }
+  ],
+  "essay": {
+    "summary": "Your perfect meal paragraph gave a reason for every single dish - nine of them - and ended with a closing sentence that tied it up. Giving a reason for each one is the whole job of explanatory writing, and you did it.",
+    "fixes": [
+      {
+        "was": "because of there soupy and savory taste",
+        "should": "because of their soupy and savory taste",
+        "why": "there is a place. their means it belongs to them - the taste belongs to the noodles."
+      },
+      {
+        "was": "because of it's juicy taste",
+        "should": "because of its juicy taste",
+        "why": "it's always means it is. Read it back as because of it is juicy taste - if that sounds wrong, you want its."
+      },
+      {
+        "was": "The rule I would make for school would be to amazing cafeteria food",
+        "should": "The rule I would make for school would be to have amazing cafeteria food",
+        "why": "the sentence needs something happening in it: to have, to serve, to cook"
+      }
+    ],
+    "next": "In the perfect meal paragraph, nearly every sentence starts I want ___ in my perfect meal because. Try starting three of them a different way - Dumplings come first because..., I would add soup for... - and keep the reasons exactly as they are."
+  },
+  "math": {
+    "approach": "You went straight down the columns and filled Monday, Tuesday and Wednesday, timing each one and leaving Thursday and Friday for later. Nothing skipped, nothing crossed out, no counting marks anywhere - you were pulling these out of your head.",
+    "note": "The one that got away was 9 x 10 in the bottom row, where you wrote 96. You had already written 90 for that same fact higher up the same page, so you do know it. That is a going-fast slip, not a gap - worth one look back along the last row when the timer stops."
+  },
+  "focus": [
+    "its and it's",
+    "there, their and they're",
+    "double letters: beginning, grateful"
+  ]
+}
