@@ -8,7 +8,7 @@
 
 /* ---------- configuration you may want to change ---------- */
 var START_DATE = "2026-10-27";   // Monday the programme begins. Week 1 starts here.
-var APP_VERSION = "35";          // shown on the home screen; keep in step with CACHE in sw.js
+var APP_VERSION = "36";          // shown on the home screen; keep in step with CACHE in sw.js
 
 /* Google Apps Script web-app URL. Blank = results stay on the iPad only.
    Paste the /exec URL from Deploy → New deployment → Web app. */
@@ -1035,9 +1035,12 @@ function blockCard(key){
   if(key === "recap"){
     extra = " recap";
     if(!r){
-      var n = recapParts().total;
-      sub = n ? n + " thing" + (n===1?"":"s") + " you got wrong before"
+      var n = recapParts().total, ps = practiceCount[who() + "|" + todayKey()] || 0;
+      sub = n && ps ? n + " to go back over + " + ps + " from school"
+          : ps ? ps + " practice question" + (ps === 1 ? "" : "s") + " from your school work"
+          : n ? n + " thing" + (n===1?"":"s") + " you got wrong before"
               : "nothing to go back over yet";
+      n += ps;
       if(!n){ extra += " quiet"; right = '<span class="chip">clear</span>'; }
     }
   }
@@ -1060,6 +1063,10 @@ function screenDay(){
       '<p class="dayline">Day '+(day>0?day:1)+' · Level '+L +
         (ahead ? ' · <span class="aheadtag">this day is still ahead</span>' : '') + '</p>' +
       '<div id="feedback"></div>' +
+      /* v36: her school homework for this date, photographed after school.
+         Claude reads it, tells Dad how she did, and writes tomorrow's
+         practice from what she found hard. */
+      paperUpload("&#128218; School uploads", "Back from school? Take a photo of each page of today&rsquo;s school work or homework, then press Submit. Dad sees them, and tomorrow&rsquo;s practice is built from them.", "school") +
       '<div class="blocks">' + blockCard("recap") + blockCard("math") + blockCard("think") + blockCard("eng") + '</div>' +
       '<div class="foot"><button class="ghost" id="report">Progress report</button>' +
       '<button class="ghost" id="parent">For parents</button></div>' +
@@ -1071,8 +1078,17 @@ function screenDay(){
   $("#report").addEventListener("click", screenReport);
   $("#parent").addEventListener("click", screenParent);
   loadFeedback();
+  wirePaper("school", []);
   /* paper days are marked on the server: fetch her misses so the Recap
      card knows about them, then redraw that one card */
+  function redrawRecap(){
+    var card = app.querySelector('.block[data-block="recap"]');
+    if(!card || resultFor("recap")) return;
+    card.outerHTML = blockCard("recap");
+    var nc = app.querySelector('.block[data-block="recap"]');
+    if(nc) nc.addEventListener("click", function(){ openBlock("recap"); });
+  }
+  fetchPractice(function(){ redrawRecap(); });
   fetchHistory(function(){
     var card = app.querySelector('.block[data-block="recap"]');
     if(!card || resultFor("recap")) return;
@@ -1919,9 +1935,9 @@ function paperHow(word, headings){
     '<li>Show your working. If you don\'t know one, write <b>don\'t know</b>.</li></ol></section>';
 }
 
-function paperUpload(){
-  return '<section class="card pup" id="pup"><div class="chead"><h2>&#128247; Send your pages to Dad</h2></div>' +
-    '<p class="note">Take a photo of each page &mdash; add as many as you need &mdash; then press Submit.</p>' +
+function paperUpload(title, note, extraClass){
+  return '<section class="card pup' + (extraClass ? " " + extraClass : "") + '" id="pup"><div class="chead"><h2>' + (title || "&#128247; Send your pages to Dad") + '</h2></div>' +
+    '<p class="note">' + (note || "Take a photo of each page &mdash; add as many as you need &mdash; then press Submit.") + '</p>' +
     '<label class="addpage">&#128247; Add a page<input type="file" accept="image/*" multiple hidden></label>' +
     '<div class="ppages"></div>' +
     '<button type="button" class="psubmit" disabled>Submit</button>' +
@@ -1987,7 +2003,7 @@ function wirePaper(block, sheet){
   function sentNote(){
     var r = resultFor(block);
     if(r && r.paper) msg.innerHTML = '<span class="psent">&#10003; Sent ' + r.pages + ' page' + (r.pages === 1 ? "" : "s") +
-      (r.at ? ' at ' + esc(r.at) : '') + '. Dad will see them marked soon.</span>' +
+      (r.at ? ' at ' + esc(r.at) : '') + (block === "school" ? '. Dad will see them tonight.</span>' : '. Dad will see them marked soon.</span>') +
       ' You can add a page and submit again.';
   }
 
@@ -2139,11 +2155,35 @@ function paperEnglish(){
   });
 }
 
+var practiceCount = {};   /* "kid|date" -> how many school practice questions */
+function fetchPractice(done){
+  if(!apiUrl() || !who()){ done([]); return; }
+  var fin = false, t = setTimeout(function(){ if(!fin){ fin = true; done([]); } }, 3500);
+  fetch(apiUrl() + "/practice?kid=" + encodeURIComponent(who()) + "&before=" + todayKey())
+    .then(function(r){ return r.json(); })
+    .then(function(d){ var p = (d && d.practice) || []; practiceCount[who() + "|" + todayKey()] = p.length;
+                       if(!fin){ fin = true; clearTimeout(t); done(p); } })
+    .catch(function(){ if(!fin){ fin = true; clearTimeout(t); done([]); } });
+}
+
 function paperRecap(){
+  fetchPractice(function(practice){ paperRecapWith(practice); });
+}
+function paperRecapWith(practice){
   var parts = recapParts();
   var list = parts.fresh.concat(parts.older);
-  if(!list.length) return blockRecap();
-  var html = paperHow("RECAP", ["Recap"]);
+  if(!list.length && !practice.length) return blockRecap();
+  var heads = (practice.length ? ["From school"] : []).concat(list.length ? ["Recap"] : []);
+  var html = paperHow("RECAP", heads), schoolSheet = [];
+  if(practice.length){
+    var ps = paperSection("From school", "Built from the school work you sent. These are the kind you found tricky.",
+      practice.map(function(q){ return { q: q.q, want: q.want, long: true }; }), { wide: true });
+    html += ps.html; schoolSheet = ps.sheet;
+  }
+  if(!list.length){
+    paperShell("recap", "Recap", BLOCKS.recap.mins, html, schoolSheet);
+    return;
+  }
   var out = paperSection("Recap", "The ones you got wrong before. Work them out again rather than trying to remember.",
     list.map(function(m, i){
       var ago = m.age === 1 ? "yesterday" : m.age + " days ago";
@@ -2152,7 +2192,7 @@ function paperRecap(){
           (window.Explain ? '<button type="button" class="howbtn" data-how="' + i + '">&#128214; Show me how</button>' : '') };
     }), { wide: true });
   html += out.html;
-  paperShell("recap", "Recap", BLOCKS.recap.mins, html, out.sheet, function(){
+  paperShell("recap", "Recap", BLOCKS.recap.mins, html, schoolSheet.concat(out.sheet), function(){
     if(!window.Explain) return;
     app.querySelectorAll("[data-how]").forEach(function(b){
       b.addEventListener("click", function(){ showHow(list[+b.dataset.how]); });

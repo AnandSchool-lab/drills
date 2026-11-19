@@ -19,6 +19,8 @@
      GET  /papers   paper sheets waiting to be marked  (needs the parent key)
      POST /paper-state  mark one as picked up            (needs the parent key)
      POST /marks    the marking of one paper sheet       (needs the parent key)
+     POST /school   Claude's reading of her school pages  (needs the parent key)
+     GET  /practice tomorrow's questions from her school work (open)
      GET  /retake   has a parent asked for a redo (open)
      GET  /live     the dashboard                 (needs the parent key)
      POST /retake   ask for a redo                (needs the parent key)
@@ -32,7 +34,7 @@
    ============================================================ */
 
 const KIDS = ["Andrila", "Alvina"];
-const BLOCKS = ["recap", "math", "think", "eng", "weekly", "monthly"];
+const BLOCKS = ["recap", "math", "think", "eng", "weekly", "monthly", "school"];   // school: her school homework pages (v36)
 
 const ALLOWED_ORIGINS = [
   "https://anandschool-lab.github.io",
@@ -302,7 +304,7 @@ async function postSubmit(body, env) {
   if (!isKid(body.kid) || !isBlock(body.block) || !isDate(body.date)) return "bad fields";
   const pages = clampInt(body.pages, 0, 20);
   if (!pages) return "no pages";
-  const sheet = Array.isArray(body.sheet) ? body.sheet.slice(0, 150) : [];
+  const sheet = Array.isArray(body.sheet) ? body.sheet.slice(0, 150) : [];   // [] for school pages
   await paperTable(env);
   /* A second submit (she added a page) sends it back to be marked again;
      the earlier marks stay until new ones replace them. */
@@ -369,6 +371,41 @@ async function postMarks(body, env) {
   ).bind(body.kid, body.date, body.block, clampText(JSON.stringify(marks), 60000),
          clampText(body.notes, 4000), now()).run();
   return null;
+}
+
+/* School pages (v36), read by Claude: a summary and progress note for her
+   father, and a few practice questions aimed at what she found hard,
+   which the next day's Recap puts in front of her. Kept on the paper row:
+   notes = summary, marks = the practice questions. */
+async function postSchool(body, env) {
+  if (!isKid(body.kid) || !isDate(body.date)) return "bad fields";
+  await paperTable(env);
+  const practice = (Array.isArray(body.practice) ? body.practice : []).slice(0, 12)
+    .filter((q) => q && q.q).map((q) => ({ sec: "From school", q: clampText(q.q, 400), want: clampText(q.want == null ? "" : q.want, 200) }));
+  const notes = [body.summary, body.progress ? "Progress: " + body.progress : ""].filter(Boolean).join("\n\n");
+  await env.DB.prepare(
+    `UPDATE paper SET state = 'marked', notes = ?3, marks = ?4, marked = ?5
+     WHERE kid = ?1 AND date = ?2 AND block = 'school'`
+  ).bind(body.kid, body.date, clampText(notes, 4000), JSON.stringify(practice), now()).run();
+  return null;
+}
+
+/* The newest practice written from her school pages before `before`. */
+async function getPractice(url, env) {
+  const kid = url.searchParams.get("kid"), before = url.searchParams.get("before");
+  if (!isKid(kid) || !isDate(before)) return { ok: false, error: "bad fields" };
+  try {
+    await paperTable(env);
+    const row = await env.DB.prepare(
+      `SELECT date, marks FROM paper WHERE kid = ?1 AND block = 'school' AND state = 'marked'
+       AND date < ?2 AND date >= date(?2, '-4 day') ORDER BY date DESC LIMIT 1`
+    ).bind(kid, before).first();
+    let practice = [];
+    try { practice = row && row.marks ? JSON.parse(row.marks) : []; } catch { }
+    return { ok: true, date: row ? row.date : null, practice };
+  } catch (e) {
+    return { ok: true, date: null, practice: [], notes: ["practice: " + ((e && e.message) || "failed")] };
+  }
 }
 
 /* Everything she got wrong lately, so "Show me how" can say "you did the
@@ -680,10 +717,11 @@ export default {
         if (!keyOk(url.searchParams.get("key"), env.PARENT_KEY)) return bad("wrong key", origin, 401);
         return json(await getPapers(url, env), 200, origin);
       }
-      if ((path === "/marks" || path === "/paper-state") && request.method === "POST") {
+      if ((path === "/marks" || path === "/paper-state" || path === "/school") && request.method === "POST") {
         const body = await readJson(request);
         if (!keyOk(body.key, env.PARENT_KEY)) return bad("wrong key", origin, 401);
-        const err = path === "/marks" ? await postMarks(body, env) : await postPaperState(body, env);
+        const err = path === "/marks" ? await postMarks(body, env)
+                  : path === "/school" ? await postSchool(body, env) : await postPaperState(body, env);
         return err ? bad(err, origin) : json({ ok: true }, 200, origin);
       }
 
@@ -709,6 +747,10 @@ export default {
 
       if (path === "/misses" && request.method === "GET") {
         return json(await getMisses(url, env), 200, origin);
+      }
+
+      if (path === "/practice" && request.method === "GET") {
+        return json(await getPractice(url, env), 200, origin);
       }
 
       if (path === "/mywork" && request.method === "GET") {

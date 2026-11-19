@@ -97,9 +97,18 @@ the marking routine (`MARKING.md`), whose `marks.json` goes back through
 dashboard, Recap and "Show me how" work unchanged. Unsent photos stay in
 IndexedDB (`paper:<kid>:<date>:<block>`) until the server has them.
 
+**School uploads and the new look (v36).** Off-white, navy and mint, in
+both apps, with no dark mode - his choice. Each date's home screen starts
+with a "School uploads" card: photos of her school work, sent as block
+`school` through the same paper route (empty answer key). The marking
+routine reads them (MARKING.md, "School pages") and writes `school.json`:
+a summary and progress note for him (shown first on the parent page, with
+a page-by-page viewer) and 4-8 practice questions, which `GET /practice`
+puts at the top of the next day's Recap as "From school".
+
 **Bumping the version is a three-line ritual.** `APP_VERSION` in `app.js`,
 `CACHE` in `sw.js`, and the file list in `app.js` (~line 2116) that the Update
-button fetches. Currently 35 / `drills-v35`. A new file that is not in that list
+button fetches. Currently 36 / `drills-v36`. A new file that is not in that list
 never reaches the iPads — `ink.js` was missing once and the handwriting fixes
 silently did not ship.
 

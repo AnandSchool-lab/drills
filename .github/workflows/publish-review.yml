@@ -12,6 +12,7 @@ on:
     paths:
       - "archive/**/review-*.json"
       - "archive/**/marks.json"
+      - "archive/**/school.json"
   workflow_dispatch:
 
 permissions:

@@ -9,7 +9,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Daily Drills">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="theme-color" content="#2454CE">
+<meta name="theme-color" content="#1F3A68">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" href="icon-192.png">
@@ -19,21 +19,14 @@
 <style>
 /* Layout: one screen at a time — picker, home, a timed sheet, a report */
 :root{
-  --bg:#EDF1F7; --surface:#FFFFFF; --surface-2:#F6F9FD; --ink:#16243C; --muted:#56688A;
-  --line:#D5DEEC; --accent:#2454CE; --accent-soft:#E2EAFF; --amber:#D9731A; --amber-soft:#FDEEDC;
-  --good:#17774A; --good-soft:#DDF2E6; --bad:#BE3B2D; --bad-soft:#FBE3E0;
+  /* off-white, navy and mint (v36) - one look, whatever the iPad's
+     dark-mode setting, because that is the look he chose */
+  --bg:#F8F5EE; --surface:#FFFDF8; --surface-2:#F2EEE3; --ink:#1B2A4A; --muted:#5C6782;
+  --line:#E4DED0; --accent:#1F3A68; --accent-soft:#E5EBF4; --amber:#C9741F; --amber-soft:#FBEEDB;
+  --good:#23936B; --good-soft:#DDF5EA; --bad:#B8402F; --bad-soft:#FBE5E0;
+  --mint:#9FE2C6; --mint-ink:#0F5C43;
   --display:"Baloo 2","Trebuchet MS",system-ui,sans-serif;
   --body:"Nunito","Segoe UI",system-ui,-apple-system,sans-serif;
-}
-@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){
-  --bg:#0E1724; --surface:#17222F; --surface-2:#1D293A; --ink:#E6EDF8; --muted:#9AACC6;
-  --line:#2B3A4F; --accent:#7AA2FF; --accent-soft:#1E2B46; --amber:#F0A458; --amber-soft:#36281A;
-  --good:#52CB8E; --good-soft:#15322A; --bad:#FF8D7E; --bad-soft:#3A1F1E; color-scheme:dark;
-}}
-:root[data-theme="dark"]{
-  --bg:#0E1724; --surface:#17222F; --surface-2:#1D293A; --ink:#E6EDF8; --muted:#9AACC6;
-  --line:#2B3A4F; --accent:#7AA2FF; --accent-soft:#1E2B46; --amber:#F0A458; --amber-soft:#36281A;
-  --good:#52CB8E; --good-soft:#15322A; --bad:#FF8D7E; --bad-soft:#3A1F1E; color-scheme:dark;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0}
@@ -481,6 +474,14 @@ body.sheetopen{overflow:hidden}
 .plight{position:fixed;inset:0;z-index:90;background:rgba(10,18,30,.85);overflow:auto;padding:16px;cursor:zoom-out}
 .plight img{display:block;max-width:100%;margin:0 auto;border-radius:10px;background:#fff}
 .vcard .say2{color:var(--muted);font-size:.85rem;margin-left:6px}
+
+/* v36 accents: mint for anything done or sent, navy for actions */
+.chip.good{background:var(--mint);color:var(--mint-ink)}
+button.primary,.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.psubmit{background:var(--good)}
+.pup.school{border-color:var(--good);background:var(--good-soft);max-width:760px;margin:0 auto 14px}
+.pup.school h2{color:var(--mint-ink)}
+.pup.school .addpage{background:var(--accent)}
 </style>
 </head>
 <body>

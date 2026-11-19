@@ -53,7 +53,30 @@ answer (writing, vocabulary sentences, the reading open question).
 
    One entry per `sheet` item, same order. Check it parses:
    `node -e "JSON.parse(require('fs').readFileSync(process.argv[1],'utf8'))" <file>`
-6. Only add or change `marks.json` files. Commit as `Marks <date> <Kid> <block>`
+6. Only add or change `marks.json` (and `school.json`, below) files. Commit as `Marks <date> <Kid> <block>`
    and push to `main`. Pushing is what sends the marks to the parent page.
+
+## School pages (`paper-<Kid>-school/`)
+
+These are photos of her **school** work or homework for that date - not
+our sheets, so `sheet` is empty and there is nothing to mark against.
+Instead, look at every page and write `school.json` in the same folder:
+
+```json
+{ "submitted": "<copied from sheet.json>",
+  "summary":  "3-5 sentences for her father: what the work was (subject, topic, worksheet or test), how she did - right and wrong where you can tell, the teacher's marks if any - and what her working shows about her approach.",
+  "topics":   ["short topic names, e.g. 'adding fractions with unlike denominators'"],
+  "progress": "1-2 sentences comparing with her earlier school.json files and our marks.json in archive/ from the last two weeks: what is improving, what keeps coming back.",
+  "practice": [ { "q": "a question in the app's plain style", "want": "the exact answer" } ] }
+```
+
+- `practice`: 4-8 questions aimed squarely at what she found hard (or
+  the next step after what she did well), at the same level. Plain text
+  as in our sheets (`3 1/4 + 2 2/4`, `567 ÷ 7`, a grammar question with the
+  choices written in). `want` must be exactly right - work each one out
+  twice. These appear in her Recap the next day, on paper, and are
+  marked like everything else.
+- Don't invent what you cannot read; say so in `summary`.
+- Do the same "missing or different `submitted`" check as for marks.
 
 If there is nothing to mark, change nothing and commit nothing.

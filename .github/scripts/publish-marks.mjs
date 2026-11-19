@@ -18,6 +18,18 @@ for (const month of (await readdir(root, { withFileTypes: true })).filter((d) =>
     if (day < cutoff) continue;
     for (const dir of (await readdir(path.join(root, month, day), { withFileTypes: true }))
                         .filter((d) => d.isDirectory() && /^paper-.+-.+$/.test(d.name)).map((d) => d.name)) {
+      const sf = path.join(root, month, day, dir, "school.json");
+      if (existsSync(sf)) {
+        try {
+          const body = JSON.parse(await readFile(sf, "utf8"));
+          const kid = /^paper-([^-]+)-school$/.exec(dir)[1];
+          const r = await fetch(API + "/school", { method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ...body, key: KEY, kid, date: day }) });
+          if (r.ok) { console.log(`sent ${dir} ${day} (school)`); sent++; }
+          else { console.error(`${dir} ${day} school -> ${r.status} ${await r.text()}`); failed++; }
+        } catch (e) { console.error(`${sf}: ${e.message}`); failed++; }
+        continue;
+      }
       const f = path.join(root, month, day, dir, "marks.json");
       if (!existsSync(f)) continue;
       let body;

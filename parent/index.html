@@ -7,18 +7,13 @@
 <link rel="icon" href="data:,">
 <style>
 :root{
-  --bg:#EDF1F7; --surface:#FFFFFF; --surface-2:#F6F9FD; --ink:#16243C; --muted:#56688A;
-  --line:#D5DEEC; --accent:#2454CE; --accent-soft:#E2EAFF;
-  --good:#1C7C54; --good-soft:#DFF3E8; --bad:#B3261E; --bad-soft:#FBE4E2;
-  --amber:#D9731A; --amber-soft:#FDEEDC;
-  color-scheme: light dark;
+  /* off-white, navy and mint (v36), the same in light and dark */
+  --bg:#F8F5EE; --surface:#FFFDF8; --surface-2:#F2EEE3; --ink:#1B2A4A; --muted:#5C6782;
+  --line:#E4DED0; --accent:#1F3A68; --accent-soft:#E5EBF4; --amber:#C9741F; --amber-soft:#FBEEDB;
+  --good:#23936B; --good-soft:#DDF5EA; --bad:#B8402F; --bad-soft:#FBE5E0;
+  --mint:#9FE2C6; --mint-ink:#0F5C43;
+  color-scheme: light;
 }
-@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){
-  --bg:#0E1724; --surface:#17222F; --surface-2:#1D293A; --ink:#E6EDF8; --muted:#9AACC6;
-  --line:#2B3A4F; --accent:#7AA2FF; --accent-soft:#1E2B46;
-  --good:#5FD3A0; --good-soft:#15332A; --bad:#FF9A92; --bad-soft:#3A1F1E;
-  --amber:#F0A458; --amber-soft:#36281A;
-}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);line-height:1.5;
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
@@ -167,6 +162,17 @@ input,select{font:inherit;font-size:15px;padding:8px 10px;border-radius:9px;
 .pthumb span{position:absolute;left:5px;bottom:5px;background:rgba(10,18,30,.75);color:#fff;font-size:11px;font-weight:700;border-radius:5px;padding:0 6px}
 .qrow.unread{background:var(--amber-soft,#FDEEDC)}
 .qrow.unread .mk,.qrow.unread .ga{color:var(--amber,#D9731A)}
+.blk.school{border-top:3px solid var(--good)}
+.blk.school .nm{color:var(--t-school)}
+.blk.school .pthumb{width:150px;height:200px}
+.lightbox.gal{cursor:default;padding:56px 64px 24px}
+.gal img{cursor:default}
+.gal .gx,.gal .gp,.gal .gn{position:fixed;z-index:201;border:0;border-radius:50%;width:46px;height:46px;
+  background:rgba(255,253,248,.92);color:var(--ink);font-size:28px;line-height:1;cursor:pointer;padding:0}
+.gal .gx{top:12px;right:14px}
+.gal .gp{left:10px;top:50%}.gal .gn{right:10px;top:50%}
+.gal .gp[hidden],.gal .gn[hidden]{display:none}
+.gal .gc{position:fixed;top:20px;left:50%;transform:translateX(-50%);color:#fff;font-weight:700;z-index:201}
 .spnote{font-size:12px;color:var(--muted);padding:2px 0 6px}
 .blk.onlybad .qrow:not(.bad){display:none}
 .blk.onlybad .qrow:not(.bad)+.qink{display:none}
@@ -207,9 +213,7 @@ input,select{font:inherit;font-size:15px;padding:8px 10px;border-radius:9px;
    small buttons. Only styling and order change - every feature and her
    handwriting are exactly as before. ===== */
 :root{ --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
-  --t-recap:#7A4FD0; --t-math:#2454CE; --t-think:#C8661A; --t-eng:#1C7C54; }
-@media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){
-  --t-recap:#B79BFF; --t-math:#8FB0FF; --t-think:#F0A458; --t-eng:#5FD3A0; }}
+  --t-recap:#6B4FB8; --t-math:#1F3A68; --t-think:#C9741F; --t-eng:#23936B; --t-school:#0F5C43; }
 body{background:var(--bg)}
 .wrap{max-width:1180px}
 .win{background:var(--surface);border:1px solid var(--line);border-radius:14px;
@@ -219,7 +223,7 @@ body{background:var(--bg)}
 .dots{display:flex;gap:6px}
 .dots i{width:11px;height:11px;border-radius:50%;display:block}
 .dots i:nth-child(1){background:#FF5F57} .dots i:nth-child(2){background:#FEBC2E}
-.dots i:nth-child(3){background:#28C840}
+.dots i:nth-child(3){background:#9FE2C6}
 .wtitle{font-family:var(--mono);font-size:12.5px;color:var(--muted)}
 .winbody{padding:12px 14px 4px}
 .tabs{gap:4px;margin-bottom:10px;background:var(--surface-2);border:1px solid var(--line);
@@ -498,7 +502,21 @@ function columns(rows){
     (wrong[m.block] = wrong[m.block] || []).push(m);
   });
 
-  $("#blocks").innerHTML = BLOCKS.map(function(b){
+  /* School uploads (v36): her school work for this date, first, because it
+     is what she actually did today. Claude's reading of it follows once the
+     marking routine has been through it. */
+  var sp = papers.school;
+  var schoolHTML = '<section class="blk school" data-b="school"' + (sp ? ' data-pages="' + sp.pages + '"' : '') + '>' +
+    '<header><span class="nm">School uploads</span>' +
+    (sp ? '<span class="ptag">&#128218; ' + sp.pages + ' page' + (sp.pages === 1 ? "" : "s") + ' sent ' + esc(clock(sp.submitted)) + '</span>' +
+          (sp.state === "marked" ? '<span class="ptag ok">read ' + esc(clock(sp.marked)) + '</span>'
+                                 : '<span class="ptag wait">Claude is reading them&hellip;</span>') : '') +
+    '</header>' +
+    (sp && sp.notes ? '<div class="ptutor"><b># what Claude saw</b>' + esc(sp.notes).replace(/\n/g, "<br>") + '</div>' : '') +
+    (sp ? '' : '<div class="nowork">No school pages for this date yet. She adds them from the School uploads card at the top of her day.</div>') +
+    '<div class="notehost"></div></section>';
+
+  $("#blocks").innerHTML = schoolHTML + BLOCKS.map(function(b){
     var r = results[b], all = rows[b] || [], ws = wrong[b] || [];
     var pc = r && r.total ? r.got / r.total : 0;
     var missed = all.filter(function(a){ return !a.ok; }).length;
@@ -742,8 +760,9 @@ function paintPages(byBlock){
     }).join("") + '</div>';
     var host = sec.querySelector(".notehost");
     host.insertAdjacentHTML("afterbegin", html);
-    host.querySelectorAll(".pthumb img").forEach(function(img){
-      img.addEventListener("click", function(){ bigPicture(img.src); });
+    var srcs = [].map.call(host.querySelectorAll(".pthumb img"), function(im){ return im.src; });
+    host.querySelectorAll(".pthumb img").forEach(function(img, i){
+      img.addEventListener("click", function(){ gallery(srcs, i); });
     });
   });
 }
@@ -816,6 +835,30 @@ function attachInk(slot, data, row){
 }
 
 /* Full size, because a thumbnail of a page of writing is useless. */
+/* Every page of one upload, full size, one at a time: arrows, keys, or tap
+   the sides. Close with the X, Escape, or a tap on the dark edge. */
+function gallery(srcs, at){
+  var back = document.createElement("div");
+  back.className = "lightbox gal";
+  back.innerHTML = '<button class="gx" aria-label="Close">&times;</button>' +
+    '<button class="gp" aria-label="Previous page">&lsaquo;</button><button class="gn" aria-label="Next page">&rsaquo;</button>' +
+    '<div class="gc"></div><img alt="her page">';
+  var img = back.querySelector("img"), cnt = back.querySelector(".gc");
+  function show(){ img.src = srcs[at]; cnt.textContent = "Page " + (at + 1) + " of " + srcs.length;
+    back.querySelector(".gp").hidden = at === 0; back.querySelector(".gn").hidden = at === srcs.length - 1; back.scrollTop = 0; }
+  function close(){ back.remove(); document.removeEventListener("keydown", key); }
+  function key(e){ if(e.key === "Escape") close(); if(e.key === "ArrowRight" && at < srcs.length - 1){ at++; show(); }
+                   if(e.key === "ArrowLeft" && at > 0){ at--; show(); } }
+  back.addEventListener("click", function(e){
+    if(e.target.closest(".gx") || e.target === back) return close();
+    if(e.target.closest(".gp") && at > 0){ at--; show(); }
+    if(e.target.closest(".gn") && at < srcs.length - 1){ at++; show(); }
+  });
+  document.addEventListener("keydown", key);
+  document.body.appendChild(back);
+  show();
+}
+
 function bigPicture(src){
   var back = document.createElement("div");
   back.className = "lightbox";
