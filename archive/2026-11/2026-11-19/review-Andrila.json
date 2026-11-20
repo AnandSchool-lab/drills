@@ -1,0 +1,23 @@
+{
+  "praise": "Question 6 said Travis hid in an old hay barn and you marked it False. The story says shed - one word, buried in the middle of a long paragraph - so you went back and checked instead of going with what sounded about right.",
+  "essay": {
+    "summary": "All three short answers on the turkey page were whole sentences, and each one answered the question that was actually asked: what the story is really saying, what \"a mission that went sideways\" means, and whose eyes we are seeing it through. You even got the apostrophe right in Travis the turkey's point of view.",
+    "fixes": [
+      {
+        "was": "I'm going to be late for the bus",
+        "should": "They're going to be late for the bus",
+        "why": "that question was testing they're / their / there. You wrote They're correctly in the very next question - it was the same word, one line down."
+      }
+    ],
+    "next": "When a question gives you they're, their or there, say the long way round out loud first: they're = they are, their = belongs to them, there = a place. Then pick."
+  },
+  "math": {
+    "approach": "You went down Monday, Tuesday and Wednesday in order and timed each one - 43 seconds, then 48, then 31. Nothing skipped, nothing crossed out, and not a single tally mark anywhere on the page, so these were coming straight out of your head. Your fastest column, Wednesday at 31 seconds, was also the only one with nothing wrong in it.",
+    "note": "Two got away: 8 x 7, where you wrote 55, and the very last box, 7 x 10, where you wrote 20. You know both of them - 7 x 8 = 56 is written further up the same page, and you put 70 for 10 x 7 twice. That 20 is sitting right beside another 20, which is probably where it came from. So these are not facts you are missing, they are the timer. One glance back along the bottom row before you stop the clock would have caught both."
+  },
+  "focus": [
+    "they're, their and there - and its and it's",
+    "reading what a question is testing before picking the word that sounds right",
+    "checking the last row of a timed column, especially against the box next to it"
+  ]
+}
