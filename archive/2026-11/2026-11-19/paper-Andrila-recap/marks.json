@@ -1,0 +1,8 @@
+{ "submitted": "2026-11-20T00:13:20.373Z",
+  "marks": [
+    { "sec": "Recap", "n": 1, "q": "Choose the correct word: \"___ going to be late for the bus.\"", "want": "They're", "gave": "I'm", "ok": false, "note": "I'm fits the sentence grammatically but the question wanted the they/their/they're choice; she boxed I'm" },
+    { "sec": "Recap", "n": 2, "q": "Which is the correct contraction for \"they are\"?", "want": "they're", "gave": "They're", "ok": true, "note": "" },
+    { "sec": "Recap", "n": 3, "q": "Why is ringing the bell important to Priya?", "want": "It is an honour given to one student each week", "gave": "it is an honour given to one student each week.", "ok": true, "note": "" },
+    { "sec": "Recap", "n": 4, "q": "What does Priya realize at the end?", "want": "She worried about the small part instead of the big one", "gave": "She worried about the small part instead of the big one", "ok": true, "note": "" }
+  ],
+  "notes": "Three of four right, and both reading answers are full, accurate sentences copied with care. She got question 2 (they're) right but question 1 wrong: she boxed \"I'm\", which reads fine in the sentence, so she probably chose a word that sounds right rather than the they/their/they're choice the question was testing, and she did not notice that the answer to question 2 was the same word. Her school sheet also shows she is still mixing up its/it's and there/their, so this is worth a quick look tonight: ask her to say what each of they're / their / there stands for." }

@@ -1,0 +1,13 @@
+{ "submitted": "2026-11-19T23:59:16.501Z",
+  "summary": "Three pages. (1) Math-Drills 'Multiplication Facts to 100 (A)': she did the Monday, Tuesday and Wednesday columns (20 facts each), timing herself 43, 48 and 31 seconds, and left Thursday and Friday blank. 58 of 60 look right; 8 × 7 is written 55 (should be 56), and the last 7 × 10 looks like 20 (should be 70, the writing is cramped). Both slips are in the 7s/8s. (2) Reading page 'Turkey for Thanksgiving' (story about Travis the wild turkey). (3) Its question sheet: three short answers in full, correct sentences (central message: unexpected things can turn out good; 'a mission that went sideways' means his plan to escape hunters did not go as planned and he became a pet; point of view: Travis the turkey's) and three true/false, all correct (hamburgers True, girl showed kindness True, hid in an old hay barn False - it was a shed). Nothing is marked by a teacher on the pages. She backs her answers with the story rather than guessing.",
+  "topics": ["multiplication facts to 100 (timed)", "reading comprehension", "central message", "figurative language", "point of view", "true or false from a text"],
+  "progress": "The facts sheet was timed again and is strong overall (31 seconds is her best); the errors are on 7s and 8s facts, which matches where facts slip elsewhere. Reading answers are complete and accurate, which fits her recap reading answers.",
+  "practice": [
+    { "q": "8 × 7", "want": "56" },
+    { "q": "7 × 10", "want": "70" },
+    { "q": "7 × 8", "want": "56" },
+    { "q": "6 × 8", "want": "48" },
+    { "q": "Choose the right word: ___ a cold day. (a) its (b) it's", "want": "b" },
+    { "q": "Choose the right word: ___ going to eat hamburgers. (a) Their (b) There (c) They're", "want": "c" },
+    { "q": "Choose the right word: The family put ___ coats on. (a) their (b) there (c) they're", "want": "a" }
+  ] }
